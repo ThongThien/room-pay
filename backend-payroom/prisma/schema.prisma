@@ -1,14 +1,186 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model houses {
+  id         Int      @id @default(autoincrement())
+  owner_id   Int
+  name       String?  @db.VarChar(100)
+  address    String?  @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  users      users    @relation(fields: [owner_id], references: [id], onUpdate: Restrict, map: "houses_ibfk_1")
+  rooms      rooms[]
+
+  @@index([owner_id], map: "owner_id")
+}
+
+model invoice_items {
+  id         Int      @id @default(autoincrement())
+  invoice_id Int
+  name       String?  @db.VarChar(100)
+  amount     Decimal? @db.Decimal(12, 2)
+  invoices   invoices @relation(fields: [invoice_id], references: [id], onUpdate: Restrict, map: "invoice_items_ibfk_1")
+
+  @@index([invoice_id], map: "invoice_id")
+}
+
+model invoices {
+  id               Int               @id @default(autoincrement())
+  room_id          Int
+  contract_id      Int
+  reading_id       Int?
+  month            Int?
+  year             Int?
+  total            Decimal?          @db.Decimal(12, 2)
+  status           invoices_status?  @default(unpaid)
+  invoice_url      String?           @db.VarChar(255)
+  created_at       DateTime          @default(now()) @db.Timestamp(0)
+  invoice_items    invoice_items[]
+  rooms            rooms             @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "invoices_ibfk_1")
+  tenant_contracts tenant_contracts  @relation(fields: [contract_id], references: [id], onUpdate: Restrict, map: "invoices_ibfk_2")
+  monthly_readings monthly_readings? @relation(fields: [reading_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "invoices_ibfk_3")
+
+  @@index([contract_id], map: "contract_id")
+  @@index([reading_id], map: "reading_id")
+  @@index([room_id], map: "room_id")
+}
+
+model monthly_readings {
+  id             Int                      @id @default(autoincrement())
+  room_id        Int
+  month          Int
+  year           Int
+  electric_old   Int?
+  electric_new   Int?
+  electric_image String?                  @db.VarChar(255)
+  water_old      Int?
+  water_new      Int?
+  water_image    String?                  @db.VarChar(255)
+  status         monthly_readings_status? @default(pending)
+  created_at     DateTime                 @default(now()) @db.Timestamp(0)
+  invoices       invoices[]
+  rooms          rooms                    @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "monthly_readings_ibfk_1")
+
+  @@index([room_id], map: "room_id")
+}
+
+model notifications {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  title      String?  @db.VarChar(255)
+  message    String?  @db.Text
+  is_read    Boolean? @default(false)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  users      users    @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "notifications_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model rooms {
+  id               Int                @id @default(autoincrement())
+  house_id         Int
+  name             String?            @db.VarChar(100)
+  floor            Int?
+  status           rooms_status?      @default(vacant)
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  invoices         invoices[]
+  monthly_readings monthly_readings[]
+  houses           houses             @relation(fields: [house_id], references: [id], onUpdate: Restrict, map: "rooms_ibfk_1")
+  tenant_contracts tenant_contracts[]
+  tickets          tickets[]
+
+  @@index([house_id], map: "house_id")
+}
+
+model tenant_contracts {
+  id         Int                      @id @default(autoincrement())
+  room_id    Int
+  tenant_id  Int
+  start_date DateTime                 @db.Date
+  end_date   DateTime?                @db.Date
+  price      Decimal                  @db.Decimal(12, 2)
+  status     tenant_contracts_status? @default(active)
+  file_url   String?                  @db.VarChar(255)
+  created_at DateTime                 @default(now()) @db.Timestamp(0)
+  invoices   invoices[]
+  rooms      rooms                    @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "tenant_contracts_ibfk_1")
+  users      users                    @relation(fields: [tenant_id], references: [id], onUpdate: Restrict, map: "tenant_contracts_ibfk_2")
+
+  @@index([room_id], map: "room_id")
+  @@index([tenant_id], map: "tenant_id")
+}
+
+model tickets {
+  id          Int             @id @default(autoincrement())
+  tenant_id   Int
+  room_id     Int
+  title       String?         @db.VarChar(255)
+  description String?         @db.Text
+  status      tickets_status? @default(pending)
+  created_at  DateTime        @default(now()) @db.Timestamp(0)
+  users       users           @relation(fields: [tenant_id], references: [id], onUpdate: Restrict, map: "tickets_ibfk_1")
+  rooms       rooms           @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "tickets_ibfk_2")
+
+  @@index([room_id], map: "room_id")
+  @@index([tenant_id], map: "tenant_id")
+}
+
+model users {
+  id               Int                @id @default(autoincrement())
+  name             String?            @db.VarChar(100)
+  email            String             @unique(map: "email") @db.VarChar(100)
+  phone            String?            @db.VarChar(20)
+  password_hash    String             @db.VarChar(255)
+  role             users_role
+  status           users_status?      @default(active)
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  houses           houses[]
+  notifications    notifications[]
+  tenant_contracts tenant_contracts[]
+  tickets          tickets[]
+}
+
+enum rooms_status {
+  vacant
+  occupied
+  closing_soon
+}
+
+enum tickets_status {
+  pending
+  processing
+  done
+}
+
+enum users_role {
+  owner
+  tenant
+  admin
+}
+
+enum tenant_contracts_status {
+  active
+  ended
+}
+
+enum users_status {
+  active
+  banned
+}
+
+enum invoices_status {
+  unpaid
+  pending
+  paid
+}
+
+enum monthly_readings_status {
+  pending
+  submitted
+  confirmed
 }

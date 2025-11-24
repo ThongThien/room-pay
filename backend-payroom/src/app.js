@@ -1,6 +1,7 @@
 import express from "express";
 import router from "./modules/auth/auth.route.js";
 import housesRouter from "./modules/houses/houses.route.js";
+import roomsRouter from "./modules/rooms/rooms.route.js";
 import { authMiddleware } from "./middlewares/auth.js";
 import { allowRoles } from "./middlewares/role.js";
 
@@ -9,6 +10,7 @@ app.use(express.json());
 
 app.use("/auth", router);
 app.use("/houses", housesRouter);
+app.use("/rooms", roomsRouter);
 
 app.use((req, res, next) => {
   if (req.url.endsWith("/") && req.url.length > 1) {

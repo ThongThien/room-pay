@@ -8,179 +8,195 @@ datasource db {
 }
 
 model houses {
-  id         Int      @id @default(autoincrement())
-  owner_id   Int
-  name       String?  @db.VarChar(100)
-  address    String?  @db.VarChar(255)
-  created_at DateTime @default(now()) @db.Timestamp(0)
-  users      users    @relation(fields: [owner_id], references: [id], onUpdate: Restrict, map: "houses_ibfk_1")
-  rooms      rooms[]
+  Id        Int      @id @default(autoincrement())
+  OwnerId   Int
+  Name      String   @db.VarChar(100)
+  Address   String   @db.VarChar(255)
+  CreatedAt DateTime @default(now()) @db.Timestamp(0)
+  users     users    @relation(fields: [OwnerId], references: [Id], onUpdate: Restrict, map: "houses_ibfk_1")
+  rooms     rooms[]
 
-  @@index([owner_id], map: "owner_id")
-}
-
-model invoice_items {
-  id         Int      @id @default(autoincrement())
-  invoice_id Int
-  name       String?  @db.VarChar(100)
-  amount     Decimal? @db.Decimal(12, 2)
-  invoices   invoices @relation(fields: [invoice_id], references: [id], onUpdate: Restrict, map: "invoice_items_ibfk_1")
-
-  @@index([invoice_id], map: "invoice_id")
+  @@index([OwnerId], map: "OwnerId")
 }
 
 model invoices {
-  id               Int               @id @default(autoincrement())
-  room_id          Int
-  contract_id      Int
-  reading_id       Int?
-  month            Int?
-  year             Int?
-  total            Decimal?          @db.Decimal(12, 2)
-  status           invoices_status?  @default(unpaid)
-  invoice_url      String?           @db.VarChar(255)
-  created_at       DateTime          @default(now()) @db.Timestamp(0)
-  invoice_items    invoice_items[]
-  rooms            rooms             @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "invoices_ibfk_1")
-  tenant_contracts tenant_contracts  @relation(fields: [contract_id], references: [id], onUpdate: Restrict, map: "invoices_ibfk_2")
-  monthly_readings monthly_readings? @relation(fields: [reading_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "invoices_ibfk_3")
+  Id              Int              @id @default(autoincrement())
+  RoomId          Int
+  ContractId      Int
+  ReadingId       Int?
+  Month           Int
+  Year            Int
+  Total           Decimal          @db.Decimal(12, 2)
+  Status          invoices_Status? @default(unpaid)
+  InvoiceUrl      String?          @db.VarChar(255)
+  CreatedAt       DateTime         @default(now()) @db.Timestamp(0)
+  invoiceitems    invoiceitems[]
+  rooms           rooms            @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "invoices_ibfk_1")
+  tenantcontracts tenantcontracts  @relation(fields: [ContractId], references: [Id], onUpdate: Restrict, map: "invoices_ibfk_2")
+  monthlyreadings monthlyreadings? @relation(fields: [ReadingId], references: [Id], onDelete: Restrict, onUpdate: Restrict, map: "invoices_ibfk_3")
 
-  @@index([contract_id], map: "contract_id")
-  @@index([reading_id], map: "reading_id")
-  @@index([room_id], map: "room_id")
-}
-
-model monthly_readings {
-  id             Int                      @id @default(autoincrement())
-  room_id        Int
-  month          Int
-  year           Int
-  electric_old   Int?
-  electric_new   Int?
-  electric_image String?                  @db.VarChar(255)
-  water_old      Int?
-  water_new      Int?
-  water_image    String?                  @db.VarChar(255)
-  status         monthly_readings_status? @default(pending)
-  created_at     DateTime                 @default(now()) @db.Timestamp(0)
-  invoices       invoices[]
-  rooms          rooms                    @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "monthly_readings_ibfk_1")
-
-  @@index([room_id], map: "room_id")
+  @@index([ContractId], map: "ContractId")
+  @@index([ReadingId], map: "ReadingId")
+  @@index([RoomId], map: "RoomId")
 }
 
 model notifications {
-  id         Int      @id @default(autoincrement())
-  user_id    Int
-  title      String?  @db.VarChar(255)
-  message    String?  @db.Text
-  is_read    Boolean? @default(false)
-  created_at DateTime @default(now()) @db.Timestamp(0)
-  users      users    @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "notifications_ibfk_1")
+  Id        Int      @id @default(autoincrement())
+  UserId    Int
+  Title     String   @db.VarChar(255)
+  Message   String   @db.Text
+  IsRead    Boolean? @default(false)
+  CreatedAt DateTime @default(now()) @db.Timestamp(0)
+  users     users    @relation(fields: [UserId], references: [Id], onUpdate: Restrict, map: "notifications_ibfk_1")
 
-  @@index([user_id], map: "user_id")
+  @@index([UserId], map: "UserId")
 }
 
 model rooms {
-  id               Int                @id @default(autoincrement())
-  house_id         Int
-  name             String?            @db.VarChar(100)
-  floor            Int?
-  status           rooms_status?      @default(vacant)
-  created_at       DateTime           @default(now()) @db.Timestamp(0)
-  invoices         invoices[]
-  monthly_readings monthly_readings[]
-  houses           houses             @relation(fields: [house_id], references: [id], onUpdate: Restrict, map: "rooms_ibfk_1")
-  tenant_contracts tenant_contracts[]
-  tickets          tickets[]
+  Id              Int               @id @default(autoincrement())
+  HouseId         Int
+  Name            String            @db.VarChar(100)
+  Floor           Int
+  Status          rooms_Status?     @default(vacant)
+  CreatedAt       DateTime          @default(now()) @db.Timestamp(0)
+  invoices        invoices[]
+  monthlyreadings monthlyreadings[]
+  houses          houses            @relation(fields: [HouseId], references: [Id], onUpdate: Restrict, map: "rooms_ibfk_1")
+  tenantcontracts tenantcontracts[]
+  tickets         tickets[]
 
-  @@index([house_id], map: "house_id")
-}
-
-model tenant_contracts {
-  id         Int                      @id @default(autoincrement())
-  room_id    Int
-  tenant_id  Int
-  start_date DateTime                 @db.Date
-  end_date   DateTime?                @db.Date
-  price      Decimal                  @db.Decimal(12, 2)
-  status     tenant_contracts_status? @default(active)
-  file_url   String?                  @db.VarChar(255)
-  created_at DateTime                 @default(now()) @db.Timestamp(0)
-  invoices   invoices[]
-  rooms      rooms                    @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "tenant_contracts_ibfk_1")
-  users      users                    @relation(fields: [tenant_id], references: [id], onUpdate: Restrict, map: "tenant_contracts_ibfk_2")
-
-  @@index([room_id], map: "room_id")
-  @@index([tenant_id], map: "tenant_id")
+  @@index([HouseId], map: "HouseId")
 }
 
 model tickets {
-  id          Int             @id @default(autoincrement())
-  tenant_id   Int
-  room_id     Int
-  title       String?         @db.VarChar(255)
-  description String?         @db.Text
-  status      tickets_status? @default(pending)
-  created_at  DateTime        @default(now()) @db.Timestamp(0)
-  users       users           @relation(fields: [tenant_id], references: [id], onUpdate: Restrict, map: "tickets_ibfk_1")
-  rooms       rooms           @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "tickets_ibfk_2")
+  Id          Int             @id @default(autoincrement())
+  TenantId    Int
+  RoomId      Int
+  Title       String          @db.VarChar(255)
+  Description String          @db.Text
+  Status      tickets_Status? @default(pending)
+  CreatedAt   DateTime        @default(now()) @db.Timestamp(0)
+  users       users           @relation(fields: [TenantId], references: [Id], onUpdate: Restrict, map: "tickets_ibfk_1")
+  rooms       rooms           @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "tickets_ibfk_2")
 
-  @@index([room_id], map: "room_id")
-  @@index([tenant_id], map: "tenant_id")
+  @@index([RoomId], map: "RoomId")
+  @@index([TenantId], map: "TenantId")
 }
 
 model users {
-  id               Int                @id @default(autoincrement())
-  name             String?            @db.VarChar(100)
-  email            String             @unique(map: "email") @db.VarChar(100)
-  phone            String?            @db.VarChar(20)
-  password_hash    String             @db.VarChar(255)
-  role             users_role
-  status           users_status?      @default(active)
-  created_at       DateTime           @default(now()) @db.Timestamp(0)
-  houses           houses[]
-  notifications    notifications[]
-  tenant_contracts tenant_contracts[]
-  tickets          tickets[]
+  Id              Int               @id @default(autoincrement())
+  Name            String            @db.VarChar(100)
+  Email           String            @unique(map: "Email") @db.VarChar(100)
+  Phone           String?           @db.VarChar(20)
+  PasswordHash    String            @db.VarChar(255)
+  Role            users_Role
+  Status          users_Status?     @default(active)
+  CreatedAt       DateTime          @default(now()) @db.Timestamp(0)
+  houses          houses[]
+  notifications   notifications[]
+  tenantcontracts tenantcontracts[]
+  tickets         tickets[]
 }
 
-enum rooms_status {
+model invoiceitems {
+  Id        Int      @id @default(autoincrement())
+  InvoiceId Int
+  Name      String   @db.VarChar(100)
+  Amount    Decimal  @db.Decimal(12, 2)
+  invoices  invoices @relation(fields: [InvoiceId], references: [Id], onUpdate: Restrict, map: "invoiceitems_ibfk_1")
+
+  @@index([InvoiceId], map: "InvoiceId")
+}
+
+model monthlyreadings {
+  Id            Int                     @id @default(autoincrement())
+  RoomId        Int
+  CycleId       Int
+  ElectricOld   Int
+  ElectricNew   Int
+  ElectricImage String?                 @db.VarChar(255)
+  WaterOld      Int
+  WaterNew      Int
+  WaterImage    String?                 @db.VarChar(255)
+  Status        monthlyreadings_Status? @default(submitted)
+  CreatedAt     DateTime                @default(now()) @db.Timestamp(0)
+  invoices      invoices[]
+  rooms         rooms                   @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "monthlyreadings_ibfk_1")
+  readingcycles readingcycles           @relation(fields: [CycleId], references: [Id], onUpdate: Restrict, map: "monthlyreadings_ibfk_2")
+
+  @@index([RoomId], map: "RoomId")
+  @@index([CycleId], map: "CycleId")
+}
+
+model tenantcontracts {
+  Id        Int                     @id @default(autoincrement())
+  RoomId    Int
+  TenantId  Int
+  StartDate DateTime                @db.Date
+  EndDate   DateTime?               @db.Date
+  Price     Decimal                 @db.Decimal(12, 2)
+  Status    tenantcontracts_Status? @default(active)
+  FileUrl   String?                 @db.VarChar(255)
+  CreatedAt DateTime                @default(now()) @db.Timestamp(0)
+  invoices  invoices[]
+  rooms     rooms                   @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "tenantcontracts_ibfk_1")
+  users     users                   @relation(fields: [TenantId], references: [Id], onUpdate: Restrict, map: "tenantcontracts_ibfk_2")
+
+  @@index([RoomId], map: "RoomId")
+  @@index([TenantId], map: "TenantId")
+}
+
+model readingcycles {
+  Id              Int                   @id @default(autoincrement())
+  Month           Int
+  Year            Int
+  Deadline        DateTime?             @db.Date
+  Status          readingcycles_Status? @default(open)
+  CreatedAt       DateTime              @default(now()) @db.Timestamp(0)
+  monthlyreadings monthlyreadings[]
+}
+
+enum rooms_Status {
   vacant
   occupied
   closing_soon
 }
 
-enum tickets_status {
+enum tickets_Status {
   pending
   processing
   done
 }
 
-enum users_role {
+enum users_Role {
   owner
   tenant
   admin
 }
 
-enum tenant_contracts_status {
+enum tenantcontracts_Status {
   active
   ended
 }
 
-enum users_status {
+enum users_Status {
   active
   banned
 }
 
-enum invoices_status {
+enum invoices_Status {
   unpaid
   pending
   paid
 }
 
-enum monthly_readings_status {
+enum monthlyreadings_Status {
   pending
   submitted
   confirmed
+}
+
+enum readingcycles_Status {
+  open
+  closed
 }

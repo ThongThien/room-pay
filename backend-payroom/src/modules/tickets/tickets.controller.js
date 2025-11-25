@@ -14,10 +14,10 @@ export const createTicket = async (req, res) => {
     }
 
     // Get tenant's active contract to find their room
-    const activeContract = await prisma.tenantcontracts.findFirst({
+    const activeContract = await prisma.tenantContract.findFirst({
       where: {
-        TenantId: tenantId,
-        Status: "active",
+        tenantid: tenantId,
+        status: "active",
       },
       include: {
         rooms: {
@@ -34,31 +34,31 @@ export const createTicket = async (req, res) => {
       });
     }
 
-    const ticket = await prisma.tickets.create({
+    const ticket = await prisma.ticket.create({
       data: {
-        TenantId: tenantId,
-        RoomId: activeContract.RoomId,
-        Title: title,
-        Description: description,
-        Status: "pending",
+        tenantid: tenantId,
+        roomid: activeContract.RoomId,
+        title: title,
+        description: description,
+        status: "pending",
       },
       include: {
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
-                OwnerId: true,
+                id: true,
+                name: true,
+                address: true,
+                ownerid: true,
               },
             },
           },
@@ -91,7 +91,7 @@ export const getTickets = async (req, res) => {
       // Owner sees tickets from their properties
       whereClause.rooms = {
         houses: {
-          OwnerId: userId,
+          ownerid: userId,
         },
       };
 
@@ -105,32 +105,32 @@ export const getTickets = async (req, res) => {
       whereClause.Status = status;
     }
 
-    const tickets = await prisma.tickets.findMany({
+    const tickets = await prisma.ticket.findMany({
       where: whereClause,
       include: {
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
         },
       },
       orderBy: [
-        { Status: "asc" }, // pending first
-        { CreatedAt: "desc" },
+        { status: "asc" }, // pending first
+        { createdAt: "desc" },
       ],
     });
 
@@ -148,7 +148,7 @@ export const getTicketById = async (req, res) => {
     const userRole = req.user.role;
 
     let whereClause = {
-      Id: parseInt(id),
+      id: parseInt(id),
     };
 
     if (userRole === "tenant") {
@@ -158,35 +158,35 @@ export const getTicketById = async (req, res) => {
       // Owner can only see tickets from their properties
       whereClause.rooms = {
         houses: {
-          OwnerId: userId,
+          ownerid: userId,
         },
       };
     }
 
-    const ticket = await prisma.tickets.findFirst({
+    const ticket = await prisma.ticket.findFirst({
       where: whereClause,
       include: {
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
-                OwnerId: true,
+                id: true,
+                name: true,
+                address: true,
+                ownerid: true,
                 users: {
                   select: {
-                    Name: true,
-                    Email: true,
-                    Phone: true,
+                    name: true,
+                    email: true,
+                    phone: true,
                   },
                 },
               },
@@ -224,12 +224,12 @@ export const updateTicketStatus = async (req, res) => {
     }
 
     // Check if ticket exists and belongs to owner's property
-    const existingTicket = await prisma.tickets.findFirst({
+    const existingTicket = await prisma.ticket.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         rooms: {
           houses: {
-            OwnerId: ownerId,
+            ownerid: ownerId,
           },
         },
       },
@@ -241,25 +241,25 @@ export const updateTicketStatus = async (req, res) => {
         .json({ message: "Ticket not found or access denied" });
     }
 
-    const ticket = await prisma.tickets.update({
-      where: { Id: parseInt(id) },
-      data: { Status: status },
+    const ticket = await prisma.ticket.update({
+      where: { id: parseInt(id) },
+      data: { status: status },
       include: {
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
@@ -284,7 +284,7 @@ export const deleteTicket = async (req, res) => {
     const userRole = req.user.role;
 
     let whereClause = {
-      Id: parseInt(id),
+      id: parseInt(id),
     };
 
     if (userRole === "tenant") {
@@ -295,12 +295,12 @@ export const deleteTicket = async (req, res) => {
       // Owner can delete tickets from their properties
       whereClause.rooms = {
         houses: {
-          OwnerId: userId,
+          ownerid: userId,
         },
       };
     }
 
-    const existingTicket = await prisma.tickets.findFirst({
+    const existingTicket = await prisma.ticket.findFirst({
       where: whereClause,
     });
 
@@ -316,8 +316,8 @@ export const deleteTicket = async (req, res) => {
         .json({ message: "Ticket not found or access denied" });
     }
 
-    await prisma.tickets.delete({
-      where: { Id: parseInt(id) },
+    await prisma.ticket.delete({
+      where: { id: parseInt(id) },
     });
 
     res.json({ message: "Ticket deleted successfully" });
@@ -339,26 +339,26 @@ export const getTicketStats = async (req, res) => {
     } else if (userRole === "owner") {
       whereClause.rooms = {
         houses: {
-          OwnerId: userId,
+          ownerid: userId,
         },
       };
     }
 
-    const statusBreakdown = await prisma.tickets.groupBy({
+    const statusBreakdown = await prisma.ticket.groupBy({
       by: ["Status"],
       where: whereClause,
       _count: {
-        Id: true,
+        id: true,
       },
     });
 
-    const total = await prisma.tickets.count({
+    const total = await prisma.ticket.count({
       where: whereClause,
     });
 
     res.json({
       total,
-      byStatus: statusBreakdown,
+      bystatus: statusBreakdown,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

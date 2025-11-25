@@ -14,7 +14,7 @@ export const getInvoices = async (req, res) => {
       whereClause = {
         rooms: {
           houses: {
-            OwnerId: userId,
+            ownerid: userId,
           },
         },
       };
@@ -30,7 +30,7 @@ export const getInvoices = async (req, res) => {
       // Tenant sees only their own invoices
       whereClause = {
         tenantcontracts: {
-          TenantId: userId,
+          tenantid: userId,
         },
       };
     }
@@ -46,16 +46,16 @@ export const getInvoices = async (req, res) => {
       whereClause.Year = parseInt(year);
     }
 
-    const invoices = await prisma.invoices.findMany({
+    const invoices = await prisma.invoice.findMany({
       where: whereClause,
       include: {
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
@@ -64,33 +64,33 @@ export const getInvoices = async (req, res) => {
           include: {
             users: {
               select: {
-                Id: true,
-                Name: true,
-                Email: true,
-                Phone: true,
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
               },
             },
           },
         },
         invoiceitems: {
           select: {
-            Id: true,
-            Name: true,
-            Amount: true,
+            id: true,
+            name: true,
+            amount: true,
           },
         },
         monthlyreadings: {
           select: {
-            Id: true,
-            ElectricOld: true,
-            ElectricNew: true,
-            WaterOld: true,
-            WaterNew: true,
-            Status: true,
+            id: true,
+            electricOld: true,
+            electricNew: true,
+            waterOld: true,
+            waterNew: true,
+            status: true,
           },
         },
       },
-      orderBy: [{ Year: "desc" }, { Month: "desc" }, { CreatedAt: "desc" }],
+      orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
     });
 
     res.json({ invoices });
@@ -107,34 +107,34 @@ export const getInvoiceById = async (req, res) => {
     const userRole = req.user.role;
 
     let whereClause = {
-      Id: parseInt(id),
+      id: parseInt(id),
     };
 
     if (userRole === "owner") {
       // Owner can only see invoices from their houses
       whereClause.rooms = {
         houses: {
-          OwnerId: userId,
+          ownerid: userId,
         },
       };
     } else if (userRole === "tenant") {
       // Tenant can only see their own invoices
       whereClause.tenantcontracts = {
-        TenantId: userId,
+        tenantid: userId,
       };
     }
 
-    const invoice = await prisma.invoices.findFirst({
+    const invoice = await prisma.invoice.findFirst({
       where: whereClause,
       include: {
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
-                OwnerId: true,
+                id: true,
+                name: true,
+                address: true,
+                ownerid: true,
               },
             },
           },
@@ -143,35 +143,35 @@ export const getInvoiceById = async (req, res) => {
           include: {
             users: {
               select: {
-                Id: true,
-                Name: true,
-                Email: true,
-                Phone: true,
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
               },
             },
           },
         },
         invoiceitems: {
           select: {
-            Id: true,
-            Name: true,
-            Amount: true,
+            id: true,
+            name: true,
+            amount: true,
           },
           orderBy: {
-            Id: "asc",
+            id: "asc",
           },
         },
         monthlyreadings: {
           select: {
-            Id: true,
-            ElectricOld: true,
-            ElectricNew: true,
-            ElectricImage: true,
-            WaterOld: true,
-            WaterNew: true,
-            WaterImage: true,
-            Status: true,
-            CreatedAt: true,
+            id: true,
+            electricOld: true,
+            electricNew: true,
+            electricImage: true,
+            waterOld: true,
+            waterNew: true,
+            waterImage: true,
+            status: true,
+            createdAt: true,
           },
         },
       },
@@ -194,39 +194,39 @@ export const getMyInvoiceStats = async (req, res) => {
   try {
     const tenantId = req.user.userId;
 
-    const stats = await prisma.invoices.aggregate({
+    const stats = await prisma.invoice.aggregate({
       where: {
         tenantcontracts: {
-          TenantId: tenantId,
+          tenantid: tenantId,
         },
       },
       _sum: {
-        Total: true,
+        total: true,
       },
       _count: {
-        Id: true,
+        id: true,
       },
     });
 
-    const statusBreakdown = await prisma.invoices.groupBy({
+    const statusBreakdown = await prisma.invoice.groupBy({
       by: ["Status"],
       where: {
         tenantcontracts: {
-          TenantId: tenantId,
+          tenantid: tenantId,
         },
       },
       _count: {
-        Id: true,
+        id: true,
       },
       _sum: {
-        Total: true,
+        total: true,
       },
     });
 
     res.json({
       totalInvoices: stats._count.Id || 0,
-      totalAmount: stats._sum.Total || 0,
-      byStatus: statusBreakdown,
+      totalamount: stats._sum.Total || 0,
+      bystatus: statusBreakdown,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -242,7 +242,7 @@ export const getOwnerInvoiceStats = async (req, res) => {
     let whereClause = {
       rooms: {
         houses: {
-          OwnerId: ownerId,
+          ownerid: ownerId,
         },
       },
     };
@@ -255,45 +255,45 @@ export const getOwnerInvoiceStats = async (req, res) => {
       whereClause.Year = parseInt(year);
     }
 
-    const stats = await prisma.invoices.aggregate({
+    const stats = await prisma.invoice.aggregate({
       where: whereClause,
       _sum: {
-        Total: true,
+        total: true,
       },
       _count: {
-        Id: true,
+        id: true,
       },
     });
 
-    const statusBreakdown = await prisma.invoices.groupBy({
+    const statusBreakdown = await prisma.invoice.groupBy({
       by: ["Status"],
       where: whereClause,
       _count: {
-        Id: true,
+        id: true,
       },
       _sum: {
-        Total: true,
+        total: true,
       },
     });
 
-    const monthlyBreakdown = await prisma.invoices.groupBy({
+    const monthlyBreakdown = await prisma.invoice.groupBy({
       by: ["Month", "Year"],
       where: whereClause,
       _count: {
-        Id: true,
+        id: true,
       },
       _sum: {
-        Total: true,
+        total: true,
       },
-      orderBy: [{ Year: "desc" }, { Month: "desc" }],
+      orderBy: [{ year: "desc" }, { month: "desc" }],
       take: 12,
     });
 
     res.json({
       totalInvoices: stats._count.Id || 0,
-      totalAmount: stats._sum.Total || 0,
-      byStatus: statusBreakdown,
-      byMonth: monthlyBreakdown,
+      totalamount: stats._sum.Total || 0,
+      bystatus: statusBreakdown,
+      bymonth: monthlyBreakdown,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

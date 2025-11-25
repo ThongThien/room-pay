@@ -14,11 +14,11 @@ export const createContract = async (req, res) => {
     }
 
     // Check if room exists and belongs to the owner
-    const room = await prisma.rooms.findFirst({
+    const room = await prisma.room.findFirst({
       where: {
-        Id: parseInt(roomId),
+        id: parseInt(roomId),
         houses: {
-          OwnerId: ownerId,
+          ownerid: ownerId,
         },
       },
     });
@@ -30,10 +30,10 @@ export const createContract = async (req, res) => {
     }
 
     // Check if tenant exists
-    const tenant = await prisma.users.findFirst({
+    const tenant = await prisma.user.findFirst({
       where: {
-        Id: parseInt(tenantId),
-        Role: "tenant",
+        id: parseInt(tenantId),
+        role: "tenant",
       },
     });
 
@@ -42,10 +42,10 @@ export const createContract = async (req, res) => {
     }
 
     // Check if room already has an active contract
-    const activeContract = await prisma.tenantcontracts.findFirst({
+    const activeContract = await prisma.tenantContract.findFirst({
       where: {
-        RoomId: parseInt(roomId),
-        Status: "active",
+        roomid: parseInt(roomId),
+        status: "active",
       },
     });
 
@@ -56,10 +56,10 @@ export const createContract = async (req, res) => {
     }
 
     // Check if tenant already has an active contract
-    const tenantActiveContract = await prisma.tenantcontracts.findFirst({
+    const tenantActiveContract = await prisma.tenantContract.findFirst({
       where: {
-        TenantId: parseInt(tenantId),
-        Status: "active",
+        tenantid: parseInt(tenantId),
+        status: "active",
       },
     });
 
@@ -69,43 +69,43 @@ export const createContract = async (req, res) => {
       });
     }
 
-    const contract = await prisma.tenantcontracts.create({
+    const contract = await prisma.tenantContract.create({
       data: {
-        RoomId: parseInt(roomId),
-        TenantId: parseInt(tenantId),
-        StartDate: new Date(startDate),
-        EndDate: endDate ? new Date(endDate) : null,
-        Price: parseFloat(price),
-        Status: "active",
-        FileUrl: fileUrl || null,
+        roomid: parseInt(roomId),
+        tenantid: parseInt(tenantId),
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : null,
+        price: parseFloat(price),
+        status: "active",
+        fileUrl: fileUrl || null,
       },
       include: {
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
         },
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
       },
     });
 
     // Update room status to occupied
-    await prisma.rooms.update({
-      where: { Id: parseInt(roomId) },
-      data: { Status: "occupied" },
+    await prisma.room.update({
+      where: { id: parseInt(roomId) },
+      data: { status: "occupied" },
     });
 
     res
@@ -126,7 +126,7 @@ export const getContracts = async (req, res) => {
     const whereClause = {
       rooms: {
         houses: {
-          OwnerId: ownerId,
+          ownerid: ownerId,
         },
       },
     };
@@ -146,43 +146,43 @@ export const getContracts = async (req, res) => {
     if (houseId) {
       whereClause.rooms = {
         ...whereClause.rooms,
-        HouseId: parseInt(houseId),
+        houseid: parseInt(houseId),
       };
     }
 
-    const contracts = await prisma.tenantcontracts.findMany({
+    const contracts = await prisma.tenantContract.findMany({
       where: whereClause,
       include: {
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
         },
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
         invoices: {
           select: {
-            Id: true,
-            Month: true,
-            Year: true,
-            Total: true,
-            Status: true,
+            id: true,
+            month: true,
+            year: true,
+            total: true,
+            status: true,
           },
         },
       },
-      orderBy: { CreatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json({ contracts });
@@ -197,12 +197,12 @@ export const getContractById = async (req, res) => {
     const { id } = req.params;
     const ownerId = req.user.userId;
 
-    const contract = await prisma.tenantcontracts.findFirst({
+    const contract = await prisma.tenantContract.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         rooms: {
           houses: {
-            OwnerId: ownerId,
+            ownerid: ownerId,
           },
         },
       },
@@ -211,33 +211,33 @@ export const getContractById = async (req, res) => {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
         },
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
-            Status: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            status: true,
           },
         },
         invoices: {
           select: {
-            Id: true,
-            Month: true,
-            Year: true,
-            Total: true,
-            Status: true,
-            CreatedAt: true,
+            id: true,
+            month: true,
+            year: true,
+            total: true,
+            status: true,
+            createdAt: true,
           },
           orderBy: {
-            CreatedAt: "desc",
+            createdAt: "desc",
           },
         },
       },
@@ -263,12 +263,12 @@ export const updateContract = async (req, res) => {
     const ownerId = req.user.userId;
 
     // Check if contract exists and belongs to owner's property
-    const existingContract = await prisma.tenantcontracts.findFirst({
+    const existingContract = await prisma.tenantContract.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         rooms: {
           houses: {
-            OwnerId: ownerId,
+            ownerid: ownerId,
           },
         },
       },
@@ -302,14 +302,14 @@ export const updateContract = async (req, res) => {
 
       // Update room status when contract ends
       if (status === "ended" && existingContract.Status === "active") {
-        await prisma.rooms.update({
-          where: { Id: existingContract.RoomId },
-          data: { Status: "vacant" },
+        await prisma.room.update({
+          where: { id: existingContract.RoomId },
+          data: { status: "vacant" },
         });
       } else if (status === "active" && existingContract.Status === "ended") {
-        await prisma.rooms.update({
-          where: { Id: existingContract.RoomId },
-          data: { Status: "occupied" },
+        await prisma.room.update({
+          where: { id: existingContract.RoomId },
+          data: { status: "occupied" },
         });
       }
     }
@@ -318,27 +318,27 @@ export const updateContract = async (req, res) => {
       return res.status(400).json({ message: "No fields to update" });
     }
 
-    const contract = await prisma.tenantcontracts.update({
-      where: { Id: parseInt(id) },
+    const contract = await prisma.tenantContract.update({
+      where: { id: parseInt(id) },
       data: updateData,
       include: {
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
         },
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
       },
@@ -357,12 +357,12 @@ export const deleteContract = async (req, res) => {
     const ownerId = req.user.userId;
 
     // Check if contract exists and belongs to owner's property
-    const existingContract = await prisma.tenantcontracts.findFirst({
+    const existingContract = await prisma.tenantContract.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         rooms: {
           houses: {
-            OwnerId: ownerId,
+            ownerid: ownerId,
           },
         },
       },
@@ -388,14 +388,14 @@ export const deleteContract = async (req, res) => {
 
     // Update room status to vacant if contract was active
     if (existingContract.Status === "active") {
-      await prisma.rooms.update({
-        where: { Id: existingContract.RoomId },
-        data: { Status: "vacant" },
+      await prisma.room.update({
+        where: { id: existingContract.RoomId },
+        data: { status: "vacant" },
       });
     }
 
-    await prisma.tenantcontracts.delete({
-      where: { Id: parseInt(id) },
+    await prisma.tenantContract.delete({
+      where: { id: parseInt(id) },
     });
 
     res.json({ message: "Contract deleted successfully" });
@@ -412,12 +412,12 @@ export const endContract = async (req, res) => {
     const ownerId = req.user.userId;
 
     // Check if contract exists and belongs to owner's property
-    const existingContract = await prisma.tenantcontracts.findFirst({
+    const existingContract = await prisma.tenantContract.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         rooms: {
           houses: {
-            OwnerId: ownerId,
+            ownerid: ownerId,
           },
         },
       },
@@ -433,39 +433,39 @@ export const endContract = async (req, res) => {
       return res.status(400).json({ message: "Contract is already ended" });
     }
 
-    const contract = await prisma.tenantcontracts.update({
-      where: { Id: parseInt(id) },
+    const contract = await prisma.tenantContract.update({
+      where: { id: parseInt(id) },
       data: {
-        Status: "ended",
-        EndDate: endDate ? new Date(endDate) : new Date(),
+        status: "ended",
+        endDate: endDate ? new Date(endDate) : new Date(),
       },
       include: {
         rooms: {
           include: {
             houses: {
               select: {
-                Id: true,
-                Name: true,
-                Address: true,
+                id: true,
+                name: true,
+                address: true,
               },
             },
           },
         },
         users: {
           select: {
-            Id: true,
-            Name: true,
-            Email: true,
-            Phone: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
       },
     });
 
     // Update room status to vacant
-    await prisma.rooms.update({
-      where: { Id: existingContract.RoomId },
-      data: { Status: "vacant" },
+    await prisma.room.update({
+      where: { id: existingContract.RoomId },
+      data: { status: "vacant" },
     });
 
     res.json({ message: "Contract ended successfully", contract });

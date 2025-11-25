@@ -7,196 +7,234 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model houses {
-  Id        Int      @id @default(autoincrement())
-  OwnerId   Int
-  Name      String   @db.VarChar(100)
-  Address   String   @db.VarChar(255)
-  CreatedAt DateTime @default(now()) @db.Timestamp(0)
-  users     users    @relation(fields: [OwnerId], references: [Id], onUpdate: Restrict, map: "houses_ibfk_1")
-  rooms     rooms[]
+model House {
+  id        Int      @id @default(autoincrement()) @map("Id")
+  ownerId   Int      @map("OwnerId")
+  name      String   @map("Name") @db.VarChar(100)
+  address   String   @map("Address") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  owner User   @relation(fields: [ownerId], references: [id], onUpdate: Restrict, map: "houses_ibfk_1")
+  rooms Room[]
 
-  @@index([OwnerId], map: "OwnerId")
+  @@index([ownerId], map: "OwnerId")
+  @@map("houses")
 }
 
-model invoices {
-  Id              Int              @id @default(autoincrement())
-  RoomId          Int
-  ContractId      Int
-  ReadingId       Int?
-  Month           Int
-  Year            Int
-  Total           Decimal          @db.Decimal(12, 2)
-  Status          invoices_Status? @default(unpaid)
-  InvoiceUrl      String?          @db.VarChar(255)
-  CreatedAt       DateTime         @default(now()) @db.Timestamp(0)
-  invoiceitems    invoiceitems[]
-  rooms           rooms            @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "invoices_ibfk_1")
-  tenantcontracts tenantcontracts  @relation(fields: [ContractId], references: [Id], onUpdate: Restrict, map: "invoices_ibfk_2")
-  monthlyreadings monthlyreadings? @relation(fields: [ReadingId], references: [Id], onDelete: Restrict, onUpdate: Restrict, map: "invoices_ibfk_3")
+model Invoice {
+  id         Int             @id @default(autoincrement()) @map("Id")
+  roomId     Int             @map("RoomId")
+  contractId Int             @map("ContractId")
+  readingId  Int?            @map("ReadingId")
+  month      Int             @map("Month")
+  year       Int             @map("Year")
+  total      Decimal         @map("Total") @db.Decimal(12, 2)
+  status     InvoiceStatus?  @default(unpaid) @map("Status")
+  invoiceUrl String?         @map("InvoiceUrl") @db.VarChar(255)
+  createdAt  DateTime        @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  invoiceItems    InvoiceItem[]
+  room            Room              @relation(fields: [roomId], references: [id], onUpdate: Restrict, map: "invoices_ibfk_1")
+  tenantContract  TenantContract    @relation(fields: [contractId], references: [id], onUpdate: Restrict, map: "invoices_ibfk_2")
+  monthlyReading  MonthlyReading?   @relation(fields: [readingId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "invoices_ibfk_3")
 
-  @@index([ContractId], map: "ContractId")
-  @@index([ReadingId], map: "ReadingId")
-  @@index([RoomId], map: "RoomId")
+  @@index([contractId], map: "ContractId")
+  @@index([readingId], map: "ReadingId")
+  @@index([roomId], map: "RoomId")
+  @@map("invoices")
 }
 
-model notifications {
-  Id        Int      @id @default(autoincrement())
-  UserId    Int
-  Title     String   @db.VarChar(255)
-  Message   String   @db.Text
-  IsRead    Boolean? @default(false)
-  CreatedAt DateTime @default(now()) @db.Timestamp(0)
-  users     users    @relation(fields: [UserId], references: [Id], onUpdate: Restrict, map: "notifications_ibfk_1")
+model Notification {
+  id        Int      @id @default(autoincrement()) @map("Id")
+  userId    Int      @map("UserId")
+  title     String   @map("Title") @db.VarChar(255)
+  message   String   @map("Message") @db.Text
+  isRead    Boolean? @default(false) @map("IsRead")
+  createdAt DateTime @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  user User @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "notifications_ibfk_1")
 
-  @@index([UserId], map: "UserId")
+  @@index([userId], map: "UserId")
+  @@map("notifications")
 }
 
-model rooms {
-  Id              Int               @id @default(autoincrement())
-  HouseId         Int
-  Name            String            @db.VarChar(100)
-  Floor           Int
-  Status          rooms_Status?     @default(vacant)
-  CreatedAt       DateTime          @default(now()) @db.Timestamp(0)
-  invoices        invoices[]
-  monthlyreadings monthlyreadings[]
-  houses          houses            @relation(fields: [HouseId], references: [Id], onUpdate: Restrict, map: "rooms_ibfk_1")
-  tenantcontracts tenantcontracts[]
-  tickets         tickets[]
+model Room {
+  id        Int         @id @default(autoincrement()) @map("Id")
+  houseId   Int         @map("HouseId")
+  name      String      @map("Name") @db.VarChar(100)
+  floor     Int         @map("Floor")
+  status    RoomStatus? @default(vacant) @map("Status")
+  createdAt DateTime    @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  invoices         Invoice[]
+  monthlyReadings  MonthlyReading[]
+  house            House              @relation(fields: [houseId], references: [id], onUpdate: Restrict, map: "rooms_ibfk_1")
+  tenantContracts  TenantContract[]
+  tickets          Ticket[]
 
-  @@index([HouseId], map: "HouseId")
+  @@index([houseId], map: "HouseId")
+  @@map("rooms")
 }
 
-model tickets {
-  Id          Int             @id @default(autoincrement())
-  TenantId    Int
-  RoomId      Int
-  Title       String          @db.VarChar(255)
-  Description String          @db.Text
-  Status      tickets_Status? @default(pending)
-  CreatedAt   DateTime        @default(now()) @db.Timestamp(0)
-  users       users           @relation(fields: [TenantId], references: [Id], onUpdate: Restrict, map: "tickets_ibfk_1")
-  rooms       rooms           @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "tickets_ibfk_2")
+model Ticket {
+  id          Int           @id @default(autoincrement()) @map("Id")
+  tenantId    Int           @map("TenantId")
+  roomId      Int           @map("RoomId")
+  title       String        @map("Title") @db.VarChar(255)
+  description String        @map("Description") @db.Text
+  status      TicketStatus? @default(pending) @map("Status")
+  createdAt   DateTime      @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  tenant User @relation(fields: [tenantId], references: [id], onUpdate: Restrict, map: "tickets_ibfk_1")
+  room   Room @relation(fields: [roomId], references: [id], onUpdate: Restrict, map: "tickets_ibfk_2")
 
-  @@index([RoomId], map: "RoomId")
-  @@index([TenantId], map: "TenantId")
+  @@index([roomId], map: "RoomId")
+  @@index([tenantId], map: "TenantId")
+  @@map("tickets")
 }
 
-model users {
-  Id              Int               @id @default(autoincrement())
-  Name            String            @db.VarChar(100)
-  Email           String            @unique(map: "Email") @db.VarChar(100)
-  Phone           String?           @db.VarChar(20)
-  PasswordHash    String            @db.VarChar(255)
-  Role            users_Role
-  Status          users_Status?     @default(active)
-  CreatedAt       DateTime          @default(now()) @db.Timestamp(0)
-  houses          houses[]
-  notifications   notifications[]
-  tenantcontracts tenantcontracts[]
-  tickets         tickets[]
+model User {
+  id           Int        @id @default(autoincrement()) @map("Id")
+  name         String     @map("Name") @db.VarChar(100)
+  email        String     @unique(map: "Email") @map("Email") @db.VarChar(100)
+  phone        String?    @map("Phone") @db.VarChar(20)
+  passwordHash String     @map("PasswordHash") @db.VarChar(255)
+  role         UserRole   @map("Role")
+  status       UserStatus? @default(active) @map("Status")
+  createdAt    DateTime   @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  houses          House[]
+  notifications   Notification[]
+  tenantContracts TenantContract[]
+  tickets         Ticket[]
+
+  @@map("users")
 }
 
-model invoiceitems {
-  Id        Int      @id @default(autoincrement())
-  InvoiceId Int
-  Name      String   @db.VarChar(100)
-  Amount    Decimal  @db.Decimal(12, 2)
-  invoices  invoices @relation(fields: [InvoiceId], references: [Id], onUpdate: Restrict, map: "invoiceitems_ibfk_1")
+model InvoiceItem {
+  id        Int     @id @default(autoincrement()) @map("Id")
+  invoiceId Int     @map("InvoiceId")
+  name      String  @map("Name") @db.VarChar(100)
+  amount    Decimal @map("Amount") @db.Decimal(12, 2)
+  
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onUpdate: Restrict, map: "invoiceitems_ibfk_1")
 
-  @@index([InvoiceId], map: "InvoiceId")
+  @@index([invoiceId], map: "InvoiceId")
+  @@map("invoiceitems")
 }
 
-model monthlyreadings {
-  Id            Int                     @id @default(autoincrement())
-  RoomId        Int
-  CycleId       Int
-  ElectricOld   Int
-  ElectricNew   Int
-  ElectricImage String?                 @db.VarChar(255)
-  WaterOld      Int
-  WaterNew      Int
-  WaterImage    String?                 @db.VarChar(255)
-  Status        monthlyreadings_Status? @default(submitted)
-  CreatedAt     DateTime                @default(now()) @db.Timestamp(0)
-  invoices      invoices[]
-  rooms         rooms                   @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "monthlyreadings_ibfk_1")
-  readingcycles readingcycles           @relation(fields: [CycleId], references: [Id], onUpdate: Restrict, map: "monthlyreadings_ibfk_2")
+model MonthlyReading {
+  id            Int                   @id @default(autoincrement()) @map("Id")
+  roomId        Int                   @map("RoomId")
+  cycleId       Int                   @map("CycleId")
+  electricOld   Int                   @map("ElectricOld")
+  electricNew   Int                   @map("ElectricNew")
+  electricImage String?               @map("ElectricImage") @db.VarChar(255)
+  waterOld      Int                   @map("WaterOld")
+  waterNew      Int                   @map("WaterNew")
+  waterImage    String?               @map("WaterImage") @db.VarChar(255)
+  status        MonthlyReadingStatus? @default(submitted) @map("Status")
+  createdAt     DateTime              @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  invoices      Invoice[]
+  room          Room          @relation(fields: [roomId], references: [id], onUpdate: Restrict, map: "monthlyreadings_ibfk_1")
+  readingCycle  ReadingCycle  @relation(fields: [cycleId], references: [id], onUpdate: Restrict, map: "monthlyreadings_ibfk_2")
 
-  @@index([RoomId], map: "RoomId")
-  @@index([CycleId], map: "CycleId")
+  @@index([roomId], map: "RoomId")
+  @@index([cycleId], map: "CycleId")
+  @@map("monthlyreadings")
 }
 
-model tenantcontracts {
-  Id        Int                     @id @default(autoincrement())
-  RoomId    Int
-  TenantId  Int
-  StartDate DateTime                @db.Date
-  EndDate   DateTime?               @db.Date
-  Price     Decimal                 @db.Decimal(12, 2)
-  Status    tenantcontracts_Status? @default(active)
-  FileUrl   String?                 @db.VarChar(255)
-  CreatedAt DateTime                @default(now()) @db.Timestamp(0)
-  invoices  invoices[]
-  rooms     rooms                   @relation(fields: [RoomId], references: [Id], onUpdate: Restrict, map: "tenantcontracts_ibfk_1")
-  users     users                   @relation(fields: [TenantId], references: [Id], onUpdate: Restrict, map: "tenantcontracts_ibfk_2")
+model TenantContract {
+  id        Int                   @id @default(autoincrement()) @map("Id")
+  roomId    Int                   @map("RoomId")
+  tenantId  Int                   @map("TenantId")
+  startDate DateTime              @map("StartDate") @db.Date
+  endDate   DateTime?             @map("EndDate") @db.Date
+  price     Decimal               @map("Price") @db.Decimal(12, 2)
+  status    TenantContractStatus? @default(active) @map("Status")
+  fileUrl   String?               @map("FileUrl") @db.VarChar(255)
+  createdAt DateTime              @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  invoices Invoice[]
+  room     Room      @relation(fields: [roomId], references: [id], onUpdate: Restrict, map: "tenantcontracts_ibfk_1")
+  tenant   User      @relation(fields: [tenantId], references: [id], onUpdate: Restrict, map: "tenantcontracts_ibfk_2")
 
-  @@index([RoomId], map: "RoomId")
-  @@index([TenantId], map: "TenantId")
+  @@index([roomId], map: "RoomId")
+  @@index([tenantId], map: "TenantId")
+  @@map("tenantcontracts")
 }
 
-model readingcycles {
-  Id              Int                   @id @default(autoincrement())
-  Month           Int
-  Year            Int
-  Deadline        DateTime?             @db.Date
-  Status          readingcycles_Status? @default(open)
-  CreatedAt       DateTime              @default(now()) @db.Timestamp(0)
-  monthlyreadings monthlyreadings[]
+model ReadingCycle {
+  id              Int                 @id @default(autoincrement()) @map("Id")
+  month           Int                 @map("Month")
+  year            Int                 @map("Year")
+  deadline        DateTime?           @map("Deadline") @db.Date
+  status          ReadingCycleStatus? @default(open) @map("Status")
+  createdAt       DateTime            @default(now()) @map("CreatedAt") @db.Timestamp(0)
+  
+  monthlyReadings MonthlyReading[]
+
+  @@map("readingcycles")
 }
 
-enum rooms_Status {
+enum RoomStatus {
   vacant
   occupied
   closing_soon
+
+  @@map("rooms_Status")
 }
 
-enum tickets_Status {
+enum TicketStatus {
   pending
   processing
   done
+
+  @@map("tickets_Status")
 }
 
-enum users_Role {
+enum UserRole {
   owner
   tenant
   admin
+
+  @@map("users_Role")
 }
 
-enum tenantcontracts_Status {
+enum TenantContractStatus {
   active
   ended
+
+  @@map("tenantcontracts_Status")
 }
 
-enum users_Status {
+enum UserStatus {
   active
   banned
+
+  @@map("users_Status")
 }
 
-enum invoices_Status {
+enum InvoiceStatus {
   unpaid
   pending
   paid
+
+  @@map("invoices_Status")
 }
 
-enum monthlyreadings_Status {
+enum MonthlyReadingStatus {
   pending
   submitted
   confirmed
+
+  @@map("monthlyreadings_Status")
 }
 
-enum readingcycles_Status {
+enum ReadingCycleStatus {
   open
   closed
+
+  @@map("readingcycles_Status")
 }

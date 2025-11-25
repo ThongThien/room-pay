@@ -279,6 +279,9 @@ export const createCycle = async (req, res) => {
 };
 
 export const confirmReading = async (req, res) => {
+    //Tenant không gửi readings
+    //Tenant gửi sai (owner sửa lại)
+    //Đồng hồ hỏng, owner đọc thủ công từ camera/bảng ghi
     try {
         const { cycleId, roomId } = req.params;
         const {
@@ -309,7 +312,7 @@ export const confirmReading = async (req, res) => {
 
         let reading;
 
-        // Case 1: Không có reading → Owner tạo mới + confirm
+        // Case 1: Không có reading → Owner tạo mới + confirm (trong TH người thuê không nộp được reading thì chủ nhà tự làm)
         if (!exist) {
             reading = await prisma.monthlyreadings.create({
                 data: {

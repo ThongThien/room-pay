@@ -308,3 +308,136 @@ export const deleteTenant = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// business code for owner
+export const assignRoom = async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { roomId, price } = req.body;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Validate tenant
+      const tenant = await tx.users.findUnique({ where: { Id: Number(tenantId) } });
+      if (!tenant) throw new Error("Tenant not found");
+
+      // Validate room
+      const room = await tx.rooms.findUnique({ where: { Id: roomId } });
+      if (!room) throw new Error("Room not found");
+      if (room.Status !== "vacant") throw new Error("Room is not vacant");
+
+      // Check tenant active contract
+      const active = await tx.tenantcontracts.findFirst({
+        where: { TenantId: Number(tenantId), Status: "active" }
+      });
+      if (active) throw new Error("Tenant already has an active contract");
+
+      // Create contract
+      const contract = await tx.tenantcontracts.create({
+        data: {
+          TenantId: Number(tenantId),
+          RoomId: roomId,
+          Price: price,
+          Status: "active",
+          StartDate: new Date(),
+        }
+      });
+
+      // Update room → occupied
+      await tx.rooms.update({
+        where: { Id: roomId },
+        data: { Status: "occupied" }
+      });
+
+      return contract;
+    });
+
+    res.json({ success: true, contract: result });
+
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const moveRoom = async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+    const { newRoomId } = req.body;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Find active contract
+      const contract = await tx.tenantcontracts.findFirst({
+        where: { TenantId: Number(tenantId), Status: "active" }
+      });
+
+      if (!contract) throw new Error("Tenant has no active contract");
+
+      // Validate new room
+      const newRoom = await tx.rooms.findUnique({ where: { Id: newRoomId } });
+      if (!newRoom) throw new Error("New room not found");
+      if (newRoom.Status !== "vacant") throw new Error("New room is not vacant");
+
+      // Update old room → vacant
+      await tx.rooms.update({
+        where: { Id: contract.RoomId },
+        data: { Status: "vacant" }
+      });
+
+      // Update contract → new room
+      const updatedContract = await tx.tenantcontracts.update({
+        where: { Id: contract.Id },
+        data: { RoomId: newRoomId }
+      });
+
+      // Update new room → occupied
+      await tx.rooms.update({
+        where: { Id: newRoomId },
+        data: { Status: "occupied" }
+      });
+
+      return updatedContract;
+    });
+
+    res.json({ success: true, contract: result });
+
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const checkoutTenant = async (req, res) => {
+  try {
+    const { tenantId } = req.params;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Find active contract
+      const contract = await tx.tenantcontracts.findFirst({
+        where: { TenantId: Number(tenantId), Status: "active" }
+      });
+
+      if (!contract) throw new Error("Tenant has no active contract");
+
+      // End contract
+      const endedContract = await tx.tenantcontracts.update({
+        where: { Id: contract.Id },
+        data: {
+          Status: "ended",
+          EndDate: new Date()
+        }
+      });
+
+      // Update room → vacant
+      await tx.rooms.update({
+        where: { Id: contract.RoomId },
+        data: { Status: "vacant" }
+      });
+
+      return endedContract;
+    });
+
+    res.json({ success: true, contract: result });
+
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+

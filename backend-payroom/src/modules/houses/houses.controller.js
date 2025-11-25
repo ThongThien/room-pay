@@ -13,7 +13,7 @@ export const createHouse = async (req, res) => {
 
     const house = await prisma.house.create({
       data: {
-        ownerid: ownerId,
+        ownerId: ownerId,
         name: name,
         address: address,
       },
@@ -31,7 +31,7 @@ export const getHouses = async (req, res) => {
     const ownerId = req.user.userId;
 
     const houses = await prisma.house.findMany({
-      where: { ownerid: ownerId },
+      where: { ownerId: ownerId },
       include: {
         rooms: {
           select: {
@@ -59,7 +59,7 @@ export const getHouseById = async (req, res) => {
     const house = await prisma.house.findFirst({
       where: {
         id: parseInt(id),
-        ownerid: ownerId,
+        ownerId: ownerId,
       },
       include: {
         rooms: {
@@ -97,7 +97,7 @@ export const updateHouse = async (req, res) => {
     const existingHouse = await prisma.house.findFirst({
       where: {
         id: parseInt(id),
-        ownerid: ownerId,
+        ownerId: ownerId,
       },
     });
 
@@ -109,8 +109,8 @@ export const updateHouse = async (req, res) => {
 
     // Build update data object
     const updateData = {};
-    if (name !== undefined) updateData.Name = name;
-    if (address !== undefined) updateData.Address = address;
+    if (name !== undefined) updateData.name = name;
+    if (address !== undefined) updateData.address = address;
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "No fields to update" });
@@ -137,7 +137,7 @@ export const deleteHouse = async (req, res) => {
     const existingHouse = await prisma.house.findFirst({
       where: {
         id: parseInt(id),
-        ownerid: ownerId,
+        ownerId: ownerId,
       },
       include: {
         rooms: true,

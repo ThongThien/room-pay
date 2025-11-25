@@ -14,10 +14,10 @@ export const createRoom = async (req, res) => {
     }
 
     // Check if house exists and belongs to the owner
-    const house = await prisma.houses.findFirst({
+    const house = await prisma.house.findFirst({
       where: {
-        Id: parseInt(houseId),
-        OwnerId: ownerId,
+        id: parseInt(houseId),
+        ownerid: ownerId,
       },
     });
 
@@ -27,12 +27,12 @@ export const createRoom = async (req, res) => {
         .json({ message: "House not found or access denied" });
     }
 
-    const room = await prisma.rooms.create({
+    const room = await prisma.room.create({
       data: {
-        HouseId: parseInt(houseId),
-        Name: name,
-        Floor: parseInt(floor),
-        Status: "vacant",
+        houseid: parseInt(houseId),
+        name: name,
+        floor: parseInt(floor),
+        status: "vacant",
       },
     });
 
@@ -51,7 +51,7 @@ export const getRooms = async (req, res) => {
     // Build where clause
     const whereClause = {
       houses: {
-        OwnerId: ownerId,
+        ownerid: ownerId,
       },
     };
 
@@ -63,33 +63,33 @@ export const getRooms = async (req, res) => {
       whereClause.Status = status;
     }
 
-    const rooms = await prisma.rooms.findMany({
+    const rooms = await prisma.room.findMany({
       where: whereClause,
       include: {
         houses: {
           select: {
-            Id: true,
-            Name: true,
-            Address: true,
+            id: true,
+            name: true,
+            address: true,
           },
         },
         tenantcontracts: {
           where: {
-            Status: "active",
+            status: "active",
           },
           include: {
             users: {
               select: {
-                Id: true,
-                Name: true,
-                Email: true,
-                Phone: true,
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
               },
             },
           },
         },
       },
-      orderBy: [{ HouseId: "asc" }, { Floor: "asc" }],
+      orderBy: [{ houseid: "asc" }, { floor: "asc" }],
     });
 
     res.json({ rooms });
@@ -104,46 +104,46 @@ export const getRoomById = async (req, res) => {
     const { id } = req.params;
     const ownerId = req.user.userId;
 
-    const room = await prisma.rooms.findFirst({
+    const room = await prisma.room.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         houses: {
-          OwnerId: ownerId,
+          ownerid: ownerId,
         },
       },
       include: {
         houses: {
           select: {
-            Id: true,
-            Name: true,
-            Address: true,
+            id: true,
+            name: true,
+            address: true,
           },
         },
         tenantcontracts: {
           include: {
             users: {
               select: {
-                Id: true,
-                Name: true,
-                Email: true,
-                Phone: true,
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
               },
             },
           },
           orderBy: {
-            CreatedAt: "desc",
+            createdAt: "desc",
           },
         },
         invoices: {
           select: {
-            Id: true,
-            Month: true,
-            Year: true,
-            Total: true,
-            Status: true,
+            id: true,
+            month: true,
+            year: true,
+            total: true,
+            status: true,
           },
           orderBy: {
-            CreatedAt: "desc",
+            createdAt: "desc",
           },
           take: 5,
         },
@@ -170,11 +170,11 @@ export const updateRoom = async (req, res) => {
     const ownerId = req.user.userId;
 
     // Check if room exists and belongs to owner's house
-    const existingRoom = await prisma.rooms.findFirst({
+    const existingRoom = await prisma.room.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         houses: {
-          OwnerId: ownerId,
+          ownerid: ownerId,
         },
       },
     });
@@ -205,8 +205,8 @@ export const updateRoom = async (req, res) => {
       return res.status(400).json({ message: "No fields to update" });
     }
 
-    const room = await prisma.rooms.update({
-      where: { Id: parseInt(id) },
+    const room = await prisma.room.update({
+      where: { id: parseInt(id) },
       data: updateData,
     });
 
@@ -223,11 +223,11 @@ export const deleteRoom = async (req, res) => {
     const ownerId = req.user.userId;
 
     // Check if room exists and belongs to owner's house
-    const existingRoom = await prisma.rooms.findFirst({
+    const existingRoom = await prisma.room.findFirst({
       where: {
-        Id: parseInt(id),
+        id: parseInt(id),
         houses: {
-          OwnerId: ownerId,
+          ownerid: ownerId,
         },
       },
       include: {
@@ -259,8 +259,8 @@ export const deleteRoom = async (req, res) => {
       });
     }
 
-    await prisma.rooms.delete({
-      where: { Id: parseInt(id) },
+    await prisma.room.delete({
+      where: { id: parseInt(id) },
     });
 
     res.json({ message: "Room deleted successfully" });

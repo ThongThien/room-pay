@@ -14,8 +14,8 @@ export const createTenant = async (req, res) => {
     }
 
     // Check if email already exists
-    const existing = await prisma.users.findUnique({
-      where: { Email: email },
+    const existing = await prisma.user.findUnique({
+      where: { email: email },
     });
 
     if (existing) {
@@ -25,23 +25,23 @@ export const createTenant = async (req, res) => {
     // Hash password
     const hashed = await bcrypt.hash(password, 10);
 
-    const tenant = await prisma.users.create({
+    const tenant = await prisma.user.create({
       data: {
-        Name: name,
-        Email: email,
-        Phone: phone || null,
-        PasswordHash: hashed,
-        Role: "tenant",
-        Status: "active",
+        name: name,
+        email: email,
+        phone: phone || null,
+        passwordHash: hashed,
+        role: "tenant",
+        status: "active",
       },
       select: {
-        Id: true,
-        Name: true,
-        Email: true,
-        Phone: true,
-        Role: true,
-        Status: true,
-        CreatedAt: true,
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        createdAt: true,
       },
     });
 
@@ -58,7 +58,7 @@ export const getTenants = async (req, res) => {
 
     // Build where clause
     const whereClause = {
-      Role: "tenant",
+      role: "tenant",
     };
 
     if (status) {
@@ -67,33 +67,33 @@ export const getTenants = async (req, res) => {
 
     if (search) {
       whereClause.OR = [
-        { Name: { contains: search } },
-        { Email: { contains: search } },
-        { Phone: { contains: search } },
+        { name: { contains: search } },
+        { email: { contains: search } },
+        { phone: { contains: search } },
       ];
     }
 
-    const tenants = await prisma.users.findMany({
+    const tenants = await prisma.user.findMany({
       where: whereClause,
       select: {
-        Id: true,
-        Name: true,
-        Email: true,
-        Phone: true,
-        Status: true,
-        CreatedAt: true,
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        status: true,
+        createdAt: true,
         tenantcontracts: {
           where: {
-            Status: "active",
+            status: "active",
           },
           include: {
             rooms: {
               include: {
                 houses: {
                   select: {
-                    Id: true,
-                    Name: true,
-                    Address: true,
+                    id: true,
+                    name: true,
+                    address: true,
                   },
                 },
               },
@@ -101,7 +101,7 @@ export const getTenants = async (req, res) => {
           },
         },
       },
-      orderBy: { CreatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json({ tenants });
@@ -115,45 +115,45 @@ export const getTenantById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const tenant = await prisma.users.findFirst({
+    const tenant = await prisma.user.findFirst({
       where: {
-        Id: parseInt(id),
-        Role: "tenant",
+        id: parseInt(id),
+        role: "tenant",
       },
       select: {
-        Id: true,
-        Name: true,
-        Email: true,
-        Phone: true,
-        Status: true,
-        CreatedAt: true,
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        status: true,
+        createdAt: true,
         tenantcontracts: {
           include: {
             rooms: {
               include: {
                 houses: {
                   select: {
-                    Id: true,
-                    Name: true,
-                    Address: true,
+                    id: true,
+                    name: true,
+                    address: true,
                   },
                 },
               },
             },
           },
           orderBy: {
-            CreatedAt: "desc",
+            createdAt: "desc",
           },
         },
         tickets: {
           select: {
-            Id: true,
-            Title: true,
-            Status: true,
-            CreatedAt: true,
+            id: true,
+            title: true,
+            status: true,
+            createdAt: true,
           },
           orderBy: {
-            CreatedAt: "desc",
+            createdAt: "desc",
           },
           take: 10,
         },
@@ -177,10 +177,10 @@ export const updateTenant = async (req, res) => {
     const { name, email, phone, password, status } = req.body;
 
     // Check if tenant exists
-    const existingTenant = await prisma.users.findFirst({
+    const existingTenant = await prisma.user.findFirst({
       where: {
-        Id: parseInt(id),
-        Role: "tenant",
+        id: parseInt(id),
+        role: "tenant",
       },
     });
 
@@ -193,10 +193,10 @@ export const updateTenant = async (req, res) => {
     if (name !== undefined) updateData.Name = name;
     if (email !== undefined) {
       // Check if new email already exists
-      const emailExists = await prisma.users.findFirst({
+      const emailExists = await prisma.user.findFirst({
         where: {
-          Email: email,
-          Id: { not: parseInt(id) },
+          email: email,
+          id: { not: parseInt(id) },
         },
       });
       if (emailExists) {
@@ -223,17 +223,17 @@ export const updateTenant = async (req, res) => {
       return res.status(400).json({ message: "No fields to update" });
     }
 
-    const tenant = await prisma.users.update({
-      where: { Id: parseInt(id) },
+    const tenant = await prisma.user.update({
+      where: { id: parseInt(id) },
       data: updateData,
       select: {
-        Id: true,
-        Name: true,
-        Email: true,
-        Phone: true,
-        Role: true,
-        Status: true,
-        CreatedAt: true,
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        createdAt: true,
       },
     });
 
@@ -249,15 +249,15 @@ export const deleteTenant = async (req, res) => {
     const { id } = req.params;
 
     // Check if tenant exists
-    const existingTenant = await prisma.users.findFirst({
+    const existingTenant = await prisma.user.findFirst({
       where: {
-        Id: parseInt(id),
-        Role: "tenant",
+        id: parseInt(id),
+        role: "tenant",
       },
       include: {
         tenantcontracts: {
           where: {
-            Status: "active",
+            status: "active",
           },
         },
         tickets: true,
@@ -282,14 +282,14 @@ export const deleteTenant = async (req, res) => {
     // Option: Either delete or ban the tenant
     // For safety, we'll ban instead of delete if they have any historical data
     if (existingTenant.tickets && existingTenant.tickets.length > 0) {
-      const tenant = await prisma.users.update({
-        where: { Id: parseInt(id) },
-        data: { Status: "banned" },
+      const tenant = await prisma.user.update({
+        where: { id: parseInt(id) },
+        data: { status: "banned" },
         select: {
-          Id: true,
-          Name: true,
-          Email: true,
-          Status: true,
+          id: true,
+          name: true,
+          email: true,
+          status: true,
         },
       });
       return res.json({
@@ -299,8 +299,8 @@ export const deleteTenant = async (req, res) => {
       });
     }
 
-    await prisma.users.delete({
-      where: { Id: parseInt(id) },
+    await prisma.user.delete({
+      where: { id: parseInt(id) },
     });
 
     res.json({ message: "Tenant deleted successfully" });

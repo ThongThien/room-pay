@@ -4,10 +4,10 @@ import jwt from "jsonwebtoken";
 
 export const register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, phone, password, role } = req.body;
 
-        const existing = await prisma.users.findUnique({
-            where: { Email: email }
+        const existing = await prisma.user.findUnique({
+            where: { email: email }
         });
 
         if (existing)
@@ -15,12 +15,14 @@ export const register = async (req, res) => {
 
         const hashed = await bcrypt.hash(password, 10);
 
-        const user = await prisma.users.create({
+        const user = await prisma.user.create({
             data: {
-                Name: name,
-                Email: email,
-                PasswordHash: hashed,
-                Role: "tenant"
+                name: name,
+                email: email,
+                phone: phone,
+                passwordHash: hashed,
+                role: "tenant",
+                status: "active",
             }
         });
 
@@ -34,8 +36,8 @@ export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await prisma.users.findUnique({
-            where: { Email: email }
+        const user = await prisma.user.findUnique({
+            where: { email: email }
         });
 
         if (!user)
@@ -46,13 +48,13 @@ export const login = async (req, res) => {
             return res.status(401).json({ message: "Wrong password" });
 
         const accessToken = jwt.sign(
-            { userId: user.Id, role: user.Role },
+            { userid: user.Id, role: user.Role },
             process.env.JWT_SECRET,
             { expiresIn: "15m" }
         );
 
         const refreshToken = jwt.sign(
-            { userId: user.Id },
+            { userid: user.Id },
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: "7d" }
         );

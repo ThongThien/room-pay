@@ -15,10 +15,10 @@ export const submitReading = async (req, res) => {
         }
 
         // Get tenant's active contract to find their room
-        const activeContract = await prisma.tenantcontracts.findFirst({
+        const activeContract = await prisma.tenantContract.findFirst({
             where: {
-                TenantId: tenantId,
-                Status: "active"
+                tenantid: tenantId,
+                status: "active"
             },
             include: {
                 rooms: true
@@ -32,10 +32,10 @@ export const submitReading = async (req, res) => {
         }
 
         // Check if reading cycle exists and is open
-        const cycle = await prisma.readingcycles.findFirst({
+        const cycle = await prisma.readingCycle.findFirst({
             where: {
-                Id: parseInt(cycleId),
-                Status: "open"
+                id: parseInt(cycleId),
+                status: "open"
             }
         });
 
@@ -46,10 +46,10 @@ export const submitReading = async (req, res) => {
         }
 
         // Check if reading already exists for this room and cycle
-        const existingReading = await prisma.monthlyreadings.findFirst({
+        const existingReading = await prisma.monthlyReading.findFirst({
             where: {
-                RoomId: activeContract.RoomId,
-                CycleId: parseInt(cycleId)
+                roomid: activeContract.RoomId,
+                cycleid: parseInt(cycleId)
             }
         });
 
@@ -76,25 +76,25 @@ export const submitReading = async (req, res) => {
         const electricImage = req.files?.electricImage ? req.files.electricImage[0].path : null;
         const waterImage = req.files?.waterImage ? req.files.waterImage[0].path : null;
 
-        const reading = await prisma.monthlyreadings.create({
+        const reading = await prisma.monthlyReading.create({
             data: {
-                RoomId: activeContract.RoomId,
-                CycleId: parseInt(cycleId),
-                ElectricOld: parseInt(electricOld),
-                ElectricNew: parseInt(electricNew),
-                ElectricImage: electricImage,
-                WaterOld: parseInt(waterOld),
-                WaterNew: parseInt(waterNew),
-                WaterImage: waterImage,
-                Status: "submitted"
+                roomid: activeContract.RoomId,
+                cycleid: parseInt(cycleId),
+                electricOld: parseInt(electricOld),
+                electricNew: parseInt(electricNew),
+                electricImage: electricImage,
+                waterOld: parseInt(waterOld),
+                waterNew: parseInt(waterNew),
+                waterImage: waterImage,
+                status: "submitted"
             },
             include: {
                 rooms: {
                     include: {
                         houses: {
                             select: {
-                                Name: true,
-                                Address: true
+                                name: true,
+                                address: true
                             }
                         }
                     }
@@ -118,10 +118,10 @@ export const getMyReadings = async (req, res) => {
         const tenantId = req.user.userId;
 
         // Get tenant's active contract
-        const activeContract = await prisma.tenantcontracts.findFirst({
+        const activeContract = await prisma.tenantContract.findFirst({
             where: {
-                TenantId: tenantId,
-                Status: "active"
+                tenantid: tenantId,
+                status: "active"
             }
         });
 
@@ -131,9 +131,9 @@ export const getMyReadings = async (req, res) => {
             });
         }
 
-        const readings = await prisma.monthlyreadings.findMany({
+        const readings = await prisma.monthlyReading.findMany({
             where: {
-                RoomId: activeContract.RoomId
+                roomid: activeContract.RoomId
             },
             include: {
                 readingcycles: true,
@@ -141,15 +141,15 @@ export const getMyReadings = async (req, res) => {
                     include: {
                         houses: {
                             select: {
-                                Name: true,
-                                Address: true
+                                name: true,
+                                address: true
                             }
                         }
                     }
                 }
             },
             orderBy: {
-                CreatedAt: "desc"
+                createdAt: "desc"
             }
         });
 
@@ -162,12 +162,12 @@ export const getMyReadings = async (req, res) => {
 // Get current open reading cycle
 export const getCurrentCycle = async (req, res) => {
     try {
-        const cycle = await prisma.readingcycles.findFirst({
+        const cycle = await prisma.readingCycle.findFirst({
             where: {
-                Status: "open"
+                status: "open"
             },
             orderBy: {
-                CreatedAt: "desc"
+                createdAt: "desc"
             }
         });
 
@@ -179,19 +179,19 @@ export const getCurrentCycle = async (req, res) => {
 
         // Check if tenant already submitted for this cycle
         const tenantId = req.user.userId;
-        const activeContract = await prisma.tenantcontracts.findFirst({
+        const activeContract = await prisma.tenantContract.findFirst({
             where: {
-                TenantId: tenantId,
-                Status: "active"
+                tenantid: tenantId,
+                status: "active"
             }
         });
 
         let alreadySubmitted = false;
         if (activeContract) {
-            const existingReading = await prisma.monthlyreadings.findFirst({
+            const existingReading = await prisma.monthlyReading.findFirst({
                 where: {
-                    RoomId: activeContract.RoomId,
-                    CycleId: cycle.Id
+                    roomid: activeContract.RoomId,
+                    cycleid: cycle.Id
                 }
             });
             alreadySubmitted = !!existingReading;
@@ -212,10 +212,10 @@ export const getLastReading = async (req, res) => {
         const tenantId = req.user.userId;
 
         // Get tenant's active contract
-        const activeContract = await prisma.tenantcontracts.findFirst({
+        const activeContract = await prisma.tenantContract.findFirst({
             where: {
-                TenantId: tenantId,
-                Status: "active"
+                tenantid: tenantId,
+                status: "active"
             }
         });
 
@@ -225,13 +225,13 @@ export const getLastReading = async (req, res) => {
             });
         }
 
-        const lastReading = await prisma.monthlyreadings.findFirst({
+        const lastReading = await prisma.monthlyReading.findFirst({
             where: {
-                RoomId: activeContract.RoomId,
-                Status: "confirmed"
+                roomid: activeContract.RoomId,
+                status: "confirmed"
             },
             orderBy: {
-                CreatedAt: "desc"
+                createdAt: "desc"
             },
             include: {
                 readingcycles: true

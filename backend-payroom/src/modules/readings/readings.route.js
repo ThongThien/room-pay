@@ -6,14 +6,16 @@ import {
     submitReading,
     getMyReadings,
     getCurrentCycle,
-    getLastReading
+    getLastReading,
+    createCycle,
+    getRoomsMissingReadings,
+    confirmReading
 } from "./readings.controller.js";
 
 const router = express.Router();
 
 // All routes require authentication and tenant role
 router.use(authMiddleware);
-router.use(allowRoles("tenant"));
 
 // Submit meter reading with images
 router.post(
@@ -26,12 +28,15 @@ router.post(
 );
 
 // Get tenant's reading history
-router.get("/my-readings", getMyReadings);
+router.get("/my-readings", allowRoles("tenant"), getMyReadings);
 
 // Get current open reading cycle
-router.get("/current-cycle", getCurrentCycle);
+router.get("/current-cycle", allowRoles("tenant"), getCurrentCycle);
 
 // Get last confirmed reading for reference
-router.get("/last-reading", getLastReading);
+router.get("/last-reading", allowRoles("tenant"), getLastReading);
 
+router.post("/create-cycles", allowRoles("owner"), createCycle);
+router.put("/:cycleId/rooms/:roomId/confirm", allowRoles("owner"), confirmReading);
+router.get("/:cycleId/missing", allowRoles("owner"), getRoomsMissingReadings);
 export default router;

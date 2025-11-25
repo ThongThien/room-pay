@@ -12,6 +12,7 @@ app.use((req, res, next) => {
     }
     next();
 });
+
 // Test phan quyen
 app.get("/test/owner", authMiddleware, allowRoles("owner"), (req, res) => {
     res.send("OWNER OK");

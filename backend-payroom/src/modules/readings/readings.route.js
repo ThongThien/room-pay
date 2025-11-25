@@ -6,7 +6,10 @@ import {
     submitReading,
     getMyReadings,
     getCurrentCycle,
-    getLastReading
+    getLastReading,
+    createCycle,
+    getRoomsMissingReadings,
+    confirmReading
 } from "./readings.controller.js";
 
 const router = express.Router();
@@ -34,4 +37,9 @@ router.get("/current-cycle", getCurrentCycle);
 // Get last confirmed reading for reference
 router.get("/last-reading", getLastReading);
 
+router.get("/create-cycles", createCycle);
+
+router.put("/:cycleId/rooms/:roomId/confirm", authMiddleware, allowRoles("owner"), confirmReading);
+
+router.get("/:cycleId/missing", getRoomsMissingReadings);
 export default router;

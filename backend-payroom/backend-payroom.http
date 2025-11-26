@@ -1,0 +1,6 @@
+@backend_payroom_HostAddress = http://localhost:5286
+
+GET {{backend_payroom_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

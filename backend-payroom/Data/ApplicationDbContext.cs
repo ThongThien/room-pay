@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using backend_payroom.Features.User;
 
 namespace backend_payroom.Data;
 
@@ -8,4 +9,6 @@ public class ApplicationDbContext : DbContext
         : base(options)
     {
     }
+
+    public DbSet<UserModel> Users { get; set; } = null!;
 }

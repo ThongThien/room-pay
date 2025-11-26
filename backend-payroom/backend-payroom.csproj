@@ -21,14 +21,9 @@
     <ItemGroup>
       <Folder Include="Common\" />
       <Folder Include="Features\Auth\" />
-      <Folder Include="Features\Contracts\" />
-      <Folder Include="Features\Houses\" />
-      <Folder Include="Features\Invoices\" />
-      <Folder Include="Features\Notifications\" />
-      <Folder Include="Features\Readings\" />
-      <Folder Include="Features\Rooms\" />
+      <Folder Include="Features\House\" />
       <Folder Include="Features\Room\" />
-      <Folder Include="Features\Ticket\" />
+      <Folder Include="Features\User\" />
       <Folder Include="Infrastructure\" />
     </ItemGroup>
 

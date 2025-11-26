@@ -16,11 +16,11 @@ export const createTicket = async (req, res) => {
     // Get tenant's active contract to find their room
     const activeContract = await prisma.tenantContract.findFirst({
       where: {
-        tenantid: tenantId,
+        tenantId: tenantId,
         status: "active",
       },
       include: {
-        rooms: {
+        room: {
           include: {
             houses: true,
           },
@@ -36,14 +36,14 @@ export const createTicket = async (req, res) => {
 
     const ticket = await prisma.ticket.create({
       data: {
-        tenantid: tenantId,
-        roomid: activeContract.RoomId,
+        tenantId: tenantId,
+        roomId: activeContract.roomId,
         title: title,
         description: description,
         status: "pending",
       },
       include: {
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -51,9 +51,9 @@ export const createTicket = async (req, res) => {
             phone: true,
           },
         },
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -86,29 +86,29 @@ export const getTickets = async (req, res) => {
 
     if (userRole === "tenant") {
       // Tenant sees only their tickets
-      whereClause.TenantId = userId;
+      whereClause.tenantId = userId;
     } else if (userRole === "owner") {
       // Owner sees tickets from their properties
-      whereClause.rooms = {
-        houses: {
-          ownerid: userId,
+      whereClause.room = {
+        house: {
+          ownerId: userId,
         },
       };
 
       if (roomId) {
-        whereClause.RoomId = parseInt(roomId);
+        whereClause.roomId = parseInt(roomId);
       }
     }
 
     // Common filters
     if (status) {
-      whereClause.Status = status;
+      whereClause.status = status;
     }
 
     const tickets = await prisma.ticket.findMany({
       where: whereClause,
       include: {
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -116,9 +116,9 @@ export const getTickets = async (req, res) => {
             phone: true,
           },
         },
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -153,12 +153,12 @@ export const getTicketById = async (req, res) => {
 
     if (userRole === "tenant") {
       // Tenant can only see their own tickets
-      whereClause.TenantId = userId;
+      whereClause.tenantId = userId;
     } else if (userRole === "owner") {
       // Owner can only see tickets from their properties
-      whereClause.rooms = {
-        houses: {
-          ownerid: userId,
+      whereClause.room = {
+        house: {
+          ownerId: userId,
         },
       };
     }
@@ -166,7 +166,7 @@ export const getTicketById = async (req, res) => {
     const ticket = await prisma.ticket.findFirst({
       where: whereClause,
       include: {
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -174,15 +174,15 @@ export const getTicketById = async (req, res) => {
             phone: true,
           },
         },
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
                 address: true,
                 ownerid: true,
-                users: {
+                tenant: {
                   select: {
                     name: true,
                     email: true,
@@ -227,9 +227,9 @@ export const updateTicketStatus = async (req, res) => {
     const existingTicket = await prisma.ticket.findFirst({
       where: {
         id: parseInt(id),
-        rooms: {
-          houses: {
-            ownerid: ownerId,
+        room: {
+          house: {
+            ownerId: ownerId,
           },
         },
       },
@@ -245,7 +245,7 @@ export const updateTicketStatus = async (req, res) => {
       where: { id: parseInt(id) },
       data: { status: status },
       include: {
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -253,9 +253,9 @@ export const updateTicketStatus = async (req, res) => {
             phone: true,
           },
         },
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -289,12 +289,12 @@ export const deleteTicket = async (req, res) => {
 
     if (userRole === "tenant") {
       // Tenant can only delete their own pending tickets
-      whereClause.TenantId = userId;
-      whereClause.Status = "pending";
+      whereClause.tenantId = userId;
+      whereClause.status = "pending";
     } else if (userRole === "owner") {
       // Owner can delete tickets from their properties
-      whereClause.rooms = {
-        houses: {
+      whereClause.room = {
+        house: {
           ownerid: userId,
         },
       };
@@ -335,10 +335,10 @@ export const getTicketStats = async (req, res) => {
     let whereClause = {};
 
     if (userRole === "tenant") {
-      whereClause.TenantId = userId;
+      whereClause.tenantId = userId;
     } else if (userRole === "owner") {
-      whereClause.rooms = {
-        houses: {
+      whereClause.room = {
+        house: {
           ownerid: userId,
         },
       };

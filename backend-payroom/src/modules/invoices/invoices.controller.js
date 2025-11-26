@@ -12,46 +12,46 @@ export const getInvoices = async (req, res) => {
     if (userRole === "owner") {
       // Owner sees invoices from their houses
       whereClause = {
-        rooms: {
-          houses: {
-            ownerid: userId,
+        room: {
+          house: {
+            ownerId: userId,
           },
         },
       };
 
       // Apply additional filters for owner
       if (roomId) {
-        whereClause.RoomId = parseInt(roomId);
+        whereClause.roomId = parseInt(roomId);
       }
       if (contractId) {
-        whereClause.ContractId = parseInt(contractId);
+        whereClause.contractId = parseInt(contractId);
       }
     } else if (userRole === "tenant") {
       // Tenant sees only their own invoices
       whereClause = {
-        tenantcontracts: {
-          tenantid: userId,
+        tenantContract: {
+          tenantId: userId,
         },
       };
     }
 
     // Common filters for both roles
     if (status) {
-      whereClause.Status = status;
+      whereClause.status = status;
     }
     if (month) {
-      whereClause.Month = parseInt(month);
+      whereClause.month = parseInt(month);
     }
     if (year) {
-      whereClause.Year = parseInt(year);
+      whereClause.year = parseInt(year);
     }
 
     const invoices = await prisma.invoice.findMany({
       where: whereClause,
       include: {
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -60,9 +60,9 @@ export const getInvoices = async (req, res) => {
             },
           },
         },
-        tenantcontracts: {
+        tenantContract: {
           include: {
-            users: {
+            tenant: {
               select: {
                 id: true,
                 name: true,
@@ -72,14 +72,14 @@ export const getInvoices = async (req, res) => {
             },
           },
         },
-        invoiceitems: {
+        invoiceItems: {
           select: {
             id: true,
             name: true,
             amount: true,
           },
         },
-        monthlyreadings: {
+        monthlyReading: {
           select: {
             id: true,
             electricOld: true,
@@ -113,7 +113,7 @@ export const getInvoiceById = async (req, res) => {
     if (userRole === "owner") {
       // Owner can only see invoices from their houses
       whereClause.rooms = {
-        houses: {
+        house: {
           ownerid: userId,
         },
       };
@@ -127,9 +127,9 @@ export const getInvoiceById = async (req, res) => {
     const invoice = await prisma.invoice.findFirst({
       where: whereClause,
       include: {
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -139,9 +139,9 @@ export const getInvoiceById = async (req, res) => {
             },
           },
         },
-        tenantcontracts: {
+        tenantContract: {
           include: {
-            users: {
+            tenant: {
               select: {
                 id: true,
                 name: true,
@@ -151,7 +151,7 @@ export const getInvoiceById = async (req, res) => {
             },
           },
         },
-        invoiceitems: {
+        invoiceItems: {
           select: {
             id: true,
             name: true,
@@ -161,7 +161,7 @@ export const getInvoiceById = async (req, res) => {
             id: "asc",
           },
         },
-        monthlyreadings: {
+        monthlyReading: {
           select: {
             id: true,
             electricOld: true,
@@ -196,7 +196,7 @@ export const getMyInvoiceStats = async (req, res) => {
 
     const stats = await prisma.invoice.aggregate({
       where: {
-        tenantcontracts: {
+        tenantContract: {
           tenantid: tenantId,
         },
       },
@@ -211,7 +211,7 @@ export const getMyInvoiceStats = async (req, res) => {
     const statusBreakdown = await prisma.invoice.groupBy({
       by: ["Status"],
       where: {
-        tenantcontracts: {
+        tenantContract: {
           tenantid: tenantId,
         },
       },
@@ -240,8 +240,8 @@ export const getOwnerInvoiceStats = async (req, res) => {
     const { houseId, year } = req.query;
 
     let whereClause = {
-      rooms: {
-        houses: {
+      room: {
+        house: {
           ownerid: ownerId,
         },
       },
@@ -252,7 +252,7 @@ export const getOwnerInvoiceStats = async (req, res) => {
     }
 
     if (year) {
-      whereClause.Year = parseInt(year);
+      whereClause.year = parseInt(year);
     }
 
     const stats = await prisma.invoice.aggregate({

@@ -17,8 +17,8 @@ export const createContract = async (req, res) => {
     const room = await prisma.room.findFirst({
       where: {
         id: parseInt(roomId),
-        houses: {
-          ownerid: ownerId,
+        house: {
+          ownerId: ownerId,
         },
       },
     });
@@ -44,7 +44,7 @@ export const createContract = async (req, res) => {
     // Check if room already has an active contract
     const activeContract = await prisma.tenantContract.findFirst({
       where: {
-        roomid: parseInt(roomId),
+        roomId: parseInt(roomId),
         status: "active",
       },
     });
@@ -58,7 +58,7 @@ export const createContract = async (req, res) => {
     // Check if tenant already has an active contract
     const tenantActiveContract = await prisma.tenantContract.findFirst({
       where: {
-        tenantid: parseInt(tenantId),
+        tenantId: parseInt(tenantId),
         status: "active",
       },
     });
@@ -71,8 +71,8 @@ export const createContract = async (req, res) => {
 
     const contract = await prisma.tenantContract.create({
       data: {
-        roomid: parseInt(roomId),
-        tenantid: parseInt(tenantId),
+        roomId: parseInt(roomId),
+        tenantId: parseInt(tenantId),
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         price: parseFloat(price),
@@ -80,9 +80,9 @@ export const createContract = async (req, res) => {
         fileUrl: fileUrl || null,
       },
       include: {
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -91,7 +91,7 @@ export const createContract = async (req, res) => {
             },
           },
         },
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -124,38 +124,38 @@ export const getContracts = async (req, res) => {
 
     // Build where clause
     const whereClause = {
-      rooms: {
-        houses: {
-          ownerid: ownerId,
+      room: {
+        house: {
+          ownerId: ownerId,
         },
       },
     };
 
     if (status) {
-      whereClause.Status = status;
+      whereClause.status = status;
     }
 
     if (roomId) {
-      whereClause.RoomId = parseInt(roomId);
+      whereClause.roomId = parseInt(roomId);
     }
 
     if (tenantId) {
-      whereClause.TenantId = parseInt(tenantId);
+      whereClause.tenantId = parseInt(tenantId);
     }
 
     if (houseId) {
       whereClause.rooms = {
         ...whereClause.rooms,
-        houseid: parseInt(houseId),
+        houseId: parseInt(houseId),
       };
     }
 
     const contracts = await prisma.tenantContract.findMany({
       where: whereClause,
       include: {
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -164,7 +164,7 @@ export const getContracts = async (req, res) => {
             },
           },
         },
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -200,16 +200,16 @@ export const getContractById = async (req, res) => {
     const contract = await prisma.tenantContract.findFirst({
       where: {
         id: parseInt(id),
-        rooms: {
-          houses: {
-            ownerid: ownerId,
+        room: {
+          house: {
+            ownerId: ownerId,
           },
         },
       },
       include: {
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -218,7 +218,7 @@ export const getContractById = async (req, res) => {
             },
           },
         },
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -266,14 +266,14 @@ export const updateContract = async (req, res) => {
     const existingContract = await prisma.tenantContract.findFirst({
       where: {
         id: parseInt(id),
-        rooms: {
-          houses: {
-            ownerid: ownerId,
+        room: {
+          house: {
+            ownerId: ownerId,
           },
         },
       },
       include: {
-        rooms: true,
+        room: true,
       },
     });
 
@@ -298,17 +298,17 @@ export const updateContract = async (req, res) => {
           message: "Invalid status. Must be one of: active, ended",
         });
       }
-      updateData.Status = status;
+      updateData.status = status;
 
       // Update room status when contract ends
-      if (status === "ended" && existingContract.Status === "active") {
+      if (status === "ended" && existingContract.status === "active") {
         await prisma.room.update({
-          where: { id: existingContract.RoomId },
+          where: { id: existingContract.roomId },
           data: { status: "vacant" },
         });
-      } else if (status === "active" && existingContract.Status === "ended") {
+      } else if (status === "active" && existingContract.status === "ended") {
         await prisma.room.update({
-          where: { id: existingContract.RoomId },
+          where: { id: existingContract.roomId },
           data: { status: "occupied" },
         });
       }
@@ -322,9 +322,9 @@ export const updateContract = async (req, res) => {
       where: { id: parseInt(id) },
       data: updateData,
       include: {
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -333,7 +333,7 @@ export const updateContract = async (req, res) => {
             },
           },
         },
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -360,15 +360,15 @@ export const deleteContract = async (req, res) => {
     const existingContract = await prisma.tenantContract.findFirst({
       where: {
         id: parseInt(id),
-        rooms: {
-          houses: {
-            ownerid: ownerId,
+        room: {
+          house: {
+            ownerId: ownerId,
           },
         },
       },
       include: {
         invoices: true,
-        rooms: true,
+        room: true,
       },
     });
 
@@ -387,9 +387,9 @@ export const deleteContract = async (req, res) => {
     }
 
     // Update room status to vacant if contract was active
-    if (existingContract.Status === "active") {
+    if (existingContract.status === "active") {
       await prisma.room.update({
-        where: { id: existingContract.RoomId },
+        where: { id: existingContract.roomId },
         data: { status: "vacant" },
       });
     }
@@ -415,9 +415,9 @@ export const endContract = async (req, res) => {
     const existingContract = await prisma.tenantContract.findFirst({
       where: {
         id: parseInt(id),
-        rooms: {
-          houses: {
-            ownerid: ownerId,
+        room: {
+          house: {
+            ownerId: ownerId,
           },
         },
       },
@@ -429,7 +429,7 @@ export const endContract = async (req, res) => {
         .json({ message: "Contract not found or access denied" });
     }
 
-    if (existingContract.Status === "ended") {
+    if (existingContract.status === "ended") {
       return res.status(400).json({ message: "Contract is already ended" });
     }
 
@@ -440,9 +440,9 @@ export const endContract = async (req, res) => {
         endDate: endDate ? new Date(endDate) : new Date(),
       },
       include: {
-        rooms: {
+        room: {
           include: {
-            houses: {
+            house: {
               select: {
                 id: true,
                 name: true,
@@ -451,7 +451,7 @@ export const endContract = async (req, res) => {
             },
           },
         },
-        users: {
+        tenant: {
           select: {
             id: true,
             name: true,
@@ -464,7 +464,7 @@ export const endContract = async (req, res) => {
 
     // Update room status to vacant
     await prisma.room.update({
-      where: { id: existingContract.RoomId },
+      where: { id: existingContract.roomId },
       data: { status: "vacant" },
     });
 

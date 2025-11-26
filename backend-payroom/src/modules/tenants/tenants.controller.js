@@ -62,7 +62,7 @@ export const getTenants = async (req, res) => {
     };
 
     if (status) {
-      whereClause.Status = status;
+      whereClause.status = status;
     }
 
     if (search) {
@@ -82,14 +82,14 @@ export const getTenants = async (req, res) => {
         phone: true,
         status: true,
         createdAt: true,
-        tenantcontracts: {
+        tenantContracts: {
           where: {
             status: "active",
           },
           include: {
-            rooms: {
+            room: {
               include: {
-                houses: {
+                house: {
                   select: {
                     id: true,
                     name: true,
@@ -127,11 +127,11 @@ export const getTenantById = async (req, res) => {
         phone: true,
         status: true,
         createdAt: true,
-        tenantcontracts: {
+        tenantContracts: {
           include: {
-            rooms: {
+            room: {
               include: {
-                houses: {
+                house: {
                   select: {
                     id: true,
                     name: true,
@@ -190,7 +190,7 @@ export const updateTenant = async (req, res) => {
 
     // Build update data object
     const updateData = {};
-    if (name !== undefined) updateData.Name = name;
+    if (name !== undefined) updateData.name = name;
     if (email !== undefined) {
       // Check if new email already exists
       const emailExists = await prisma.user.findFirst({
@@ -204,7 +204,7 @@ export const updateTenant = async (req, res) => {
       }
       updateData.Email = email;
     }
-    if (phone !== undefined) updateData.Phone = phone;
+    if (phone !== undefined) updateData.phone = phone;
     if (password !== undefined) {
       const hashed = await bcrypt.hash(password, 10);
       updateData.PasswordHash = hashed;
@@ -216,7 +216,7 @@ export const updateTenant = async (req, res) => {
           message: "Invalid status. Must be one of: active, banned",
         });
       }
-      updateData.Status = status;
+      updateData.status = status;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -255,7 +255,7 @@ export const deleteTenant = async (req, res) => {
         role: "tenant",
       },
       include: {
-        tenantcontracts: {
+        tenantContracts: {
           where: {
             status: "active",
           },

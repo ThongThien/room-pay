@@ -1,402 +1,337 @@
 import prisma from "../../prisma/client.js";
 
-// Submit meter readings (for tenant)
 export const submitReading = async (req, res) => {
-    try {
-        const { cycleId, electricOld, electricNew, waterOld, waterNew } = req.body;
-        const tenantId = req.user.userId;
+  try {
+    const { cycleId, electricOld, electricNew, waterOld, waterNew } = req.body;
+    const tenantId = req.user.userId;
 
-        // Validate required fields
-        if (!cycleId || electricOld === undefined || electricNew === undefined ||
-            waterOld === undefined || waterNew === undefined) {
-            return res.status(400).json({
-                message: "Cycle ID and all meter readings are required"
-            });
-        }
-
-        // Get tenant's active contract to find their room
-        const activeContract = await prisma.tenantContract.findFirst({
-            where: {
-                tenantid: tenantId,
-                status: "active"
-            },
-            include: {
-                rooms: true
-            }
-        });
-
-        if (!activeContract) {
-            return res.status(404).json({
-                message: "You don't have an active contract"
-            });
-        }
-
-        // Check if reading cycle exists and is open
-        const cycle = await prisma.readingCycle.findFirst({
-            where: {
-                id: parseInt(cycleId),
-                status: "open"
-            }
-        });
-
-        if (!cycle) {
-            return res.status(404).json({
-                message: "Reading cycle not found or already closed"
-            });
-        }
-
-        // Check if reading already exists for this room and cycle
-        const existingReading = await prisma.monthlyReading.findFirst({
-            where: {
-                roomid: activeContract.RoomId,
-                cycleid: parseInt(cycleId)
-            }
-        });
-
-        if (existingReading) {
-            return res.status(400).json({
-                message: "Reading for this cycle already submitted"
-            });
-        }
-
-        // Validate readings (new should be >= old)
-        if (parseInt(electricNew) < parseInt(electricOld)) {
-            return res.status(400).json({
-                message: "New electric reading must be greater than or equal to old reading"
-            });
-        }
-
-        if (parseInt(waterNew) < parseInt(waterOld)) {
-            return res.status(400).json({
-                message: "New water reading must be greater than or equal to old reading"
-            });
-        }
-
-        // Get uploaded file paths from req.files
-        const electricImage = req.files?.electricImage ? req.files.electricImage[0].path : null;
-        const waterImage = req.files?.waterImage ? req.files.waterImage[0].path : null;
-
-        const reading = await prisma.monthlyReading.create({
-            data: {
-                roomid: activeContract.RoomId,
-                cycleid: parseInt(cycleId),
-                electricOld: parseInt(electricOld),
-                electricNew: parseInt(electricNew),
-                electricImage: electricImage,
-                waterOld: parseInt(waterOld),
-                waterNew: parseInt(waterNew),
-                waterImage: waterImage,
-                status: "submitted"
-            },
-            include: {
-                rooms: {
-                    include: {
-                        houses: {
-                            select: {
-                                name: true,
-                                address: true
-                            }
-                        }
-                    }
-                },
-                readingcycles: true
-            }
-        });
-
-        res.status(201).json({
-            message: "Meter reading submitted successfully",
-            reading
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    // Validate input
+    if (
+      !cycleId ||
+      electricOld === undefined ||
+      electricNew === undefined ||
+      waterOld === undefined ||
+      waterNew === undefined
+    ) {
+      return res.status(400).json({
+        message: "Cycle ID and all meter readings are required",
+      });
     }
+
+    // Get tenant contract
+    const activeContract = await prisma.tenantContract.findFirst({
+      where: { tenantId, status: "active" },
+      include: { room: true },
+    });
+
+    if (!activeContract)
+      return res.status(404).json({
+        message: "You don't have an active contract",
+      });
+
+    // Check cycle
+    const cycle = await prisma.readingCycle.findFirst({
+      where: { id: Number(cycleId), status: "open" },
+    });
+
+    if (!cycle)
+      return res.status(404).json({
+        message: "Reading cycle not found or is already closed",
+      });
+
+    // Check existing reading
+    const existingReading = await prisma.monthlyReading.findFirst({
+      where: {
+        roomId: activeContract.roomId,
+        cycleId: Number(cycleId),
+      },
+    });
+
+    if (existingReading)
+      return res.status(400).json({
+        message: "Reading for this cycle already submitted",
+      });
+
+    // Validate reading increase
+    if (Number(electricNew) < Number(electricOld))
+      return res.status(400).json({
+        message: "New electric reading must be >= old reading",
+      });
+
+    if (Number(waterNew) < Number(waterOld))
+      return res.status(400).json({
+        message: "New water reading must be >= old reading",
+      });
+
+    // File uploads
+    const electricImage = req.files?.electricImage?.[0]?.path ?? null;
+    const waterImage = req.files?.waterImage?.[0]?.path ?? null;
+
+    // Create reading
+    const reading = await prisma.monthlyReading.create({
+      data: {
+        roomId: activeContract.roomId,
+        cycleId: Number(cycleId),
+        electricOld: Number(electricOld),
+        electricNew: Number(electricNew),
+        waterOld: Number(waterOld),
+        waterNew: Number(waterNew),
+        electricImage,
+        waterImage,
+        status: "submitted",
+      },
+      include: {
+        room: {
+          include: {
+            house: {
+              select: { name: true, address: true },
+            },
+          },
+        },
+        readingCycle: true,
+      },
+    });
+
+    res.status(201).json({
+      message: "Meter reading submitted successfully",
+      reading,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-// Get tenant's reading history
+// -----------------------------------------------------
+// Get tenant reading history
+// -----------------------------------------------------
 export const getMyReadings = async (req, res) => {
-    try {
-        const tenantId = req.user.userId;
+  try {
+    const tenantId = req.user.userId;
 
-        // Get tenant's active contract
-        const activeContract = await prisma.tenantContract.findFirst({
-            where: {
-                tenantid: tenantId,
-                status: "active"
-            }
-        });
+    const activeContract = await prisma.tenantContract.findFirst({
+      where: { tenantId, status: "active" },
+    });
 
-        if (!activeContract) {
-            return res.status(404).json({
-                message: "You don't have an active contract"
-            });
-        }
+    if (!activeContract)
+      return res.status(404).json({
+        message: "You don't have an active contract",
+      });
 
-        const readings = await prisma.monthlyReading.findMany({
-            where: {
-                roomid: activeContract.RoomId
-            },
-            include: {
-                readingcycles: true,
-                rooms: {
-                    include: {
-                        houses: {
-                            select: {
-                                name: true,
-                                address: true
-                            }
-                        }
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: "desc"
-            }
-        });
+    const readings = await prisma.monthlyReading.findMany({
+      where: { roomId: activeContract.roomId },
+      include: {
+        readingCycle: true,
+        room: {
+          include: {
+            house: { select: { name: true, address: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-        res.json({ readings });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json({ readings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-// Get current open reading cycle  - tenant
+// -----------------------------------------------------
+// Get current open reading cycle
+// -----------------------------------------------------
 export const getCurrentCycle = async (req, res) => {
-    try {
-        const cycle = await prisma.readingCycle.findFirst({
-            where: {
-                status: "open"
-            },
-            orderBy: {
-                createdAt: "desc"
-            }
-        });
+  try {
+    const cycle = await prisma.readingCycle.findFirst({
+      where: { status: "open" },
+      orderBy: { createdAt: "desc" },
+    });
 
-        if (!cycle) {
-            return res.status(404).json({
-                message: "No open reading cycle available"
-            });
-        }
+    if (!cycle)
+      return res.status(404).json({
+        message: "No open reading cycle available",
+      });
 
-        // Check if tenant already submitted for this cycle
-        const tenantId = req.user.userId;
-        const activeContract = await prisma.tenantContract.findFirst({
-            where: {
-                tenantid: tenantId,
-                status: "active"
-            }
-        });
+    const tenantId = req.user.userId;
+    const activeContract = await prisma.tenantContract.findFirst({
+      where: { tenantId, status: "active" },
+    });
 
-        let alreadySubmitted = false;
-        if (activeContract) {
-            const existingReading = await prisma.monthlyReading.findFirst({
-                where: {
-                    roomid: activeContract.RoomId,
-                    cycleid: cycle.Id
-                }
-            });
-            alreadySubmitted = !!existingReading;
-        }
+    let alreadySubmitted = false;
 
-        res.json({
-            cycle,
-            alreadySubmitted
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    if (activeContract) {
+      const existingReading = await prisma.monthlyReading.findFirst({
+        where: {
+          roomId: activeContract.roomId,
+          cycleId: cycle.id,
+        },
+      });
+      alreadySubmitted = !!existingReading;
     }
+
+    res.json({ cycle, alreadySubmitted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-// Get last reading for reference - tenant
+// -----------------------------------------------------
+// Get last confirmed reading for tenant
+// -----------------------------------------------------
 export const getLastReading = async (req, res) => {
-    try {
-        const tenantId = req.user.userId;
+  try {
+    const tenantId = req.user.userId;
 
-        // Get tenant's active contract
-        const activeContract = await prisma.tenantContract.findFirst({
-            where: {
-                tenantid: tenantId,
-                status: "active"
-            }
-        });
+    const activeContract = await prisma.tenantContract.findFirst({
+      where: { tenantId, status: "active" },
+    });
 
-        if (!activeContract) {
-            return res.status(404).json({
-                message: "You don't have an active contract"
-            });
-        }
+    if (!activeContract)
+      return res.status(404).json({
+        message: "You don't have an active contract",
+      });
 
-        const lastReading = await prisma.monthlyReading.findFirst({
-            where: {
-                roomid: activeContract.RoomId,
-                status: "confirmed"
-            },
-            orderBy: {
-                createdAt: "desc"
-            },
-            include: {
-                readingcycles: true
-            }
-        });
+    const lastReading = await prisma.monthlyReading.findFirst({
+      where: { roomId: activeContract.roomId, status: "confirmed" },
+      orderBy: { createdAt: "desc" },
+      include: { readingCycle: true },
+    });
 
-        if (!lastReading) {
-            return res.json({
-                message: "No previous reading found",
-                lastReading: null
-            });
-        }
-
-        res.json({ lastReading });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json({
+      lastReading: lastReading ?? null,
+      message: lastReading ? undefined : "No previous reading found",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-// business code for owner
+// -----------------------------------------------------
+// BUSINESS – Owner: Create reading cycle
+// -----------------------------------------------------
 export const createCycle = async (req, res) => {
-    try {
-        const { month, year, deadline } = req.body;
+  try {
+    const { month, year, deadline } = req.body;
 
-        const exists = await prisma.readingcycles.findFirst({
-            where: { Month: month, Year: year }
-        });
+    const exists = await prisma.readingCycle.findFirst({
+      where: { month, year },
+    });
 
-        if (exists) throw new Error("Cycle for this month already exists");
+    if (exists)
+      throw new Error("Cycle for this month already exists");
 
-        const cycle = await prisma.readingcycles.create({
-            data: {
-                Month: month,
-                Year: year,
-                Deadline: deadline ? new Date(deadline) : null,
-                Status: "open"
-            }
-        });
+    const cycle = await prisma.readingCycle.create({
+      data: {
+        month,
+        year,
+        deadline: deadline ? new Date(deadline) : null,
+        status: "open",
+      },
+    });
 
-        res.json({ success: true, cycle });
-
-    } catch (err) {
-        res.status(400).json({ error: err.message });
-    }
+    res.json({ success: true, cycle });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 };
 
+// -----------------------------------------------------
+// BUSINESS – Owner confirm readings manually
+// -----------------------------------------------------
 export const confirmReading = async (req, res) => {
-    //Tenant không gửi readings
-    //Tenant gửi sai (owner sửa lại)
-    //Đồng hồ hỏng, owner đọc thủ công từ camera/bảng ghi
-    try {
-        const { cycleId, roomId } = req.params;
-        const {
-            electricOld,
-            electricNew,
-            waterOld,
-            waterNew,
-            electricImage,
-            waterImage
-        } = req.body;
+  try {
+    const { cycleId, roomId } = req.params;
+    const {
+      electricOld,
+      electricNew,
+      waterOld,
+      waterNew,
+      electricImage,
+      waterImage,
+    } = req.body;
 
-        // Validate cycle exists & is open/ not closed
-        const cycle = await prisma.readingcycles.findUnique({
-            where: { Id: Number(cycleId) }
-        });
+    const cycle = await prisma.readingCycle.findUnique({
+      where: { id: Number(cycleId) },
+    });
 
-        if (!cycle) {
-            return res.status(404).json({ message: "Cycle not found" });
-        }
+    if (!cycle) return res.status(404).json({ message: "Cycle not found" });
 
-        // Check existing reading
-        const exist = await prisma.monthlyreadings.findFirst({
-            where: {
-                CycleId: Number(cycleId),
-                RoomId: Number(roomId)
-            }
-        });
+    const exist = await prisma.monthlyReading.findFirst({
+      where: {
+        cycleId: Number(cycleId),
+        roomId: Number(roomId),
+      },
+    });
 
-        let reading;
+    let reading;
 
-        // Case 1: Không có reading → Owner tạo mới + confirm (trong TH người thuê không nộp được reading thì chủ nhà tự làm)
-        if (!exist) {
-            reading = await prisma.monthlyreadings.create({
-                data: {
-                    CycleId: Number(cycleId),
-                    RoomId: Number(roomId),
-                    ElectricOld: electricOld ?? 0,
-                    ElectricNew: electricNew ?? 0,
-                    WaterOld: waterOld ?? 0,
-                    WaterNew: waterNew ?? 0,
-                    ElectricImage: electricImage || null,
-                    WaterImage: waterImage || null,
-                    Status: "confirmed"
-                }
-            });
+    // No reading → create new
+    if (!exist) {
+      reading = await prisma.monthlyReading.create({
+        data: {
+          cycleId: Number(cycleId),
+          roomId: Number(roomId),
+          electricOld: electricOld ?? 0,
+          electricNew: electricNew ?? 0,
+          waterOld: waterOld ?? 0,
+          waterNew: waterNew ?? 0,
+          electricImage: electricImage || null,
+          waterImage: waterImage || null,
+          status: "confirmed",
+        },
+      });
 
-            return res.json({
-                message: "Reading created & confirmed by owner",
-                reading
-            });
-        }
-
-        // Case 2: đã submitted → Owner confirm & update values
-        if (exist.Status === "submitted") {
-            reading = await prisma.monthlyreadings.update({
-                where: { Id: exist.Id },
-                data: {
-                    ElectricOld: electricOld ?? exist.ElectricOld,
-                    ElectricNew: electricNew ?? exist.ElectricNew,
-                    WaterOld: waterOld ?? exist.WaterOld,
-                    WaterNew: waterNew ?? exist.WaterNew,
-                    ElectricImage: electricImage || exist.ElectricImage,
-                    WaterImage: waterImage || exist.WaterImage,
-                    Status: "confirmed"
-                }
-            });
-
-            return res.json({
-                message: "Reading updated & confirmed",
-                reading
-            });
-        }
-
-        // Case 3: đã confirmed → Owner update nếu muốn
-        reading = await prisma.monthlyreadings.update({
-            where: { Id: exist.Id },
-            data: {
-                ElectricOld: electricOld ?? exist.ElectricOld,
-                ElectricNew: electricNew ?? exist.ElectricNew,
-                WaterOld: waterOld ?? exist.WaterOld,
-                WaterNew: waterNew ?? exist.WaterNew,
-                ElectricImage: electricImage || exist.ElectricImage,
-                WaterImage: waterImage || exist.WaterImage,
-                Status: "confirmed"
-            }
-        });
-
-        return res.json({
-            message: "Reading updated (already confirmed)",
-            reading
-        });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+      return res.json({
+        message: "Reading created & confirmed by owner",
+        reading,
+      });
     }
+
+    // Update existing
+    reading = await prisma.monthlyReading.update({
+      where: { id: exist.id },
+      data: {
+        electricOld: electricOld ?? exist.electricOld,
+        electricNew: electricNew ?? exist.electricNew,
+        waterOld: waterOld ?? exist.waterOld,
+        waterNew: waterNew ?? exist.waterNew,
+        electricImage: electricImage || exist.electricImage,
+        waterImage: waterImage || exist.waterImage,
+        status: "confirmed",
+      },
+    });
+
+    return res.json({
+      message:
+        exist.status === "submitted"
+          ? "Reading updated & confirmed"
+          : "Reading updated (already confirmed)",
+      reading,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
+// -----------------------------------------------------
+// BUSINESS – Get rooms missing readings in a cycle
+// -----------------------------------------------------
 export const getRoomsMissingReadings = async (req, res) => {
-    try {
-        const { cycleId } = req.params;
+  try {
+    const { cycleId } = req.params;
 
-        const allRooms = await prisma.rooms.findMany();
+    const allRooms = await prisma.room.findMany();
 
-        const submitted = await prisma.monthlyreadings.findMany({
-            where: { CycleId: Number(cycleId) },
-            select: { RoomId: true }
-        });
+    const submitted = await prisma.monthlyReading.findMany({
+      where: { cycleId: Number(cycleId) },
+      select: { roomId: true },
+    });
 
-        const submittedRoomIds = submitted.map(x => x.RoomId);
+    const submittedIds = submitted.map((x) => x.roomId);
 
-        const missing = allRooms.filter(r => !submittedRoomIds.includes(r.Id));
+    const missing = allRooms.filter((r) => !submittedIds.includes(r.id));
 
-        res.json({ success: true, missing });
-
-    } catch (err) {
-        res.status(400).json({ error: err.message });
-    }
+    res.json({ success: true, missing });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 };

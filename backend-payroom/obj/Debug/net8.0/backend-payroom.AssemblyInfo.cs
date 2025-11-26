@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("backend-payroom")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3b8b15b76e1de120426781f9404a044c22ad5beb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cc44ff6b9996ea1dd38599b14c9c1b8e648b7cba")]
 [assembly: System.Reflection.AssemblyProductAttribute("backend-payroom")]
 [assembly: System.Reflection.AssemblyTitleAttribute("backend-payroom")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

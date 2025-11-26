@@ -79,6 +79,7 @@ bld/
 appsettings.Development.json
 appsettings.*.json
 !appsettings.json
+!appsettings.Example.json
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

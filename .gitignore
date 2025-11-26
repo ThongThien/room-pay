@@ -11,3 +11,6 @@ Desktop.ini
 # IDEs
 .vscode/
 .idea/
+
+.github/
+.vs/

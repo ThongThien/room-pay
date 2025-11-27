@@ -1,23 +1,22 @@
 using System.ComponentModel.DataAnnotations;
-using backend_payroom.Features.User;
 
-namespace backend_payroom.Features.Auth.DTOs;
+namespace AA.Features.Auth.DTOs;
 
 public class RegisterDto
 {
-    [Required(ErrorMessage = "Full name is required")]
-    [StringLength(100, ErrorMessage = "Full name cannot exceed 100 characters")]
-    public string FullName { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "Email is required")]
-    [EmailAddress(ErrorMessage = "Invalid email format")]
+    [Required(ErrorMessage = "Email là bắt buộc")]
+    [EmailAddress(ErrorMessage = "Email không hợp lệ")]
     public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Password is required")]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be between 6 and 100 characters")]
+    [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
+    [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
     public string Password { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Phone is required")]
-    [Phone(ErrorMessage = "Invalid phone format")]
-    public string Phone { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Xác nhận mật khẩu là bắt buộc")]
+    [Compare("Password", ErrorMessage = "Mật khẩu không khớp")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Tên đầy đủ là bắt buộc")]
+    [MinLength(2, ErrorMessage = "Tên phải có ít nhất 2 ký tự")]
+    public string FullName { get; set; } = string.Empty;
 }

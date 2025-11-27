@@ -1,14 +1,27 @@
+using AA.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using backend_payroom.Features.User;
 
-namespace backend_payroom.Data;
+namespace AA.Data;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) 
         : base(options)
     {
     }
 
-    public DbSet<UserModel> Users { get; set; } = null!;
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        // Identity sẽ tự động tạo các bảng với tên chuẩn:
+        // - AspNetUsers (user accounts)
+        // - AspNetRoles (roles)
+        // - AspNetUserRoles (user-role relationships)
+        // - AspNetUserClaims (user claims)
+        // - AspNetUserLogins (external logins)
+        // - AspNetUserTokens (authentication tokens)
+        // - AspNetRoleClaims (role claims)
+    }
 }

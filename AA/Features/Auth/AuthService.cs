@@ -1,130 +1,142 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using backend_payroom.Data;
-using backend_payroom.Features.Auth.DTOs;
-using backend_payroom.Features.User;
-using Microsoft.EntityFrameworkCore;
+using AA.Features.Auth.DTOs;
+using AA.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 
-namespace backend_payroom.Features.Auth;
+namespace AA.Features.Auth;
 
 public class AuthService : IAuthService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IConfiguration _configuration;
 
-    public AuthService(ApplicationDbContext context, IConfiguration configuration)
+    public AuthService(
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        IConfiguration configuration)
     {
-        _context = context;
+        _userManager = userManager;
+        _signInManager = signInManager;
         _configuration = configuration;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
     {
-        // Check if email already exists
-        if (await _context.Users.AnyAsync(u => u.Email == registerDto.Email))
+        // Kiểm tra email đã tồn tại
+        var existingUser = await _userManager.FindByEmailAsync(registerDto.Email);
+        if (existingUser != null)
         {
-            throw new InvalidOperationException("Email already exists");
+            return new AuthResponseDto
+            {
+                Success = false,
+                Message = "Email đã được sử dụng"
+            };
         }
 
-        var user = new UserModel
+        // Tạo user mới
+        var user = new ApplicationUser
         {
-            FullName = registerDto.FullName,
+            UserName = registerDto.Email,
             Email = registerDto.Email,
-            PasswordHash = HashPassword(registerDto.Password),
-            Phone = registerDto.Phone,
-            Role = UserRole.Tenant, // Always set to Tenant by default
+            FullName = registerDto.FullName,
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        var result = await _userManager.CreateAsync(user, registerDto.Password);
 
-        var token = GenerateJwtToken(user.Id, user.Email, user.Role.ToString());
-        var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
+        if (!result.Succeeded)
+        {
+            return new AuthResponseDto
+            {
+                Success = false,
+                Message = string.Join(", ", result.Errors.Select(e => e.Description))
+            };
+        }
+
+        // Tạo token
+        var token = GenerateJwtToken(user);
 
         return new AuthResponseDto
         {
+            Success = true,
+            Message = "Đăng ký thành công",
             Token = token,
-            UserId = user.Id,
-            Email = user.Email,
-            FullName = user.FullName,
-            Role = user.Role,
-            ExpiresAt = expiresAt
+            User = new UserInfoDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FullName = user.FullName ?? string.Empty
+            }
         };
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
-        
+        var user = await _userManager.FindByEmailAsync(loginDto.Email);
         if (user == null)
         {
-            throw new UnauthorizedAccessException("Invalid email or password");
+            return new AuthResponseDto
+            {
+                Success = false,
+                Message = "Email hoặc mật khẩu không đúng"
+            };
         }
 
-        if (!VerifyPassword(loginDto.Password, user.PasswordHash))
+        var result = await _signInManager.CheckPasswordSignInAsync(user, loginDto.Password, false);
+        if (!result.Succeeded)
         {
-            throw new UnauthorizedAccessException("Invalid email or password");
+            return new AuthResponseDto
+            {
+                Success = false,
+                Message = "Email hoặc mật khẩu không đúng"
+            };
         }
 
-        var token = GenerateJwtToken(user.Id, user.Email, user.Role.ToString());
-        var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
+        var token = GenerateJwtToken(user);
 
         return new AuthResponseDto
         {
+            Success = true,
+            Message = "Đăng nhập thành công",
             Token = token,
-            UserId = user.Id,
-            Email = user.Email,
-            FullName = user.FullName,
-            Role = user.Role,
-            ExpiresAt = expiresAt
+            User = new UserInfoDto
+            {
+                Id = user.Id,
+                Email = user.Email ?? string.Empty,
+                FullName = user.FullName ?? string.Empty
+            }
         };
     }
 
-    public string GenerateJwtToken(int userId, string email, string role)
+    private string GenerateJwtToken(ApplicationUser user)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var secretKey = jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret không được cấu hình");
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, email),
-            new Claim(ClaimTypes.Role, role),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("fullName", user.FullName ?? string.Empty)
         };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"] ?? "1440");
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],
             audience: jwtSettings["Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes()),
-            signingCredentials: credentials
+            expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
+            signingCredentials: creds
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-    private int GetJwtExpirationMinutes()
-    {
-        var expirationMinutes = _configuration.GetSection("JwtSettings")["ExpirationMinutes"];
-        return int.TryParse(expirationMinutes, out var minutes) ? minutes : 60;
-    }
-
-    private static string HashPassword(string password)
-    {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
-    }
-
-    private static bool VerifyPassword(string password, string passwordHash)
-    {
-        var hashedInput = HashPassword(password);
-        return hashedInput == passwordHash;
     }
 }

@@ -40,13 +40,28 @@ public class AuthService : IAuthService
             };
         }
 
+        ApplicationUser? owner = null;
+        if (!string.IsNullOrWhiteSpace(registerDto.OwnerId))
+        {
+            owner = await _userManager.FindByIdAsync(registerDto.OwnerId);
+            if (owner == null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Owner không tồn tại"
+                };
+            }
+        }
+
         // Tạo user mới
         var user = new ApplicationUser
         {
             UserName = registerDto.Email,
             Email = registerDto.Email,
             FullName = registerDto.FullName,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OwnerId = owner?.Id
         };
 
         var result = await _userManager.CreateAsync(user, registerDto.Password);
@@ -87,7 +102,8 @@ public class AuthService : IAuthService
                 Id = user.Id,
                 Email = user.Email,
                 FullName = user.FullName ?? string.Empty,
-                Role = defaultRole
+                Role = defaultRole,
+                OwnerId = user.OwnerId
             }
         };
     }
@@ -127,7 +143,8 @@ public class AuthService : IAuthService
                 Id = user.Id,
                 Email = user.Email ?? string.Empty,
                 FullName = user.FullName ?? string.Empty,
-                Role = roles.FirstOrDefault() ?? string.Empty
+                Role = roles.FirstOrDefault() ?? string.Empty,
+                OwnerId = user.OwnerId
             }
         };
     }
@@ -147,6 +164,11 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim("fullName", user.FullName ?? string.Empty)
         };
+
+        if (!string.IsNullOrEmpty(user.OwnerId))
+        {
+            claims.Add(new Claim("ownerId", user.OwnerId));
+        }
 
         // Thêm roles vào claims
         foreach (var role in roles)

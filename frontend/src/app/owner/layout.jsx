@@ -1,6 +1,6 @@
-'use client' 
+'use client'
 import { useState } from 'react'
-import Link from 'next/link' 
+import Link from 'next/link'
 import Image from 'next/image'
 
 export default function OwnerLayout({ children }) {
@@ -13,50 +13,82 @@ export default function OwnerLayout({ children }) {
         <div className="p-4 border-b border-gray-700 font-bold text-center">
           {isSidebarOpen ? 'OWNER' : 'OW'}
         </div>
-        
-        <nav className="flex-1 p-4 space-y-2">  
+
+        <nav className="flex-1 p-4 space-y-2">
           <Link href="/owner" className="block p-2 hover:bg-gray-700 rounded">
             {isSidebarOpen && 'Dashboard'}
+          </Link>
+
+          <Link href="/owner/contracts" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Contracts'}
+          </Link>
+
+          <Link href="/owner/houses" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Houses'}
+          </Link>
+
+          <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Invoices'}
+          </Link>
+
+          <Link href="/owner/notification" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Notifications'}
+          </Link>
+
+          <Link href="/owner/profile" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Profile'}
+          </Link>
+
+          <Link href="/owner/rooms" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Rooms'}
+          </Link>
+
+          <Link href="/owner/tenants" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Tenants'}
+          </Link>
+
+          <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Tickets'}
           </Link>
         </nav>
 
         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-4 bg-gray-900 text-center hover:bg-gray-700">
-           {isSidebarOpen ? 'Thu gọn' : '>'}
+          {isSidebarOpen ? 'Thu gọn' : '>'}
         </button>
       </aside>
 
       {/*MAIN CONTENT*/}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow p-4 flex justify-between items-center">
-            <h2 className="font-bold">Hệ thống quản lý phòng trọ</h2>
-            <div className="flex items-center gap-4">
-                <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">
-                    <Image 
-                        src="/bell.svg"    
-                        alt="nofi"
-                        width={24}         
-                        height={24}
-                        className="w-6 h-6" 
-                    />
-                    <span className="absolute top-1.5 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-                </button>
-                <div className="h-6 w-px bg-gray-300"></div>
-                <div className="flex items-center gap-3">
-                    <div className="text-right">
-                        <p className="text-sm font-bold">Owner</p>
-                        <p className="text-xs">Chủ nhà</p>
-                    </div>
+          <h2 className="font-bold">Hệ thống quản lý phòng trọ</h2>
+          <div className="flex items-center gap-4">
+            <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">
+              <Image
+                src="/bell.svg"
+                alt="nofi"
+                width={24}
+                height={24}
+                className="w-6 h-6"
+              />
+              <span className="absolute top-1.5 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+            </button>
+            <div className="h-6 w-px bg-gray-300"></div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-bold">Owner</p>
+                <p className="text-xs">Chủ nhà</p>
+              </div>
 
-                    <div className="relative w-10 h-10">
-                        <Image 
-                            src="/logo.png"
-                            alt="Avatar"
-                            fill 
-                            className="rounded-full object-cover border"
-                        />
-                    </div>
-                </div>
+              <div className="relative w-10 h-10">
+                <Image
+                  src="/logo.png"
+                  alt="Avatar"
+                  fill
+                  className="rounded-full object-cover border"
+                />
+              </div>
             </div>
+          </div>
         </header>
 
         {/* CHILD */}

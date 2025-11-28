@@ -37,6 +37,7 @@ export default function TenantDashboard() {
                 (data.electric.newValue - data.electric.oldValue) * 3500 +
                 (data.water.newValue - data.water.oldValue) * 7000
 
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setInvoice({
                 id: "inv_001",
                 month: data.period,

@@ -12,15 +12,18 @@ public class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IConfiguration _configuration;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
+        RoleManager<IdentityRole> roleManager,
         IConfiguration configuration)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _roleManager = roleManager;
         _configuration = configuration;
     }
 
@@ -57,8 +60,22 @@ public class AuthService : IAuthService
             };
         }
 
+        // Tự động gán role "Tenant" cho user mới
+        const string defaultRole = "Tenant";
+        var roleResult = await _userManager.AddToRoleAsync(user, defaultRole);
+        if (!roleResult.Succeeded)
+        {
+            // Nếu gán role thất bại, xóa user đã tạo
+            await _userManager.DeleteAsync(user);
+            return new AuthResponseDto
+            {
+                Success = false,
+                Message = "Không thể gán role cho user: " + string.Join(", ", roleResult.Errors.Select(e => e.Description))
+            };
+        }
+
         // Tạo token
-        var token = GenerateJwtToken(user);
+        var token = await GenerateJwtTokenAsync(user);
 
         return new AuthResponseDto
         {
@@ -69,7 +86,8 @@ public class AuthService : IAuthService
             {
                 Id = user.Id,
                 Email = user.Email,
-                FullName = user.FullName ?? string.Empty
+                FullName = user.FullName ?? string.Empty,
+                Role = defaultRole
             }
         };
     }
@@ -96,7 +114,8 @@ public class AuthService : IAuthService
             };
         }
 
-        var token = GenerateJwtToken(user);
+        var token = await GenerateJwtTokenAsync(user);
+        var roles = await _userManager.GetRolesAsync(user);
 
         return new AuthResponseDto
         {
@@ -107,23 +126,33 @@ public class AuthService : IAuthService
             {
                 Id = user.Id,
                 Email = user.Email ?? string.Empty,
-                FullName = user.FullName ?? string.Empty
+                FullName = user.FullName ?? string.Empty,
+                Role = roles.FirstOrDefault() ?? string.Empty
             }
         };
     }
 
-    private string GenerateJwtToken(ApplicationUser user)
+    private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var secretKey = jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret không được cấu hình");
 
-        var claims = new[]
+        // Lấy roles của user
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
             new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim("fullName", user.FullName ?? string.Empty)
         };
+
+        // Thêm roles vào claims
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

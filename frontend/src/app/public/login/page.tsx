@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { loginAPI } from "@/services/authService";
 
@@ -15,11 +15,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -30,7 +30,9 @@ export default function LoginPage() {
 
       if (result.success) {
         // Lưu Token và thông tin User
-        localStorage.setItem("accessToken", result.token);
+        if (result.token) {
+            localStorage.setItem("accessToken", result.token);
+        }
         
         // Lưu thông tin user để hiển thị
         if (result.user) {
@@ -49,9 +51,10 @@ export default function LoginPage() {
         }
 
       } else {
-        setError(result.message);
+        setError(result.message || "Đăng nhập thất bại");
       }
     } catch (err) {
+      console.error("Login Error:", err);
       setError("Đã xảy ra lỗi không mong muốn.");
     } finally {
       setLoading(false);
@@ -61,7 +64,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-md p-8 bg-white rounded shadow-md">
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Đăng nhập hệ thống</h2>
+        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Đăng nhập</h2>
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm text-center">
@@ -79,7 +82,6 @@ export default function LoginPage() {
               value={formData.email}
               onChange={handleChange}
               className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-              placeholder="example@gmail.com"
               required
             />
           </div>
@@ -93,7 +95,6 @@ export default function LoginPage() {
               value={formData.password}
               onChange={handleChange}
               className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-              placeholder="Nhập mật khẩu..."
               required
             />
           </div>
@@ -108,6 +109,11 @@ export default function LoginPage() {
             {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </form>
+        
+        <div className="mt-4 text-center text-sm">
+            <span className="text-gray-600">Chưa có tài khoản? </span>
+            <a href="/public/register" className="text-blue-600 hover:underline">Đăng ký ngay</a>
+        </div>
       </div>
     </div>
   );

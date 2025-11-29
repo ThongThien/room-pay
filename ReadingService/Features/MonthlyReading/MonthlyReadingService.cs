@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using ReadingService.Data;
 using ReadingService.Models;
 using ReadingService.Services;
+using ReadingService.Features.MonthlyReading.DTOs;
 
-namespace ReadingService.Features.MonthlyReadings;
+namespace ReadingService.Features.MonthlyReading;
 
 public class MonthlyReadingService : IMonthlyReadingService
 {
@@ -21,86 +22,50 @@ public class MonthlyReadingService : IMonthlyReadingService
         _logger = logger;
     }
 
-    public async Task<MonthlyReadingResponseDto> CreateAsync(CreateMonthlyReadingDto dto)
-    {
-        // Kiểm tra CycleId có tồn tại không
-        var cycleExists = await _context.ReadingCycles.AnyAsync(c => c.Id == dto.CycleId);
-        if (!cycleExists)
-        {
-            throw new InvalidOperationException("CycleId không tồn tại");
-        }
-
-        // Upload ảnh điện lên S3
-        string? electricPhotoUrl = null;
-        if (dto.ElectricPhoto != null)
-        {
-            electricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, "electric-photos");
-        }
-
-        // Upload ảnh nước lên S3
-        string? waterPhotoUrl = null;
-        if (dto.WaterPhoto != null)
-        {
-            waterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, "water-photos");
-        }
-
-        // Tạo entity
-        var monthlyReading = new MonthlyReading
-        {
-            CycleId = dto.CycleId,
-            UserId = dto.UserId,
-            ElectricOld = dto.ElectricOld,
-            ElectricNew = dto.ElectricNew,
-            ElectricPhotoUrl = electricPhotoUrl,
-            WaterOld = dto.WaterOld,
-            WaterNew = dto.WaterNew,
-            WaterPhotoUrl = waterPhotoUrl,
-            Status = dto.Status,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        _context.MonthlyReadings.Add(monthlyReading);
-        await _context.SaveChangesAsync();
-
-        // Trả về response
-        return MapToResponseDto(monthlyReading);
-    }
-
     public async Task<MonthlyReadingResponseDto?> GetByIdAsync(int id)
     {
         var reading = await _context.MonthlyReadings.FindAsync(id);
         return reading == null ? null : MapToResponseDto(reading);
     }
 
-    public async Task<List<MonthlyReadingResponseDto>> GetByCycleIdAsync(int cycleId)
+    public async Task<MonthlyReadingResponseDto?> GetByCycleIdAsync(int cycleId)
     {
-        var readings = await _context.MonthlyReadings
-            .Where(r => r.CycleId == cycleId)
-            .ToListAsync();
+        var reading = await _context.MonthlyReadings
+            .FirstOrDefaultAsync(r => r.CycleId == cycleId);
 
-        return readings.Select(MapToResponseDto).ToList();
+        return reading == null ? null : MapToResponseDto(reading);
     }
 
-    public async Task<bool> UpdateAsync(int id, CreateMonthlyReadingDto dto)
+    public async Task<MonthlyReadingResponseDto?> GetLatestSubmittedByUserIdAsync(string userId)
     {
-        var reading = await _context.MonthlyReadings.FindAsync(id);
+        // Lấy reading gần nhất đã được submit của user
+        var reading = await _context.MonthlyReadings
+            .Include(mr => mr.ReadingCycle)
+            .Where(mr => mr.ReadingCycle!.UserId == userId && mr.Status == ReadingStatus.Submitted)
+            .OrderByDescending(mr => mr.UpdatedAt)
+            .FirstOrDefaultAsync();
+
+        return reading == null ? null : MapToResponseDto(reading);
+    }
+
+    public async Task<MonthlyReadingResponseDto> SubmitAsync(int cycleId, SubmitMonthlyReadingDto dto)
+    {
+        // Tìm MonthlyReading theo CycleId
+        var reading = await _context.MonthlyReadings
+            .Include(r => r.ReadingCycle) // Include để lấy UserId
+            .FirstOrDefaultAsync(r => r.CycleId == cycleId);
+
         if (reading == null)
         {
-            return false;
+            throw new InvalidOperationException("Không tìm thấy MonthlyReading cho CycleId này");
         }
 
-        // Kiểm tra CycleId mới có tồn tại không
-        if (reading.CycleId != dto.CycleId)
-        {
-            var cycleExists = await _context.ReadingCycles.AnyAsync(c => c.Id == dto.CycleId);
-            if (!cycleExists)
-            {
-                throw new InvalidOperationException("CycleId không tồn tại");
-            }
-        }
+        var userId = reading.ReadingCycle?.UserId ?? "unknown";
+        
+        // Log để debug
+        _logger.LogInformation($"SubmitAsync - CycleId: {cycleId}, UserId: {userId}, ElectricOld (from DB): {reading.ElectricOld}, ElectricNew (from user): {dto.ElectricNew}, WaterOld (from DB): {reading.WaterOld}, WaterNew (from user): {dto.WaterNew}");
 
-        // Upload ảnh điện mới nếu có
+        // Upload ảnh điện lên S3
         if (dto.ElectricPhoto != null)
         {
             // Xóa ảnh cũ nếu có
@@ -108,10 +73,10 @@ public class MonthlyReadingService : IMonthlyReadingService
             {
                 await _s3Service.DeleteFileAsync(reading.ElectricPhotoUrl);
             }
-            reading.ElectricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, "electric-photos");
+            reading.ElectricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, $"{userId}/electric-meter-photos");
         }
 
-        // Upload ảnh nước mới nếu có
+        // Upload ảnh nước lên S3
         if (dto.WaterPhoto != null)
         {
             // Xóa ảnh cũ nếu có
@@ -119,21 +84,19 @@ public class MonthlyReadingService : IMonthlyReadingService
             {
                 await _s3Service.DeleteFileAsync(reading.WaterPhotoUrl);
             }
-            reading.WaterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, "water-photos");
+            reading.WaterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, $"{userId}/water-meter-photos");
         }
 
-        // Cập nhật các trường khác
-        reading.CycleId = dto.CycleId;
-        reading.UserId = dto.UserId;
-        reading.ElectricOld = dto.ElectricOld;
+        // Cập nhật thông tin - chỉ số cũ đã được set tự động khi tạo ReadingCycle
+        // ElectricOld và WaterOld không cần cập nhật, đã có sẵn từ lần nộp trước
         reading.ElectricNew = dto.ElectricNew;
-        reading.WaterOld = dto.WaterOld;
         reading.WaterNew = dto.WaterNew;
-        reading.Status = dto.Status;
+        reading.Status = ReadingStatus.Submitted;
         reading.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return true;
+
+        return MapToResponseDto(reading);
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -159,13 +122,12 @@ public class MonthlyReadingService : IMonthlyReadingService
         return true;
     }
 
-    private static MonthlyReadingResponseDto MapToResponseDto(MonthlyReading reading)
+    private static MonthlyReadingResponseDto MapToResponseDto(ReadingService.Models.MonthlyReading reading)
     {
         return new MonthlyReadingResponseDto
         {
             Id = reading.Id,
             CycleId = reading.CycleId,
-            UserId = reading.UserId,
             ElectricOld = reading.ElectricOld,
             ElectricNew = reading.ElectricNew,
             ElectricPhotoUrl = reading.ElectricPhotoUrl,
@@ -178,4 +140,3 @@ public class MonthlyReadingService : IMonthlyReadingService
         };
     }
 }
-

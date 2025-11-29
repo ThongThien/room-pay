@@ -1,11 +1,13 @@
-namespace ReadingService.Features.MonthlyReadings;
+using ReadingService.Features.MonthlyReading.DTOs;
+
+namespace ReadingService.Features.MonthlyReading;
 
 public interface IMonthlyReadingService
 {
-    Task<MonthlyReadingResponseDto> CreateAsync(CreateMonthlyReadingDto dto);
     Task<MonthlyReadingResponseDto?> GetByIdAsync(int id);
-    Task<List<MonthlyReadingResponseDto>> GetByCycleIdAsync(int cycleId);
-    Task<bool> UpdateAsync(int id, CreateMonthlyReadingDto dto);
+    Task<MonthlyReadingResponseDto?> GetByCycleIdAsync(int cycleId);
+    Task<MonthlyReadingResponseDto?> GetLatestSubmittedByUserIdAsync(string userId);
+    Task<MonthlyReadingResponseDto> SubmitAsync(int cycleId, SubmitMonthlyReadingDto dto);
     Task<bool> DeleteAsync(int id);
 }
 

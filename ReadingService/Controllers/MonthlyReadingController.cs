@@ -10,16 +10,16 @@ namespace ReadingService.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class MonthlyReadingsController : ControllerBase
+public class MonthlyReadingController : ControllerBase
 {
     private readonly IMonthlyReadingService _monthlyReadingService;
     private readonly IReadingCycleService _readingCycleService;
-    private readonly ILogger<MonthlyReadingsController> _logger;
+    private readonly ILogger<MonthlyReadingController> _logger;
 
-    public MonthlyReadingsController(
+    public MonthlyReadingController(
         IMonthlyReadingService monthlyReadingService,
         IReadingCycleService readingCycleService,
-        ILogger<MonthlyReadingsController> logger)
+        ILogger<MonthlyReadingController> logger)
     {
         _monthlyReadingService = monthlyReadingService;
         _readingCycleService = readingCycleService;
@@ -30,23 +30,14 @@ public class MonthlyReadingsController : ControllerBase
     /// Nộp chỉ số điện nước cho MonthlyReading (submit reading)
     /// </summary>
     [HttpPost("{cycleId}/submit")]
-    [Consumes("multipart/form-data")]
     public async Task<ActionResult<MonthlyReadingResponseDto>> SubmitMonthlyReading(
         int cycleId,
         [FromForm] SubmitMonthlyReadingDto dto)
     {
         try
         {
-            // Debug - đọc trực tiếp từ Request.Form
-            var form = Request.Form;
-            _logger.LogInformation($"Form keys: {string.Join(", ", form.Keys)}");
-            foreach (var key in form.Keys)
-            {
-                _logger.LogInformation($"Form[{key}] = {form[key]}");
-            }
-            
             // Debug log
-            _logger.LogInformation($"Controller received - electricOld: {dto.ElectricOld}, electricNew: {dto.ElectricNew}, waterOld: {dto.WaterOld}, waterNew: {dto.WaterNew}");
+            _logger.LogInformation($"Controller received - electricNew: {dto.ElectricNew}, waterNew: {dto.WaterNew}");
             
             // Lấy userId từ JWT token
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)

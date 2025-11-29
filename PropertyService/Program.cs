@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PropertyService.Data;
 using System.Text;
+using PropertyService.Services;
+using PropertyService.Services.Interfaces;
+using PropertyService.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +17,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     ));
 
 // 2. JWT Authentication
-var jwt = builder.Configuration.GetSection("Jwt");
+var jwt = builder.Configuration.GetSection("JwtSettings");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -26,7 +29,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwt["Issuer"],
             ValidAudience = jwt["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Secret"]!))
+
         };
     });
 
@@ -57,6 +61,10 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IHouseService, HouseService>();
+builder.Services.AddScoped<IRoomService, RoomService>();
 
 builder.Services.AddControllers();
 

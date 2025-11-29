@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PropertyService")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8549e1f1d1a2bfcc5f886c936ea48b774e98a908")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0651381d7bd997f91a0c6e140c007fdd5bdbceba")]
 [assembly: System.Reflection.AssemblyProductAttribute("PropertyService")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PropertyService")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

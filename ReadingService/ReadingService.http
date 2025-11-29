@@ -1,6 +1,0 @@
-@ReadingService_HostAddress = http://localhost:5001
-
-GET {{ReadingService_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

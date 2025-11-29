@@ -15,13 +15,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
-        // Identity sẽ tự động tạo các bảng với tên chuẩn:
-        // - AspNetUsers (user accounts)
-        // - AspNetRoles (roles)
-        // - AspNetUserRoles (user-role relationships)
-        // - AspNetUserClaims (user claims)
-        // - AspNetUserLogins (external logins)
-        // - AspNetUserTokens (authentication tokens)
-        // - AspNetRoleClaims (role claims)
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.HasOne(u => u.Owner)
+                .WithMany(o => o.Tenants)
+                .HasForeignKey(u => u.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }

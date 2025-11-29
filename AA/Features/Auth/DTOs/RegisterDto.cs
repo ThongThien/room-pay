@@ -19,4 +19,9 @@ public class RegisterDto
     [Required(ErrorMessage = "Tên đầy đủ là bắt buộc")]
     [MinLength(2, ErrorMessage = "Tên phải có ít nhất 2 ký tự")]
     public string FullName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Id của Owner đã tạo ra tài khoản này (nếu có)
+    /// </summary>
+    public string? OwnerId { get; set; }
 }

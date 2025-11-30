@@ -115,6 +115,13 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// Tự động tạo database và apply migrations
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    dbContext.Database.Migrate();
+}
+
 // Run the database seeder
 using (var scope = app.Services.CreateScope())
 {

@@ -1,0 +1,14 @@
+using InvoiceService.Models;
+
+namespace InvoiceService.Features.Invoice;
+
+public interface IInvoiceService
+{
+    Task<IEnumerable<Models.Invoice>> GetAllInvoicesByUserAsync(string userId);
+    Task<Models.Invoice?> GetInvoiceByIdAsync(int id, string userId);
+    Task<Models.Invoice> CreateInvoiceAsync(Models.Invoice invoice);
+    Task<Models.Invoice?> UpdateInvoiceAsync(int id, Models.Invoice invoice, string userId);
+    Task<bool> DeleteInvoiceAsync(int id, string userId);
+    Task<Models.Invoice?> MarkInvoiceAsPaidAsync(int id, string userId);
+    Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusAsync(string userId, string status);
+}

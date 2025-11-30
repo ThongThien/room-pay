@@ -76,14 +76,30 @@ const FakeAPI = {
     },
 
     uploadImage: async (type: "electric" | "water", file: File) => {
-        await new Promise(r => setTimeout(r, 700))
+        const formData = new FormData()
+        formData.append("file", file)
+
+        // GỌI ĐÚNG VÀO BACKEND THẬT
+        const url = `http://localhost:5000/api/${type}/upload`
+
+        const res = await fetch(url, {
+            method: "POST",
+            body: formData
+        })
+
+        const data = await res.json()
+
+        if (!res.ok || data.success === false) {
+            console.error(`Upload ${type} lỗi:`, data.error)
+            throw new Error(data.error || "Upload thất bại")
+        }
+
+        // Convert ảnh local để hiển thị
+        const imageUrl = URL.createObjectURL(file)
 
         return {
-            imageUrl: URL.createObjectURL(file),
-            aiValue:
-                type === "electric"
-                    ? 150 + Math.floor(Math.random() * 10)
-                    : 20 + Math.floor(Math.random() * 5)
+            imageUrl,
+            aiValue: Number(data.reading)
         }
     },
 
@@ -133,7 +149,6 @@ export default function TenantDashboard() {
     })
 
     const [invoice, setInvoice] = useState<Invoice | null>(null)
-
     /* LOAD KỲ THU */
     useEffect(() => {
         FakeAPI.getCurrentReadingCycle().then(res => setCycle(res))
@@ -160,33 +175,42 @@ export default function TenantDashboard() {
 
     /* UPLOAD ẢNH */
     const handleUpload = async (type: "electric" | "water", file: File) => {
-
+        // Bật loading đúng card
         if (type === "electric") setUploadingElec(true)
         if (type === "water") setUploadingWater(true)
 
-        const res = await FakeAPI.uploadImage(type, file)
-        if (type === "electric") {
-            setElectric(prev => ({
-                ...prev,
-                img: res.imageUrl,
-                new: res.aiValue,
-                status: "pending"
-            }))
+        try {
+            const res = await FakeAPI.uploadImage(type, file)
+
+            if (type === "electric") {
+                setElectric(prev => ({
+                    ...prev,
+                    img: res.imageUrl,
+                    new: res.aiValue,
+                    status: "pending"
+                }))
+            }
+
+            if (type === "water") {
+                setWater(prev => ({
+                    ...prev,
+                    img: res.imageUrl,
+                    new: res.aiValue,
+                    status: "pending"
+                }))
+            }
+
             setInvoice(null)
-            setUploadingElec(false)
+
+        } catch (err) {
+            alert(`Ảnh mờ hoặc đọc lỗi: Hãy thử upload lại!`)
         }
 
-        if (type === "water") {
-            setWater(prev => ({
-                ...prev,
-                img: res.imageUrl,
-                new: res.aiValue,
-                status: "pending"
-            }))
-            setInvoice(null)
-            setUploadingWater(false)
-        }
+        // Tắt loading
+        if (type === "electric") setUploadingElec(false)
+        if (type === "water") setUploadingWater(false)
     }
+
 
     /* XÁC NHẬN CHỈ SỐ */
     const handleApprove = async () => {
@@ -220,6 +244,7 @@ export default function TenantDashboard() {
                     newValue={electric.new}
                     status={electric.status}
                     imageUrl={electric.img}
+                    isLoading={uploadingElec}
                     onUpload={(f: File) => handleUpload("electric", f)}
                 />
 
@@ -230,6 +255,7 @@ export default function TenantDashboard() {
                     newValue={water.new}
                     status={water.status}
                     imageUrl={water.img}
+                    isLoading={uploadingWater}
                     onUpload={(f: File) => handleUpload("water", f)}
                 />
             </div>
@@ -272,6 +298,7 @@ function ReadingCard({
     newValue,
     status,
     imageUrl,
+    isLoading,
     onUpload
 }: ReadingCardProps) {
     return (
@@ -291,20 +318,25 @@ function ReadingCard({
                         if (file) onUpload(file)
                     }}
                 />
-
-                <div className="p-4 border border-gray-200 bg-gray-50 rounded-lg text-center">
-                    {imageUrl ? (
+                <div className="relative w-full h-[400px] border border-gray-200 bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center">
+                    {isLoading ? (
+                        <span className="animate-pulse text-blue-600 font-medium">
+                            ⏳ Đang xử lý ảnh...
+                        </span>
+                    ) : imageUrl ? (
                         <Image
                             src={imageUrl}
                             alt="meter"
-                            width={260}
-                            height={120}
-                            className="rounded-lg object-contain mx-auto"
+                            fill
+                            className="object-contain p-2"
                         />
                     ) : (
-                        <span className="opacity-60">Chọn ảnh công tơ</span>
+                        <span className="opacity-60 text-gray-700">
+                            Chọn ảnh công tơ
+                        </span>
                     )}
                 </div>
+
             </label>
 
             <div className="mt-4 text-sm text-gray-700 space-y-1">
@@ -329,14 +361,21 @@ function ReadingCard({
 =============================================== */
 function InvoiceCard({ invoice, setInvoice }: InvoiceCardProps) {
     const [showQR, setShowQR] = useState(false)
-
+    const [paymentStatus, setPaymentStatus] = useState<"pending" | "success">("pending")
     const handlePay = async () => {
         const res = await FakeAPI.payInvoice()
+
+        // trạng thái trong modal
+        //setPaymentStatus("success")
+
+        // cập nhật invoice sang paid
         setInvoice({
             ...invoice,
-            status: res.status as "paid" | "unpaid"
+            status: res.status as "paid"
         })
-        setShowQR(false)
+
+        // Đợi trạng thái hiện 1 chút rồi đóng modal
+        setTimeout(() => setShowQR(false), 700)
     }
 
     return (
@@ -368,27 +407,77 @@ function InvoiceCard({ invoice, setInvoice }: InvoiceCardProps) {
                 )}
             </p>
 
+            {/* ⭐ Nút thanh toán luôn bật nếu chưa thanh toán */}
             {invoice.status === "unpaid" && (
                 <button
                     className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg"
-                    onClick={() => setShowQR(true)}
+                    onClick={() => {
+                        setPaymentStatus("pending") // reset modal status
+                        setShowQR(true)            // chỉ mở modal
+                    }}
                 >
                     Thanh toán
                 </button>
             )}
 
+            {/* ⭐ MODAL */}
             {showQR && (
-                <div className="mt-4 border rounded-lg p-4 bg-gray-50 text-center">
-                    <p className="font-semibold mb-2">QR thanh toán</p>
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
 
-                    <Image src="/qr.png" alt="qr" width={200} height={200} />
+                    <div className="bg-white p-6 rounded-xl shadow-xl w-[320px] text-center">
 
-                    <button
-                        onClick={handlePay}
-                        className="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg"
-                    >
-                        Tôi đã thanh toán
-                    </button>
+                        <h3 className="font-bold text-gray-800 mb-2">
+                            Thanh toán bằng QR
+                        </h3>
+
+                        {/* Trạng thái trong modal */}
+                        <p className="text-sm mb-3">
+                            Trạng thái:{" "}
+                            {paymentStatus === "pending" ? (
+                                <span className="text-yellow-600 font-semibold">
+                                    Chờ thanh toán...
+                                </span>
+                            ) : (
+                                <span className="text-green-600 font-semibold">
+                                    Đã thanh toán
+                                </span>
+                            )}
+                        </p>
+
+                        {/* QR Image */}
+                        <div className="flex justify-center my-3">
+                            <Image
+                                src="/qr.png"
+                                alt="QR Code"
+                                width={240}
+                                height={240}
+                                className="rounded-lg shadow"
+                            />
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex flex-col gap-2 mt-4">
+
+                            {/* Nút xác nhận thanh toán */}
+                            {paymentStatus === "pending" && (
+                                <button
+                                    onClick={handlePay}
+                                    className="bg-green-600 text-white py-2 rounded-lg"
+                                >
+                                    Tôi đã thanh toán
+                                </button>
+                            )}
+
+                            {/* Đóng modal */}
+                            <button
+                                onClick={() => setShowQR(false)}
+                                className="bg-gray-200 text-gray-700 py-2 rounded-lg"
+                            >
+                                Đóng
+                            </button>
+                        </div>
+
+                    </div>
                 </div>
             )}
         </div>

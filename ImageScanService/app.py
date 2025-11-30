@@ -36,6 +36,19 @@ UPLOAD_FOLDER = 'uploads'
 if PRESERVE_UPLOADS and not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
+def save_temp_file(file):
+    filename = secure_filename(file.filename)
+
+    if PRESERVE_UPLOADS:
+        temp_dir = UPLOAD_FOLDER
+    else:
+        import tempfile
+        temp_dir = tempfile.gettempdir()
+
+    temp_path = os.path.join(temp_dir, filename)
+    file.save(temp_path)
+
+    return temp_path
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
@@ -141,9 +154,7 @@ def ocr_electric_meter():
     
     try:
         # Save file temporarily
-        filename = secure_filename(file.filename)
-        temp_path = os.path.join(UPLOAD_FOLDER if PRESERVE_UPLOADS else '/tmp', filename)
-        file.save(temp_path)
+        temp_path = save_temp_file(file)
         
         # Extract reading
         reading = extract_meter_reading_with_gemini(temp_path, 'electric')
@@ -203,9 +214,7 @@ def ocr_water_meter():
     
     try:
         # Save file temporarily
-        filename = secure_filename(file.filename)
-        temp_path = os.path.join(UPLOAD_FOLDER if PRESERVE_UPLOADS else '/tmp', filename)
-        file.save(temp_path)
+        temp_path = save_temp_file(file)
         
         # Extract reading
         reading = extract_meter_reading_with_gemini(temp_path, 'water')

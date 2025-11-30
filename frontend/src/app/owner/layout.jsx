@@ -11,44 +11,44 @@ export default function OwnerLayout({ children }) {
       {/*SIDEBAR*/}
       <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-gray-800 text-white transition-all duration-300 flex flex-col`}>
         <div className="p-4 border-b border-gray-700 font-bold text-center">
-          {isSidebarOpen ? 'OWNER' : 'OW'}
+          {isSidebarOpen ? 'Trang của bạn' : 'Chủ trọ'}
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          <Link href="/owner" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Dashboard'}
-          </Link>
-
-          <Link href="/owner/contracts" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Contracts'}
+          <Link href="/owner/dashboard" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Tổng quan'}
           </Link>
 
           <Link href="/owner/houses" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Houses'}
-          </Link>
-
-          <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Invoices'}
-          </Link>
-
-          <Link href="/owner/notification" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Notifications'}
-          </Link>
-
-          <Link href="/owner/profile" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Profile'}
+            {isSidebarOpen && 'Danh sách nhà'}
           </Link>
 
           <Link href="/owner/rooms" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Rooms'}
+            {isSidebarOpen && 'Danh sách phòng'}
           </Link>
 
           <Link href="/owner/tenants" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Tenants'}
+            {isSidebarOpen && 'Danh sách người thuê'}
+          </Link>
+
+          <Link href="/owner/contracts" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Danh sách hợp đồng'}
+          </Link>
+
+          <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Danh sách hóa đơn'}
           </Link>
 
           <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded">
-            {isSidebarOpen && 'Tickets'}
+            {isSidebarOpen && 'Danh sách yêu cầu sữa chữa'}
+          </Link>
+
+          <Link href="/owner/notification" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Thông báo'}
+          </Link>
+
+          <Link href="/owner/profile" className="block p-2 hover:bg-gray-700 rounded">
+            {isSidebarOpen && 'Thông tin cá nhân'}
           </Link>
         </nav>
 
@@ -60,7 +60,7 @@ export default function OwnerLayout({ children }) {
       {/*MAIN CONTENT*/}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow p-4 flex justify-between items-center">
-          <h2 className="font-bold">Hệ thống quản lý phòng trọ</h2>
+          <h1 className="font-bold text-gray-950">Khu vực chủ nhà</h1>
           <div className="flex items-center gap-4">
             <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">
               <Image

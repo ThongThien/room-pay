@@ -15,12 +15,16 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                     } bg-gray-800 text-white transition-all duration-300 flex flex-col`}
             >
                 <div className="p-4 border-b border-gray-700 font-bold text-center">
-                    {isSidebarOpen ? "TENANT PANEL" : "TP"}
+                    {isSidebarOpen ? "Trang của bạn" : "Khách thuê"}
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
-                    <Link href="/tenant" className="block p-2 hover:bg-gray-700 rounded">
-                        {isSidebarOpen && "Dashboard"}
+                    <Link href="/tenant/dashboard" className="block p-2 hover:bg-gray-700 rounded">
+                        {isSidebarOpen && "Tổng quan"}
+                    </Link>
+
+                    <Link href="/tenant/contracts" className="block p-2 hover:bg-gray-700 rounded">
+                        {isSidebarOpen && "Hợp đồng thuê"}
                     </Link>
 
                     <Link href="/tenant/bills" className="block p-2 hover:bg-gray-700 rounded">
@@ -29,6 +33,10 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
 
                     <Link href="/tenant/requests" className="block p-2 hover:bg-gray-700 rounded">
                         {isSidebarOpen && "Yêu cầu sửa chữa"}
+                    </Link>
+
+                    <Link href="/tenant/notification" className="block p-2 hover:bg-gray-700 rounded">
+                        {isSidebarOpen && 'Thông báo'}
                     </Link>
 
                     <Link href="/tenant/profile" className="block p-2 hover:bg-gray-700 rounded">
@@ -47,7 +55,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
             {/* MAIN CONTENT */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="bg-white shadow p-4 flex justify-between items-center">
-                    <h2 className="font-bold text-gray-700">Trang Tenant</h2>
+                    <h1 className="font-bold text-gray-700">Khu vực người thuê</h1>
 
                     <div className="flex items-center gap-4">
                         <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">

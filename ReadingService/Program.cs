@@ -68,6 +68,9 @@ else
 
 builder.Services.AddScoped<IS3Service, S3Service>();
 
+// Add HttpClient for InvoiceService
+builder.Services.AddHttpClient<IInvoiceHttpClient, InvoiceHttpClient>();
+
 // Add MonthlyReading Service
 builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
 

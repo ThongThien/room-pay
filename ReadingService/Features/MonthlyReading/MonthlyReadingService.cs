@@ -11,15 +11,18 @@ public class MonthlyReadingService : IMonthlyReadingService
     private readonly ApplicationDbContext _context;
     private readonly IS3Service _s3Service;
     private readonly ILogger<MonthlyReadingService> _logger;
+    private readonly IInvoiceHttpClient _invoiceHttpClient;
 
     public MonthlyReadingService(
         ApplicationDbContext context,
         IS3Service s3Service,
-        ILogger<MonthlyReadingService> logger)
+        ILogger<MonthlyReadingService> logger,
+        IInvoiceHttpClient invoiceHttpClient)
     {
         _context = context;
         _s3Service = s3Service;
         _logger = logger;
+        _invoiceHttpClient = invoiceHttpClient;
     }
 
     public async Task<MonthlyReadingResponseDto?> GetByIdAsync(int id)
@@ -95,6 +98,29 @@ public class MonthlyReadingService : IMonthlyReadingService
         reading.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        // Automatically create invoice after submitting monthly reading
+        var electricUsage = (reading.ElectricNew ?? 0) - (reading.ElectricOld ?? 0);
+        var waterUsage = (reading.WaterNew ?? 0) - (reading.WaterOld ?? 0);
+
+        if (electricUsage > 0 || waterUsage > 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _invoiceHttpClient.CreateInvoiceForMonthlyReadingAsync(
+                        userId,
+                        cycleId,
+                        electricUsage,
+                        waterUsage);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Failed to create invoice for user {userId}, cycle {cycleId}");
+                }
+            });
+        }
 
         return MapToResponseDto(reading);
     }

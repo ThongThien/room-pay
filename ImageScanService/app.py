@@ -6,12 +6,47 @@ from werkzeug.utils import secure_filename
 import google.generativeai as genai
 from PIL import Image
 from dotenv import load_dotenv
+from flasgger import Swagger, swag_from
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# Swagger configuration
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec',
+            "route": '/apispec.json',
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/api/docs"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Image Scan Service API",
+        "description": "API for scanning electric and water meter readings using AI OCR",
+        "version": "1.0.0",
+        "contact": {
+            "name": "API Support"
+        }
+    },
+    "basePath": "/",
+    "schemes": ["http", "https"],
+    "consumes": ["multipart/form-data"],
+    "produces": ["application/json"]
+}
+
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
 
 # Configuration from .env
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
@@ -103,7 +138,27 @@ def extract_meter_reading_with_gemini(image_path, meter_type):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """
+    Health check endpoint
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Service is healthy
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: healthy
+            ocr_backend:
+              type: string
+              example: gemini
+            model:
+              type: string
+              example: gemini-2.5-pro
+    """
     return jsonify({
         'status': 'healthy',
         'ocr_backend': 'gemini',
@@ -114,7 +169,69 @@ def health_check():
 @app.route('/api/electric/upload', methods=['POST'])
 def ocr_electric_meter():
     """
-    OCR endpoint for electric meter (6 digits)
+    OCR endpoint for electric meter reading (6 digits)
+    ---
+    tags:
+      - Electric Meter
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: file
+        in: formData
+        type: file
+        required: true
+        description: Image file of electric meter (png, jpg, jpeg, gif, bmp, webp)
+    responses:
+      200:
+        description: Successfully extracted meter reading
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            meter_type:
+              type: string
+              example: electric
+            reading:
+              type: string
+              example: "123456"
+            digits:
+              type: integer
+              example: 6
+      400:
+        description: Bad request - no file, invalid file type, or image quality too low
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: IMAGE_QUALITY_TOO_LOW
+      413:
+        description: File too large
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: File too large. Maximum size is 8MB
+      500:
+        description: Internal server error
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: Processing error
     """
     # Check if file is present
     if 'file' not in request.files:
@@ -176,7 +293,69 @@ def ocr_electric_meter():
 @app.route('/api/water/upload', methods=['POST'])
 def ocr_water_meter():
     """
-    OCR endpoint for water meter (5 digits)
+    OCR endpoint for water meter reading (5 digits)
+    ---
+    tags:
+      - Water Meter
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: file
+        in: formData
+        type: file
+        required: true
+        description: Image file of water meter (png, jpg, jpeg, gif, bmp, webp)
+    responses:
+      200:
+        description: Successfully extracted meter reading
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            meter_type:
+              type: string
+              example: water
+            reading:
+              type: string
+              example: "12345"
+            digits:
+              type: integer
+              example: 5
+      400:
+        description: Bad request - no file, invalid file type, or image quality too low
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: IMAGE_QUALITY_TOO_LOW
+      413:
+        description: File too large
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: File too large. Maximum size is 8MB
+      500:
+        description: Internal server error
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: Processing error
     """
     # Check if file is present
     if 'file' not in request.files:

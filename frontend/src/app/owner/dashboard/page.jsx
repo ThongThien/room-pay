@@ -81,7 +81,7 @@ const STATS = { houses: 2, totalRooms: ROOMS_DB.length, rentedRooms: ROOMS_DB.le
 // =====================
 export default function OwnerDashboard() {
     const [selectedMonthId, setSelectedMonthId] = useState(1)
-    
+
     // modalType: 'list_readings' | 'list_bills' | 'list_paid' | 'list_unpaid' | 'list_missing_readings' | 'detail_reading' | 'detail_bill'
     const [modalType, setModalType] = useState(null)
     const [selectedDetail, setSelectedDetail] = useState(null)
@@ -135,12 +135,12 @@ export default function OwnerDashboard() {
 
                 <div className="col-span-12 md:col-span-9 flex flex-col gap-6 overflow-y-auto">
                     <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 min-h-[300px] flex flex-col justify-between">
-                        <DashboardContent 
+                        <DashboardContent
                             monthName={currentMonthName}
                             isCurrent={isCurrentMonth}
                             data={roomData}
                             financial={financial}
-                            onOpenList={openList} 
+                            onOpenList={openList}
                         />
                     </div>
                 </div>
@@ -148,25 +148,25 @@ export default function OwnerDashboard() {
 
             {/* MODALS */}
             {['list_readings', 'list_bills', 'list_paid', 'list_unpaid', 'list_missing_readings'].includes(modalType) && (
-                <ListModal 
-                    type={modalType} 
-                    data={roomData} 
-                    onClose={closeAll} 
+                <ListModal
+                    type={modalType}
+                    data={roomData}
+                    onClose={closeAll}
                     onDetail={openDetail}
                 />
             )}
 
             {modalType === 'detail_reading' && selectedDetail && (
-                <ReadingDetailModal 
-                    room={selectedDetail} 
-                    onBack={backToList} 
+                <ReadingDetailModal
+                    room={selectedDetail}
+                    onBack={backToList}
                 />
             )}
 
             {modalType === 'detail_bill' && selectedDetail && (
-                <BillDetailModal 
-                    room={selectedDetail} 
-                    onBack={backToList} 
+                <BillDetailModal
+                    room={selectedDetail}
+                    onBack={backToList}
                 />
             )}
         </div>
@@ -188,9 +188,9 @@ function DashboardContent({ monthName, isCurrent, data, financial, onOpenList })
                 <h2 className="text-xl font-bold text-center mb-8 uppercase tracking-wide">
                     Quản lý {monthName}
                 </h2>
-                
+
                 {!isCurrent && missingReadingCount > 0 && (
-                    <div 
+                    <div
                         onClick={() => onOpenList('list_missing_readings')}
                         className="mb-6 border p-3 rounded-lg flex justify-between items-center cursor-pointer"
                     >
@@ -223,12 +223,12 @@ function DashboardContent({ monthName, isCurrent, data, financial, onOpenList })
             <div className="mt-4 pt-6 border-t-2 border-dashed border-gray-200 bg-gray-50 -mx-8 -mb-8 p-8 rounded-b-xl">
                 <MoneyRow label="1. Tổng phải thu" amount={financial.totalReceivable} color="gray" />
                 <MoneyRow label="2. Tổng đã thu được" amount={financial.totalCollected} color="green" onClick={() => onOpenList('list_paid')} note="(Nhấn để xem danh sách)" />
-                <MoneyRow 
-                    label={isCurrent ? "3. Còn lại phải thu" : "3. Hóa đơn chưa thanh toán"} 
-                    amount={financial.totalRemaining} 
-                    color="red" 
-                    onClick={() => onOpenList('list_unpaid')} 
-                    note="(Nhấn để xem & Nhắc thanh toán)" 
+                <MoneyRow
+                    label={isCurrent ? "3. Còn lại phải thu" : "3. Hóa đơn chưa thanh toán"}
+                    amount={financial.totalRemaining}
+                    color="red"
+                    onClick={() => onOpenList('list_unpaid')}
+                    note="(Nhấn để xem & Nhắc thanh toán)"
                 />
             </div>
         </>
@@ -244,7 +244,7 @@ function ListModal({ type, data, onClose, onDetail }) {
 
     let config = { title: '', checkKey: '', doneText: '', pendingText: '', remindText: '', isFixedList: false, showDetailCol: true }
 
-    switch(type) {
+    switch (type) {
         // ==> CASE TỪ NÚT TO (CÓ CHI TIẾT)
         case 'list_readings':
             config = { title: 'Quản lý điện nước phòng trọ', checkKey: 'hasReading', doneText: 'Đã nộp', pendingText: 'Chưa nộp', remindText: 'nhắc nộp ảnh', showDetailCol: true }
@@ -252,7 +252,7 @@ function ListModal({ type, data, onClose, onDetail }) {
         case 'list_bills':
             config = { title: 'Danh sách Hóa Đơn', checkKey: 'isPaid', doneText: 'Đã TT', pendingText: 'Chưa TT', remindText: 'nhắc thanh toán', showDetailCol: true }
             break
-        
+
         // ==> CASE TỪ TỔNG KẾT (KHÔNG CHI TIẾT)
         case 'list_paid':
             config = { title: 'Danh sách Đã Thanh Toán', checkKey: 'isPaid', doneText: 'Đã TT', pendingText: 'Chưa TT', remindText: '', isFixedList: true, showDetailCol: false } // <--- Ẩn chi tiết
@@ -268,7 +268,7 @@ function ListModal({ type, data, onClose, onDetail }) {
     const filteredData = data.filter(room => {
         const matchSearch = `${room.name} ${room.house} ${room.tenant}`.toLowerCase().includes(searchTerm.toLowerCase())
         let matchFilter = true
-        
+
         if (type === 'list_paid') matchFilter = room.isPaid
         else if (type === 'list_unpaid') matchFilter = room.hasInvoice && !room.isPaid
         else if (type === 'list_missing_readings') matchFilter = !room.hasReading
@@ -291,8 +291,8 @@ function ListModal({ type, data, onClose, onDetail }) {
 
             <div className="flex gap-4 mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
                 <div className="flex-1 flex items-center bg-white border rounded px-3">
-                    <input 
-                        placeholder="Tìm theo phòng, nhà, người thuê..." 
+                    <input
+                        placeholder="Tìm theo phòng, nhà, người thuê..."
                         className="flex-1 py-2 outline-none text-sm"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
@@ -335,14 +335,14 @@ function ListModal({ type, data, onClose, onDetail }) {
                                             {isDone ? config.doneText : config.pendingText}
                                         </span>
                                     </td>
-                                    
+
                                     {/*CHỈ HIỆN CỘT CHI TIẾT NẾU LÀ DANH SÁCH CHÍNH (READINGS HOẶC BILLS)*/}
                                     {config.showDetailCol && (
                                         <td className="p-3 text-center">
                                             {(type === 'list_readings' && !room.hasReading) || (type !== 'list_readings' && !room.hasInvoice) ? (
                                                 <span className="text-gray-400 text-xs italic">-</span>
                                             ) : (
-                                                <button 
+                                                <button
                                                     onClick={() => onDetail(room)}
                                                     className="text-blue-600 hover:text-blue-800 underline text-xs font-bold"
                                                 >
@@ -403,10 +403,10 @@ function ReadingDetailModal({ room, onBack }) {
                             <span>⚡ Điện:</span>
                             <span className="font-mono font-bold block">{room.elec}</span>
                             {room.imgElec && <button className="text-xs text-blue-600 underline">Xem ảnh</button>}
-                            
+
                         </div>
                         <div className="flex justify-between items-center">
-                            <span>💧 Nước:</span>                 
+                            <span>💧 Nước:</span>
                             <span className="font-mono font-bold block">{room.water}</span>
                             {room.imgWater && <button className="text-xs text-blue-600 underline">Xem ảnh</button>}
                         </div>
@@ -468,9 +468,9 @@ function StatCard({ stats }) {
         <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
             <h3 className="font-bold mb-4 border-b pb-2">Tổng quan</h3>
             <div className="space-y-3 text-sm">
-                <div className="flex justify-between border-b border-gray-100 pb-2"><span>Tổng số nhà</span> <b>: {stats.houses}</b></div>
-                <div className="flex justify-between border-b border-gray-100 pb-2"><span>Tổng số phòng</span> <b>: {stats.totalRooms}</b></div>
-                <div className="flex justify-between"><span>Đang thuê</span> <b className="text-green-600">: {stats.rentedRooms}</b></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span>Tổng số nhà</span> <b> {stats.houses}</b></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span>Tổng số phòng</span> <b> {stats.totalRooms}</b></div>
+                <div className="flex justify-between"><span>Đang thuê</span> <b className="text-green-600"> {stats.rentedRooms}</b></div>
             </div>
         </div>
     )
@@ -494,8 +494,8 @@ function MonthList({ data, selectedId, onSelect }) {
 function MoneyRow({ label, amount, color, onClick, note }) {
     const colors = { gray: 'text-gray-700', green: 'text-green-600', red: 'text-red-600' }
     return (
-        <div 
-            onClick={onClick} 
+        <div
+            onClick={onClick}
             className={`flex justify-between items-center mb-3 p-2 rounded-lg transition ${onClick ? 'cursor-pointer hover:bg-white border border-transparent hover:border-gray-200 shadow-sm' : ''}`}
         >
             <div className="flex flex-col">
@@ -507,7 +507,7 @@ function MoneyRow({ label, amount, color, onClick, note }) {
     )
 }
 
-function ModalWrapper({ children, width = "max-w-lg"}) {
+function ModalWrapper({ children, width = "max-w-lg" }) {
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className={`bg-white p-6 rounded-xl shadow-lg w-full ${width} flex flex-col max-h-[90vh]`}>

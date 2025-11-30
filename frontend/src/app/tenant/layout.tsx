@@ -47,7 +47,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
             {/* MAIN CONTENT */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="bg-white shadow p-4 flex justify-between items-center">
-                    <h2 className="font-bold">Trang Tenant</h2>
+                    <h2 className="font-bold text-gray-700">Trang Tenant</h2>
 
                     <div className="flex items-center gap-4">
                         <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">

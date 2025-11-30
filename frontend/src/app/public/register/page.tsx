@@ -143,7 +143,7 @@ export default function RegisterPage() {
         </form>
 
         <div className="mt-4 text-center text-sm">
-          <span className="text-gray-600">Đã có tài khoản</span>
+          <span className="text-gray-600">Đã có tài khoản? </span>
           <a href="/public/login" className="text-blue-600 hover:underline">Đăng nhập</a>
         </div>
       </div>

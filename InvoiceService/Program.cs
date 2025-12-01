@@ -2,11 +2,44 @@ using InvoiceService.Data;
 using InvoiceService.Features.Invoice;
 using InvoiceService.Features.Pricing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Đọc JwtSettings từ cấu hình
+var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
+var jwtSecret = jwtSettingsSection.GetValue<string>("Secret") 
+    ?? throw new InvalidOperationException("JWT Secret is not configured");
+var jwtIssuer = jwtSettingsSection.GetValue<string>("Issuer") 
+    ?? throw new InvalidOperationException("JWT Issuer is not configured");
+var jwtAudience = jwtSettingsSection.GetValue<string>("Audience") 
+    ?? throw new InvalidOperationException("JWT Audience is not configured");
+
 // Add services to the container.
 builder.Services.AddControllers();
+
+// Thêm xác thực JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
 // Configure Entity Framework and MySQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -71,6 +104,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

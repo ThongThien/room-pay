@@ -2,11 +2,14 @@ using InvoiceService.Models;
 using InvoiceService.Features.Invoice;
 using InvoiceService.Features.Invoice.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace InvoiceService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class InvoicesController : ControllerBase
 {
     private readonly IInvoiceService _invoiceService;
@@ -19,14 +22,18 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
-    /// Get all invoices for a user
+    /// Get all invoices for the current user
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetAllInvoices([FromQuery] string userId)
+    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetAllInvoices()
     {
-        if (string.IsNullOrWhiteSpace(userId))
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest(new { error = "UserId is required" });
+            return Unauthorized(new { error = "UserId not found in access token" });
         }
 
         var invoices = await _invoiceService.GetAllInvoicesByUserAsync(userId);
@@ -35,16 +42,18 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
-    /// Get invoices by status for a user
+    /// Get invoices by status for the current user
     /// </summary>
     [HttpGet("status/{status}")]
-    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetInvoicesByStatus(
-        string status, 
-        [FromQuery] string userId)
+    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetInvoicesByStatus(string status)
     {
-        if (string.IsNullOrWhiteSpace(userId))
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest(new { error = "UserId is required" });
+            return Unauthorized(new { error = "UserId not found in access token" });
         }
 
         var invoices = await _invoiceService.GetInvoicesByStatusAsync(userId, status);
@@ -53,14 +62,18 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
-    /// Get a specific invoice by ID
+    /// Get a specific invoice by ID for the current user
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<InvoiceResponse>> GetInvoiceById(int id, [FromQuery] string userId)
+    public async Task<ActionResult<InvoiceResponse>> GetInvoiceById(int id)
     {
-        if (string.IsNullOrWhiteSpace(userId))
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest(new { error = "UserId is required" });
+            return Unauthorized(new { error = "UserId not found in access token" });
         }
 
         var invoice = await _invoiceService.GetInvoiceByIdAsync(id, userId);
@@ -73,7 +86,7 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
-    /// Create a new invoice
+    /// Create a new invoice for the current user
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<InvoiceResponse>> CreateInvoice([FromBody] CreateInvoiceRequest request)
@@ -83,14 +96,35 @@ public class InvoicesController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        if (string.IsNullOrWhiteSpace(request.UserId))
+        // Lấy userId từ token, nếu không có thì kiểm tra API Key và lấy từ request body (cho service-to-service call)
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        // Nếu không có userId từ token, kiểm tra API Key cho service-to-service call
+        if (string.IsNullOrEmpty(userId))
+        {
+            var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+            var configuredApiKey = HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>()["ServiceApiKey"];
+            
+            if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+            {
+                return Unauthorized(new { error = "Invalid or missing authentication" });
+            }
+            
+            // API Key hợp lệ, lấy userId từ request body
+            userId = request.UserId;
+        }
+        
+        if (string.IsNullOrEmpty(userId))
         {
             return BadRequest(new { error = "UserId is required" });
         }
 
         var invoice = new Invoice
         {
-            UserId = request.UserId,
+            UserId = userId,
             InvoiceDate = request.InvoiceDate,
             DueDate = request.DueDate
         };
@@ -108,12 +142,23 @@ public class InvoicesController : ControllerBase
 
             var items = new List<InvoiceItem>();
 
+            // Tạo description với tháng/năm chính xác
+            var cycleDescription = "";
+            if (request.CycleMonth.HasValue && request.CycleYear.HasValue)
+            {
+                cycleDescription = $"tháng {request.CycleMonth}/{request.CycleYear}";
+            }
+            else if (request.CycleId.HasValue)
+            {
+                cycleDescription = $"Cycle {request.CycleId}";
+            }
+
             if (request.ElectricUsage.HasValue && request.ElectricUsage.Value > 0)
             {
                 var amount = request.ElectricUsage.Value * activePricing.ElectricPerKwh;
                 items.Add(new InvoiceItem
                 {
-                    Description = $"Tiền điện tháng (Cycle {request.CycleId})",
+                    Description = $"Tiền điện {cycleDescription}",
                     Quantity = request.ElectricUsage.Value,
                     UnitPrice = activePricing.ElectricPerKwh,
                     Amount = amount,
@@ -126,11 +171,24 @@ public class InvoicesController : ControllerBase
                 var amount = request.WaterUsage.Value * activePricing.WaterPerCubicMeter;
                 items.Add(new InvoiceItem
                 {
-                    Description = $"Tiền nước tháng (Cycle {request.CycleId})",
+                    Description = $"Tiền nước {cycleDescription}",
                     Quantity = request.WaterUsage.Value,
                     UnitPrice = activePricing.WaterPerCubicMeter,
                     Amount = amount,
                     ProductCode = "WATER"
+                });
+            }
+
+            // Thêm tiền phòng
+            if (activePricing.RoomPrice > 0)
+            {
+                items.Add(new InvoiceItem
+                {
+                    Description = $"Tiền phòng {cycleDescription}",
+                    Quantity = 1,
+                    UnitPrice = activePricing.RoomPrice,
+                    Amount = activePricing.RoomPrice,
+                    ProductCode = "ROOM"
                 });
             }
 
@@ -164,17 +222,16 @@ public class InvoicesController : ControllerBase
 
         return CreatedAtAction(
             nameof(GetInvoiceById), 
-            new { id = createdInvoice.Id, userId = createdInvoice.UserId }, 
+            new { id = createdInvoice.Id }, 
             response);
     }
 
     /// <summary>
-    /// Update an existing invoice
+    /// Update an existing invoice for the current user
     /// </summary>
     [HttpPut("{id}")]
     public async Task<ActionResult<InvoiceResponse>> UpdateInvoice(
-        int id, 
-        [FromQuery] string userId,
+        int id,
         [FromBody] UpdateInvoiceRequest request)
     {
         if (!ModelState.IsValid)
@@ -182,9 +239,13 @@ public class InvoicesController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest(new { error = "UserId is required" });
+            return Unauthorized(new { error = "UserId not found in access token" });
         }
 
         if (!request.Items.Any())
@@ -217,14 +278,18 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
-    /// Delete an invoice
+    /// Delete an invoice for the current user
     /// </summary>
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteInvoice(int id, [FromQuery] string userId)
+    public async Task<ActionResult> DeleteInvoice(int id)
     {
-        if (string.IsNullOrWhiteSpace(userId))
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest(new { error = "UserId is required" });
+            return Unauthorized(new { error = "UserId not found in access token" });
         }
 
         var result = await _invoiceService.DeleteInvoiceAsync(id, userId);
@@ -237,16 +302,18 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
-    /// Mark an invoice as paid
+    /// Mark an invoice as paid for the current user
     /// </summary>
     [HttpPost("{id}/mark-paid")]
-    public async Task<ActionResult<InvoiceResponse>> MarkInvoiceAsPaid(
-        int id,
-        [FromQuery] string userId)
+    public async Task<ActionResult<InvoiceResponse>> MarkInvoiceAsPaid(int id)
     {
-        if (string.IsNullOrWhiteSpace(userId))
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest(new { error = "UserId is required" });
+            return Unauthorized(new { error = "UserId not found in access token" });
         }
 
         var invoice = await _invoiceService.MarkInvoiceAsPaidAsync(id, userId);

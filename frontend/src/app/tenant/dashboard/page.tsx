@@ -135,14 +135,14 @@ export default function TenantDashboard() {
     const [uploadingElec, setUploadingElec] = useState(false)
     const [uploadingWater, setUploadingWater] = useState(false)
     const [electric, setElectric] = useState<ReadingValue>({
-        old: 120,
+        old: 18050,
         new: 0,
         img: "",
         status: "pending"
     })
 
     const [water, setWater] = useState<ReadingValue>({
-        old: 15,
+        old: 1850,
         new: 0,
         img: "",
         status: "pending"
@@ -380,7 +380,6 @@ function InvoiceCard({ invoice, setInvoice }: InvoiceCardProps) {
 
     return (
         <div className="bg-white shadow p-5 rounded-xl">
-
             <h3 className="font-bold text-lg text-gray-700 mb-3">
                 Hóa đơn tháng {invoice.month}
             </h3>

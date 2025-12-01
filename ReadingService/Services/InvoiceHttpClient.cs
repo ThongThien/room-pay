@@ -21,7 +21,9 @@ public class InvoiceHttpClient : IInvoiceHttpClient
 
     public async Task<bool> CreateInvoiceForMonthlyReadingAsync(
         string userId, 
-        int cycleId, 
+        int cycleId,
+        int cycleMonth,
+        int cycleYear,
         int electricUsage, 
         int waterUsage)
     {
@@ -45,7 +47,9 @@ public class InvoiceHttpClient : IInvoiceHttpClient
                 DueDate = lastDayOfMonth,
                 ElectricUsage = electricUsage,
                 WaterUsage = waterUsage,
-                CycleId = cycleId
+                CycleId = cycleId,
+                CycleMonth = cycleMonth,
+                CycleYear = cycleYear
             };
 
             var json = JsonSerializer.Serialize(createInvoiceRequest, new JsonSerializerOptions
@@ -53,6 +57,14 @@ public class InvoiceHttpClient : IInvoiceHttpClient
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });
             var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            // Thêm API Key cho service-to-service authentication
+            var apiKey = _configuration["Services:InvoiceService:ApiKey"];
+            if (!string.IsNullOrEmpty(apiKey))
+            {
+                _httpClient.DefaultRequestHeaders.Remove("X-Service-Api-Key");
+                _httpClient.DefaultRequestHeaders.Add("X-Service-Api-Key", apiKey);
+            }
 
             var response = await _httpClient.PostAsync($"{invoiceServiceUrl}/api/Invoices", content);
 
@@ -83,5 +95,7 @@ public class InvoiceHttpClient : IInvoiceHttpClient
         public int ElectricUsage { get; set; }
         public int WaterUsage { get; set; }
         public int CycleId { get; set; }
+        public int CycleMonth { get; set; }
+        public int CycleYear { get; set; }
     }
 }

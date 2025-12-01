@@ -4,7 +4,6 @@ using System.Security.Claims;
 using ReadingService.Features.MonthlyReading;
 using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle;
-
 namespace ReadingService.Controllers;
 
 [ApiController]

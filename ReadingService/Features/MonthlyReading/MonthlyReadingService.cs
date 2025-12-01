@@ -53,6 +53,8 @@ public class MonthlyReadingService : IMonthlyReadingService
 
     public async Task<MonthlyReadingResponseDto> SubmitAsync(int cycleId, SubmitMonthlyReadingDto dto)
     {
+        try
+        {
         // Tìm MonthlyReading theo CycleId
         var reading = await _context.MonthlyReadings
             .Include(r => r.ReadingCycle) // Include để lấy UserId
@@ -128,6 +130,12 @@ public class MonthlyReadingService : IMonthlyReadingService
         }
 
         return MapToResponseDto(reading);
+        }
+            catch (Exception ex)
+    {
+        _logger.LogError(ex, "🔥 ERROR in SubmitAsync()");
+        throw;
+    }
     }
 
     public async Task<bool> DeleteAsync(int id)

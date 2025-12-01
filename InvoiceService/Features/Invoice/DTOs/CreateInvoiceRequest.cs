@@ -11,4 +11,6 @@ public class CreateInvoiceRequest
     public int? ElectricUsage { get; set; }
     public int? WaterUsage { get; set; }
     public int? CycleId { get; set; }
+    public int? CycleMonth { get; set; }
+    public int? CycleYear { get; set; }
 }

@@ -105,6 +105,9 @@ public class MonthlyReadingService : IMonthlyReadingService
 
         if (electricUsage > 0 || waterUsage > 0)
         {
+            var cycleMonth = reading.ReadingCycle?.CycleMonth ?? 0;
+            var cycleYear = reading.ReadingCycle?.CycleYear ?? 0;
+            
             _ = Task.Run(async () =>
             {
                 try
@@ -112,6 +115,8 @@ public class MonthlyReadingService : IMonthlyReadingService
                     await _invoiceHttpClient.CreateInvoiceForMonthlyReadingAsync(
                         userId,
                         cycleId,
+                        cycleMonth,
+                        cycleYear,
                         electricUsage,
                         waterUsage);
                 }

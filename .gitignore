@@ -15,4 +15,18 @@ Desktop.ini
 .github/
 .vs/
 
+# Sensitive configuration files
 appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+!appsettings.Example.json
+.env
+.env.local
+.env.*.local
+
+# Build output
+bin/
+obj/
+*.dll
+*.exe
+*.pdb

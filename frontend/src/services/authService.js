@@ -1,6 +1,4 @@
-// src/services/authService.js
-
-const AA_API_URL = process.env.NEXT_PUBLIC_API_URL;
+const AA_API_URL = process.env.NEXT_PUBLIC_AA_API_URL;
 
 export const loginAPI = async (email, password) => {
   try {

@@ -15,7 +15,7 @@ interface InvoiceItem {
 interface Invoice {
     id: number;
     month: string;
-    status: "paid" | "unpaid";
+    status: string; // Thay đổi sang string để bao gồm "paid" / "unpaid" hoặc các giá trị khác từ API
     items: InvoiceItem[];
     total: number;
 }
@@ -24,15 +24,10 @@ interface ReadingCardProps {
     icon: string;
     oldValue: number;
     newValue: number;
-    status: string;
+    status: string | number; // Chấp nhận cả string và number (ví dụ: 1)
     imageUrl: string;
     isLoading?: boolean;
     onUpload: (file: File) => void;
-}
-
-interface InvoiceCardProps {
-    invoice: Invoice;
-    setInvoice: (invoice: Invoice | null) => void;
 }
 
 interface ApiInvoiceItem {
@@ -47,7 +42,7 @@ interface ReadingValue {
     old: number;
     new: number;
     img: string;
-    status: string;
+    status: string | number; // Chấp nhận cả string và number (ví dụ: 1)
 }
 interface ReadingCycle {
     id: number;
@@ -68,11 +63,39 @@ function authHeaders() {
     };
 }
 
+// ✅ Hàm chuyển đổi trạng thái (Hỗ trợ cả số như 1 và chuỗi)
+function mapStatusToVietnamese(status: string | number | null | undefined): string {
+    if (status === null || status === undefined || status === "") {
+        return "Đang tải...";
+    }
+
+    let statusString: string;
+
+    if (typeof status === 'number') {
+        statusString = status.toString();
+    } else {
+        // Tránh lỗi toLowerCase nếu status là chuỗi không hợp lệ
+        statusString = status.toLowerCase().trim();
+    }
+
+    switch (statusString) {
+        case "pending":
+        case "0":
+            return "Chờ xác nhận";
+        case "approved":
+        case "submitted":
+        case "1":
+            return "Đã xác nhận";
+        default:
+            return status.toString();
+    }
+}
+
 /* ============================================
-   MAIN COMPONENT
+    MAIN COMPONENT
 =============================================== */
 export default function TenantDashboard() {
-
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [cycle, setCycle] = useState<ReadingCycle | null>(null);
     const [loadingCycle, setLoadingCycle] = useState(true);
     const [uploadingElec, setUploadingElec] = useState(false);
@@ -88,10 +111,12 @@ export default function TenantDashboard() {
         old: 0, new: 0, img: "", status: "pending"
     });
 
+    // Theo dõi trạng thái hóa đơn để quyết định disable nút
+    const [invoiceStatus, setInvoiceStatus] = useState<'pending' | 'created' | 'paid'>('pending');
     const [invoice, setInvoice] = useState<Invoice | null>(null);
 
     /* ------------------------------
-       1️⃣ LOAD CYCLE (chỉ 1 lần)
+        1️⃣ LOAD CYCLE (chỉ 1 lần)
     --------------------------------*/
     useEffect(() => {
         async function fetchCycle() {
@@ -108,8 +133,21 @@ export default function TenantDashboard() {
         fetchCycle();
     }, []);
 
+    // Hàm mới: Fetch trạng thái hóa đơn sau khi load reading
+    async function fetchInvoiceStatus(cycleId: number) {
+        const res = await fetch(`${INVOICE_API}/api/invoices/by-cycle/${cycleId}`, {
+            headers: authHeaders(),
+        });
+
+        if (res.ok) {
+            const inv = await res.json();
+            // Cập nhật trạng thái sau khi tìm thấy hóa đơn
+            setInvoiceStatus('created');
+        }
+    }
+
     /* ------------------------------
-       2️⃣ LOAD READING (chỉ 1 lần sau khi có cycle)
+        2️⃣ LOAD READING (chỉ 1 lần sau khi có cycle)
     --------------------------------*/
     useEffect(() => {
         if (!cycle) return;
@@ -127,15 +165,26 @@ export default function TenantDashboard() {
                 old: data.electricOld,
                 new: data.electricNew,
                 img: data.electricPhotoUrl,
-                status: data.status
+                status: data.status // Có thể là số 1 hoặc chuỗi "approved"
             });
 
             setWater({
                 old: data.waterOld,
                 new: data.waterNew,
                 img: data.waterPhotoUrl,
-                status: data.status
+                status: data.status // Có thể là số 1 hoặc chuỗi "approved"
             });
+            const isReadingConfirmed = data.status === 1 || data.status === "approved";
+
+            if (isReadingConfirmed) {
+                // ✅ Dùng 'await' để chờ fetch Invoice xong
+                await fetchInvoiceStatus(cycleId);
+            } else {
+                setInvoiceStatus('pending');
+            }
+
+            // ✅ KẾT THÚC LOADING SAU KHI CÓ KẾT QUẢ ĐẦY ĐỦ
+            setIsInitialLoading(false);
         }
 
         fetchReading(cycle.id);
@@ -143,7 +192,7 @@ export default function TenantDashboard() {
 
 
     /* ------------------------------
-       3️⃣ UPLOAD ẢNH — chỉ cập nhật state
+        3️⃣ UPLOAD ẢNH — chỉ cập nhật state
     --------------------------------*/
     async function handleUpload(type: "electric" | "water", file: File) {
 
@@ -178,7 +227,7 @@ export default function TenantDashboard() {
 
 
     /* ------------------------------
-       4️⃣ SUBMIT — đúng thời điểm, không auto
+        4️⃣ SUBMIT — đúng thời điểm, không auto
     --------------------------------*/
     async function handleApprove() {
         if (!cycle) return;
@@ -202,15 +251,18 @@ export default function TenantDashboard() {
         });
 
         if (res.ok) {
+            // Cập nhật trạng thái hiển thị
             setElectric(p => ({ ...p, status: "approved" }));
             setWater(p => ({ ...p, status: "approved" }));
+
+            // Gọi tạo hóa đơn
             createInvoice();
         }
     }
 
 
     /* ------------------------------
-       5️⃣ Tạo hóa đơn — gọi duy nhất sau submit
+        5️⃣ Tạo hóa đơn — gọi duy nhất sau submit
     --------------------------------*/
     async function createInvoice() {
         if (!cycle) return;
@@ -229,6 +281,12 @@ export default function TenantDashboard() {
 
         const inv = await res.json();
         console.log("Invoice RAW:", inv);
+
+        // Cập nhật trạng thái hóa đơn sau khi tạo thành công (Cách tiếp cận mới)
+        if (res.ok) {
+            setInvoiceStatus('created');
+        }
+
         setInvoice({
             id: inv.id,
             month: `${cycle.cycleMonth}/${cycle.cycleYear}`,
@@ -240,13 +298,16 @@ export default function TenantDashboard() {
                 price: Number(i.unitPrice ?? 0),
                 amount: Number(i.amount ?? ((i.quantity ?? 0) * (i.unitPrice ?? 0))),
             })) ?? []
-
         });
-
     }
 
+    // ✅ Logic disable nút: Disable nếu chưa có ảnh HOẶC nếu hóa đơn đã được tạo
+    const shouldDisableButton = !electric.img || !water.img || invoiceStatus === 'created';
+    const isConfirmedReading = mapStatusToVietnamese(electric.status) === "Đã xác nhận" && mapStatusToVietnamese(water.status) === "Đã xác nhận";
+
+
     /* ------------------------------
-        UI GIỮ NGUYÊN
+        UI ĐÃ CHỈNH SỬA
 ------------------------------ */
     return (
         <div className="space-y-7">
@@ -285,20 +346,27 @@ export default function TenantDashboard() {
             <div className="bg-white p-5 rounded-xl shadow">
                 <button
                     onClick={handleApprove}
-                    disabled={!electric.img || !water.img}
+                    disabled={shouldDisableButton} // Dùng shouldDisableButton mới
                     className="bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Xác nhận số liệu
+                    {isInitialLoading ? "Đang tải dữ liệu..." : "Xác nhận số liệu"}
                 </button>
+
+                {/* Thêm dòng thông báo nếu đã xác nhận hoặc hóa đơn đã tạo */}
+                {(isConfirmedReading || invoiceStatus === 'created') && (
+                    <p className="mt-3 text-sm text-green-700 font-medium">
+                        ✅ Đã xác nhận chỉ số thành công. Hóa đơn đã được tạo.
+                    </p>
+                )}
             </div>
 
-            {invoice && <InvoiceCard invoice={invoice} setInvoice={setInvoice} />}
+            {/* XÓA BỎ Component InvoiceCard */}
         </div>
     );
 }
 
 /* ------------------------------
-    ReadingCard GIỮ NGUYÊN
+    ReadingCard ĐÃ CHỈNH SỬA (Thêm chuyển đổi tiếng Việt và disable input)
 ------------------------------ */
 function ReadingCard({
     title,
@@ -310,6 +378,13 @@ function ReadingCard({
     isLoading,
     onUpload
 }: ReadingCardProps) {
+
+    // Sử dụng hàm chuyển đổi đã fix lỗi để hiển thị trạng thái bằng tiếng Việt
+    const statusVietnamese = mapStatusToVietnamese(status);
+
+    // Kiểm tra trạng thái để disable input file
+    const isApproved = statusVietnamese === "Đã xác nhận";
+
     return (
         <div className="bg-white shadow p-5 rounded-xl">
             <h3 className="font-bold">{icon} {title}</h3>
@@ -322,6 +397,8 @@ function ReadingCard({
                         const file = e.target.files?.[0];
                         if (file) onUpload(file);
                     }}
+                    // Disable input file nếu đã xác nhận
+                    disabled={isApproved}
                 />
 
                 <div className="relative w-full h-[300px] bg-gray-100 flex items-center justify-center rounded-lg">
@@ -335,66 +412,9 @@ function ReadingCard({
                 </div>
             </label>
 
-            <p>Chỉ số tháng trước: {oldValue}</p>
-            <p>Chỉ số tháng này: {newValue}</p>
-            <p>Trạng thái: {status}</p>
+            <p>Chỉ số tháng trước: **{oldValue}**</p>
+            <p>Chỉ số tháng này: **{newValue}**</p>
+            <p>Trạng thái: **{statusVietnamese}**</p>
         </div>
-    );
-}
-
-/* ------------------------------
-    INVOICE CARD
------------------------------- */
-
-function InvoiceCard({ invoice, setInvoice }: InvoiceCardProps) {
-    async function pay() {
-        const res = await fetch(
-            `${INVOICE_API}/api/invoices/${invoice.id}/mark-paid`,
-            { method: "POST", headers: authHeaders() }
-        );
-        setInvoice({
-            ...invoice,
-            status: "paid"
-        });
-    }
-
-    const electric = invoice.items.find(i => i.name.toLowerCase().includes("điện"));
-    const water = invoice.items.find(i => i.name.toLowerCase().includes("nước"));
-    const room = invoice.items.find(i => i.name.toLowerCase().includes("phòng"));
-
-    return (
-        <div className="bg-white shadow p-5 rounded-xl">
-            <h3 className="font-bold text-lg text-gray-700 mb-3">
-                Hóa đơn tháng {invoice.month}
-            </h3>
-
-            <div className="space-y-2  text-gray-700">
-                {electric && (
-                    <p>Điện: {electric.qty} × {electric.price.toLocaleString()}đ = {electric.amount.toLocaleString()}đ</p>
-                )}
-
-                {water && (
-                    <p>Nước: {water.qty} × {water.price.toLocaleString()}đ = {water.amount.toLocaleString()}đ</p>
-                )}
-
-                {room && (
-                    <p>Phòng: {room.qty} × {room.price.toLocaleString()}đ = {room.amount.toLocaleString()}đ</p>
-                )}
-            </div>
-
-            <p className="text-lg font-bold mt-3  text-gray-700">
-                Tổng tiền: {invoice.total.toLocaleString()}đ
-            </p>
-
-            {["unpaid", "Unpaid", "UNPAID"].includes(invoice.status) && (
-                <button
-                    onClick={pay}
-                    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg"
-                >
-                    Tôi đã thanh toán
-                </button>
-            )
-            }
-        </div >
     );
 }

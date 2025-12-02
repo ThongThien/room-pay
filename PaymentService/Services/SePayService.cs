@@ -57,20 +57,8 @@ public class SePayService : ISePayService
 
             _logger.LogInformation("SePay Request: {Request}", jsonContent);
 
-            // Tạo HTTP request với headers giống trình duyệt để bypass Cloudflare
+            // Tạo HTTP request với headers phù hợp
             var request = new HttpRequestMessage(HttpMethod.Post, _config.CheckoutUrl);
-            
-            // QUAN TRỌNG: User-Agent giống trình duyệt để bypass Cloudflare
-            request.Headers.TryAddWithoutValidation("User-Agent",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17 Safari/605.1.15");
-            
-            // Headers bổ sung để bypass Cloudflare
-            request.Headers.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
-            request.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9,vi;q=0.8");
-            request.Headers.TryAddWithoutValidation("Origin", "https://sepay.vn");
-            request.Headers.TryAddWithoutValidation("Referer", "https://sepay.vn/");
-            request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
-            request.Headers.TryAddWithoutValidation("Pragma", "no-cache");
             
             // Set content
             request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");

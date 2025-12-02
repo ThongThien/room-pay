@@ -31,3 +31,4 @@
 /Users/nhatbaodinh/Dev/intern-team3-2025/PaymentService/obj/Debug/net8.0/PaymentService.pdb
 /Users/nhatbaodinh/Dev/intern-team3-2025/PaymentService/obj/Debug/net8.0/PaymentService.genruntimeconfig.cache
 /Users/nhatbaodinh/Dev/intern-team3-2025/PaymentService/obj/Debug/net8.0/ref/PaymentService.dll
+/Users/nhatbaodinh/Dev/intern-team3-2025/PaymentService/bin/Debug/net8.0/appsettings.Example.json

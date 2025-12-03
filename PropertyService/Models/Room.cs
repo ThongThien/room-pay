@@ -11,7 +11,7 @@ public class Room
 
     public string Name { get; set; } = null!;
     public int Floor { get; set; }
-    public RoomStatus Status { get; set; } = RoomStatus.vacant;
+    public RoomStatus Status { get; set; } = RoomStatus.Vacant;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

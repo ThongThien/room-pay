@@ -1,5 +1,3 @@
-using System;
-
 namespace PropertyService.DTOs.Houses;
 
 public class HouseDto

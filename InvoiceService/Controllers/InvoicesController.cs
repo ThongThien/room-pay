@@ -64,25 +64,49 @@ public class InvoicesController : ControllerBase
     /// <summary>
     /// Get a specific invoice by ID for the current user
     /// </summary>
+    /// <summary>
+    /// Get invoice by ID
+    /// Supports both JWT auth (user access) and API key auth (service-to-service)
+    /// </summary>
     [HttpGet("{id}")]
+    [AllowAnonymous]
     public async Task<ActionResult<InvoiceResponse>> GetInvoiceById(int id)
     {
+        // Try to get userId from JWT token first
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
                      ?? User.FindFirstValue("sub") 
                      ?? User.FindFirstValue("userId");
         
+        // If no JWT token, check for service API key
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { error = "UserId not found in access token" });
+            var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+            var configuredApiKey = HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>()["ServiceApiKey"];
+            
+            if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+            {
+                return Unauthorized(new { error = "Invalid or missing authentication" });
+            }
+            
+            // API Key is valid, allow access to any invoice
+            var invoice = await _invoiceService.GetInvoiceByIdAsync(id);
+            if (invoice == null)
+            {
+                return NotFound(new { error = $"Invoice with ID {id} not found" });
+            }
+            
+            return Ok(MapToResponse(invoice));
         }
 
-        var invoice = await _invoiceService.GetInvoiceByIdAsync(id, userId);
-        if (invoice == null)
+        // JWT auth: only return user's own invoice
+        var userInvoice = await _invoiceService.GetInvoiceByIdAsync(id, userId);
+        if (userInvoice == null)
         {
             return NotFound(new { error = $"Invoice with ID {id} not found for user {userId}" });
         }
 
-        return Ok(MapToResponse(invoice));
+        return Ok(MapToResponse(userInvoice));
     }
 
     /// <summary>
@@ -304,26 +328,49 @@ public class InvoicesController : ControllerBase
     /// <summary>
     /// Mark an invoice as paid for the current user
     /// </summary>
+    /// <summary>
+    /// Mark invoice as paid
+    /// Supports both JWT auth (user access) and API key auth (service-to-service)
+    /// </summary>
     [HttpPost("{id}/mark-paid")]
+    [AllowAnonymous]
     public async Task<ActionResult<InvoiceResponse>> MarkInvoiceAsPaid(int id)
     {
+        // Try to get userId from JWT token first
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
                      ?? User.FindFirstValue("sub") 
                      ?? User.FindFirstValue("userId");
         
+        // If no JWT token, check for service API key
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { error = "UserId not found in access token" });
+            var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+            var configuredApiKey = HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>()["ServiceApiKey"];
+            
+            if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+            {
+                return Unauthorized(new { error = "Invalid or missing authentication" });
+            }
+            
+            // API Key is valid, allow marking any invoice as paid
+            var invoice = await _invoiceService.MarkInvoiceAsPaidAsync(id);
+            if (invoice == null)
+            {
+                return NotFound(new { error = $"Invoice with ID {id} not found" });
+            }
+            
+            return Ok(MapToResponse(invoice));
         }
 
-        var invoice = await _invoiceService.MarkInvoiceAsPaidAsync(id, userId);
-
-        if (invoice == null)
+        // JWT auth: only mark user's own invoice as paid
+        var userInvoice = await _invoiceService.MarkInvoiceAsPaidAsync(id, userId);
+        if (userInvoice == null)
         {
             return NotFound(new { error = $"Invoice with ID {id} not found for user {userId}" });
         }
 
-        return Ok(MapToResponse(invoice));
+        return Ok(MapToResponse(userInvoice));
     }
 
     private static InvoiceResponse MapToResponse(Invoice invoice)

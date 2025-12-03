@@ -29,6 +29,15 @@ public class InvoiceServiceImpl : IInvoiceService
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<Models.Invoice>> GetAllInvoicesByOwnerAsync(string ownerId, List<string> tenantUserIds)
+    {
+        return await _context.Invoices
+            .Include(i => i.Items)
+            .Where(i => tenantUserIds.Contains(i.UserId))
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<Models.Invoice?> GetInvoiceByIdAsync(int id, string userId)
     {
         return await _context.Invoices
@@ -151,6 +160,15 @@ public class InvoiceServiceImpl : IInvoiceService
         return await _context.Invoices
             .Include(i => i.Items)
             .Where(i => i.UserId == userId && i.Status == status)
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status)
+    {
+        return await _context.Invoices
+            .Include(i => i.Items)
+            .Where(i => tenantUserIds.Contains(i.UserId) && i.Status == status)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
     }

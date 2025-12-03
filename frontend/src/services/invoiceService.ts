@@ -46,3 +46,18 @@ export const getInvoiceDetail = async (id: number): Promise<Invoice | null> => {
         return null;
     }
 };
+
+export const markInvoiceAsPaid = async (id: number): Promise<boolean> => {
+    try {
+        const res = await fetch(`${INV_API_URL}/Invoices/${id}/mark-paid`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+        });
+
+        if (!res.ok) return false;
+        return true;
+    } catch (error) {
+        console.error("Lỗi mark paid:", error);
+        return false;
+    }
+};

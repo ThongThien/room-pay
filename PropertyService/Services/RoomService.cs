@@ -4,6 +4,7 @@ using PropertyService.DTOs.Rooms;
 using PropertyService.Models;
 using PropertyService.Services.Interfaces;
 using PropertyService.Repositories;
+using PropertyService.Models.Enums;
 public class RoomService : IRoomService
 {
     private readonly IGenericRepository<Room> _roomRepo;
@@ -89,5 +90,36 @@ public class RoomService : IRoomService
             throw new Exception("Room not found");
 
         await _roomRepo.DeleteAsync(room);
+    }
+    public async Task<int?> GetHouseIdByRoomIdAsync(int roomId)
+    {
+        // Query chỉ lấy HouseId của Room tương ứng
+        var houseId = await _roomRepo.Query()
+            .Where(r => r.Id == roomId)
+            .Select(r => (int?)r.HouseId) // Ép kiểu sang int? để có thể trả về null
+            .FirstOrDefaultAsync();
+
+        return houseId;
+    }
+
+    public async Task<Room?> GetRoomByIdForContractAsync(int id)
+    {
+        // Thường chỉ lấy thông tin cần thiết và không include các entities lớn
+        var room = await _roomRepo.Query()
+            .FirstOrDefaultAsync(r => r.Id == id); 
+            
+        return room;
+    }
+
+    public async Task<bool> UpdateStatusAsync(int id, RoomStatus status)
+    {
+        var room = await _roomRepo.GetByIdAsync(id);
+
+        if (room == null)
+            return false; // hoặc throw exception
+
+        room.Status = status;
+        await _roomRepo.UpdateAsync(room);
+        return true;
     }
 }

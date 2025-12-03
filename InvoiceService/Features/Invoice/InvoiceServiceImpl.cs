@@ -36,6 +36,13 @@ public class InvoiceServiceImpl : IInvoiceService
             .FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
     }
 
+    public async Task<Models.Invoice?> GetInvoiceByIdAsync(int id)
+    {
+        return await _context.Invoices
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == id);
+    }
+
     public async Task<Models.Invoice> CreateInvoiceAsync(Models.Invoice invoice)
     {
         invoice.CreatedAt = DateTime.UtcNow;
@@ -115,6 +122,26 @@ public class InvoiceServiceImpl : IInvoiceService
         
         _logger.LogInformation("Marked invoice {InvoiceId} as paid for user {UserId}", 
             id, userId);
+        
+        return invoice;
+    }
+
+    public async Task<Models.Invoice?> MarkInvoiceAsPaidAsync(int id)
+    {
+        var invoice = await _context.Invoices
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == id);
+        
+        if (invoice == null)
+            return null;
+
+        invoice.Status = "Paid";
+        invoice.PaidDate = DateTime.UtcNow;
+        invoice.UpdatedAt = DateTime.UtcNow;
+        
+        await _context.SaveChangesAsync();
+        
+        _logger.LogInformation("Marked invoice {InvoiceId} as paid (service-to-service)", id);
         
         return invoice;
     }

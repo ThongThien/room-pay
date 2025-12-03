@@ -31,32 +31,32 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Check if Tenant exists by ID (Service-to-service)
     /// </summary>
-    /// <param name="tenantId">ID của người thuê</param>
+    /// <param name="userId">ID của người thuê</param>
     /// <returns>200 OK nếu tenant hợp lệ, 404 Not Found nếu không tồn tại</returns>
-    [HttpGet("{tenantId}/exists")]
+    [HttpGet("{userId}/exists")]
     [AllowAnonymous]
-    public async Task<IActionResult> CheckTenantExists(string tenantId)
+    public async Task<IActionResult> CheckTenantExists(string userId)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest(new { error = "Tenant ID is required" });
+            return BadRequest(new { error = "User ID is required" });
         }
 
         try
         {
-            var exists = await _userService.CheckTenantExistenceAndRoleAsync(tenantId);
+            var exists = await _userService.CheckTenantExistenceAndRoleAsync(userId);
 
             if (!exists)
             {
-                _logger.LogWarning($"Tenant ID {tenantId} not found or is not a valid tenant");
+                _logger.LogWarning($"User ID {userId} not found or is not a valid tenant");
                 return NotFound(new { error = "Tenant not found or invalid" });
             }
 
-            return Ok(new { message = "Tenant exists", tenantId });
+            return Ok(new { message = "Tenant exists", userId });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error checking tenant ID {tenantId}");
+            _logger.LogError(ex, $"Error checking user ID {userId}");
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

@@ -13,7 +13,8 @@ public class UserServiceClient : IUserServiceClient
         _httpClient = httpClient;
         _logger = logger;
         
-        var baseUrl = configuration["AuthService:BaseUrl"] ?? "http://localhost:5000";
+        var baseUrl = configuration ["AuthService:BaseUrl"] 
+            ?? throw new InvalidOperationException("AuthService:BaseUrl not configured");
         _httpClient.BaseAddress = new Uri(baseUrl);
         
         var apiKey = configuration["AuthService:ApiKey"] ?? configuration["ServiceApiKey"];

@@ -29,7 +29,8 @@ public class InvoiceHttpClient : IInvoiceHttpClient
     {
         try
         {
-            var invoiceServiceUrl = _configuration["Services:InvoiceService:BaseUrl"];
+            var invoiceServiceUrl = _configuration["Services:InvoiceService:BaseUrl"] 
+            ?? throw new InvalidOperationException("InvoiceService BaseUrl not configured");
             if (string.IsNullOrEmpty(invoiceServiceUrl))
             {
                 _logger.LogError("InvoiceService BaseUrl not configured");

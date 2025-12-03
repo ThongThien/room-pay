@@ -6,6 +6,8 @@ using System.Text;
 using PropertyService.Services;
 using PropertyService.Services.Interfaces;
 using PropertyService.Repositories;
+using PropertyService.Services.Clients;
+using PropertyService.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +19,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     ));
 
 // 2. JWT Authentication
-var jwt = builder.Configuration.GetSection("JwtSettings");
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -27,10 +29,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwt["Issuer"],
-            ValidAudience = jwt["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Secret"]!))
-
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!))
         };
     });
 
@@ -63,8 +64,27 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
+builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
+builder.Services.AddScoped<IGenericRepository<House>, GenericRepository<House>>();
+builder.Services.AddScoped<IGenericRepository<Room>, GenericRepository<Room>>();
+
+// Trong PropertyService/Program.cs (hoặc Startup.cs)
+
+builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
+{
+    // ⭐ SỬA LỖI: Đổi key từ "AAService" thành "AA" ⭐
+    var aaServiceUrl = builder.Configuration["ServiceUrls:AA"]; // <--- ĐÃ SỬA THÀNH "AA"
+    
+    if (string.IsNullOrEmpty(aaServiceUrl))
+    {
+        // Bạn có thể cần kiểm tra cấu hình lại
+        throw new InvalidOperationException("AA Service URL not configured in appsettings.");
+    }
+    client.BaseAddress = new Uri(aaServiceUrl);
+});
 
 builder.Services.AddControllers();
 

@@ -1,8 +1,7 @@
 namespace PropertyService.Models.Enums;
-
 public enum RoomStatus
 {
-    vacant,
-    occupied,
-    closing_soon
+    Vacant, // Sửa từ vacant
+    Occupied, // Sửa từ occupied
+    ClosingSoon // Sửa từ closing_soon
 }

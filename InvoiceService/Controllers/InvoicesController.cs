@@ -14,15 +14,22 @@ public class InvoicesController : ControllerBase
 {
     private readonly IInvoiceService _invoiceService;
     private readonly ILogger<InvoicesController> _logger;
+    private readonly Services.IUserServiceClient _userServiceClient;
 
-    public InvoicesController(IInvoiceService invoiceService, ILogger<InvoicesController> logger)
+    public InvoicesController(
+        IInvoiceService invoiceService, 
+        ILogger<InvoicesController> logger,
+        Services.IUserServiceClient userServiceClient)
     {
         _invoiceService = invoiceService;
         _logger = logger;
+        _userServiceClient = userServiceClient;
     }
 
     /// <summary>
     /// Get all invoices for the current user
+    /// If user is an owner, returns invoices for all their tenants
+    /// If user is a regular tenant, returns only their own invoices
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetAllInvoices()
@@ -36,13 +43,40 @@ public class InvoicesController : ControllerBase
             return Unauthorized(new { error = "UserId not found in access token" });
         }
 
-        var invoices = await _invoiceService.GetAllInvoicesByUserAsync(userId);
+        // Get user info to check if they are an owner
+        var userInfo = await _userServiceClient.GetUserInfoAsync(userId);
+        
+        IEnumerable<Models.Invoice> invoices;
+        
+        // If user has no OwnerId, they are an owner themselves
+        // Get list of tenant user IDs and return all their invoices
+        if (userInfo?.OwnerId == null)
+        {
+            var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
+            if (tenantUserIds.Any())
+            {
+                invoices = await _invoiceService.GetAllInvoicesByOwnerAsync(userId, tenantUserIds);
+            }
+            else
+            {
+                // Owner has no tenants, return empty list
+                invoices = new List<Models.Invoice>();
+            }
+        }
+        else
+        {
+            // Regular user, return only their invoices
+            invoices = await _invoiceService.GetAllInvoicesByUserAsync(userId);
+        }
+
         var response = invoices.Select(MapToResponse);
         return Ok(response);
     }
 
     /// <summary>
     /// Get invoices by status for the current user
+    /// If user is an owner, returns invoices for all their tenants with the specified status
+    /// If user is a regular tenant, returns only their own invoices with the specified status
     /// </summary>
     [HttpGet("status/{status}")]
     public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetInvoicesByStatus(string status)
@@ -56,7 +90,31 @@ public class InvoicesController : ControllerBase
             return Unauthorized(new { error = "UserId not found in access token" });
         }
 
-        var invoices = await _invoiceService.GetInvoicesByStatusAsync(userId, status);
+        // Get user info to check if they are an owner
+        var userInfo = await _userServiceClient.GetUserInfoAsync(userId);
+        
+        IEnumerable<Models.Invoice> invoices;
+        
+        // If user has no OwnerId, they are an owner themselves
+        if (userInfo?.OwnerId == null)
+        {
+            var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
+            if (tenantUserIds.Any())
+            {
+                invoices = await _invoiceService.GetInvoicesByStatusForOwnerAsync(userId, tenantUserIds, status);
+            }
+            else
+            {
+                // Owner has no tenants, return empty list
+                invoices = new List<Models.Invoice>();
+            }
+        }
+        else
+        {
+            // Regular user, return only their invoices
+            invoices = await _invoiceService.GetInvoicesByStatusAsync(userId, status);
+        }
+
         var response = invoices.Select(MapToResponse);
         return Ok(response);
     }

@@ -15,15 +15,18 @@ public class InvoicesController : ControllerBase
     private readonly IInvoiceService _invoiceService;
     private readonly ILogger<InvoicesController> _logger;
     private readonly Services.IUserServiceClient _userServiceClient;
+    private readonly Services.PaymentWebSocketHandler _wsHandler;
 
     public InvoicesController(
         IInvoiceService invoiceService, 
         ILogger<InvoicesController> logger,
-        Services.IUserServiceClient userServiceClient)
+        Services.IUserServiceClient userServiceClient,
+        Services.PaymentWebSocketHandler wsHandler)
     {
         _invoiceService = invoiceService;
         _logger = logger;
         _userServiceClient = userServiceClient;
+        _wsHandler = wsHandler;
     }
 
     /// <summary>
@@ -418,6 +421,9 @@ public class InvoicesController : ControllerBase
                 return NotFound(new { error = $"Invoice with ID {id} not found" });
             }
             
+            // Notify WebSocket clients about payment status update
+            await _wsHandler.NotifyPaymentStatusAsync(id, "Paid");
+            
             return Ok(MapToResponse(invoice));
         }
 
@@ -427,6 +433,9 @@ public class InvoicesController : ControllerBase
         {
             return NotFound(new { error = $"Invoice with ID {id} not found for user {userId}" });
         }
+
+        // Notify WebSocket clients about payment status update
+        await _wsHandler.NotifyPaymentStatusAsync(id, "Paid");
 
         return Ok(MapToResponse(userInvoice));
     }

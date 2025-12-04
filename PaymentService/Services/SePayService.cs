@@ -42,13 +42,11 @@ public class SePayService : ISePayService
                     (false, "SePay configuration is incomplete", null, null, null));
             }
 
-            // Tạo nội dung chuyển khoản với invoice number
-            // Format: INV123 hoặc custom format
-            var transferContent = $"{invoiceNumber}";
-            if (!string.IsNullOrEmpty(description))
-            {
-                transferContent += $" {description}";
-            }
+            // Tạo nội dung chuyển khoản
+            // Format: Description only (invoice number sẽ được parse từ description)
+            var transferContent = !string.IsNullOrEmpty(description) 
+                ? description
+                : invoiceNumber;
 
             // Tạo QR code URL theo format của SePay
             // https://qr.sepay.vn/img?bank=BANK&acc=ACCOUNT&amount=AMOUNT&des=DESCRIPTION&template=compact

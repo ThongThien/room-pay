@@ -4,8 +4,9 @@ using InvoiceService.Features.Pricing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using InvoiceService.Repositories.Interfaces; 
+using InvoiceService.Repositories.Implementations;
 using System.Text;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Đọc JwtSettings từ cấu hình
@@ -47,7 +48,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
-// Register services
+builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>(); 
 builder.Services.AddScoped<IInvoiceService, InvoiceServiceImpl>();
 builder.Services.AddScoped<IPricingService, PricingService>();
 

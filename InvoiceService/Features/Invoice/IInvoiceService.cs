@@ -1,9 +1,15 @@
-using InvoiceService.Models;
+// InvoiceService/Features/Invoice/IInvoiceService.cs
 
+using InvoiceService.Models;
+using InvoiceService.Features.Invoice.DTOs.Invoice; 
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 namespace InvoiceService.Features.Invoice;
 
 public interface IInvoiceService
 {
+    // Các hàm cũ
     Task<IEnumerable<Models.Invoice>> GetAllInvoicesByUserAsync(string userId);
     Task<Models.Invoice?> GetInvoiceByIdAsync(int id, string userId);
     Task<Models.Invoice?> GetInvoiceByIdAsync(int id); // Service-to-service call without userId filter
@@ -13,4 +19,9 @@ public interface IInvoiceService
     Task<Models.Invoice?> MarkInvoiceAsPaidAsync(int id, string userId);
     Task<Models.Invoice?> MarkInvoiceAsPaidAsync(int id); // Service-to-service call
     Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusAsync(string userId, string status);
+    
+    // ⭐ CÁC HÀM MỚI (Đã thêm vào Interface chính)
+    Task<UnpaidInvoicesResponseDto> GetUnpaidInvoicesByTenantIdAsync(Guid tenantId);
+    // Bạn cần thêm hàm này nếu bạn muốn tính tổng trả tháng trước
+    Task<TotalPaidLastMonthDto> GetTotalPaidAmountLastMonthAsync(Guid tenantId); 
 }

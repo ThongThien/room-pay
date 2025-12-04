@@ -50,7 +50,7 @@ public class UsersController : ControllerBase
         }
     }
     [HttpGet("{userId}")]
-    [ProducesResponseType(typeof(object), 200)] // Thay object bằng UserDto
+    [ProducesResponseType(typeof(object), 200)] 
     [ProducesResponseType(404)]
     public async Task<IActionResult> GetUserById(string userId)
     {
@@ -61,9 +61,6 @@ public class UsersController : ControllerBase
             return NotFound();
         }
 
-        // ⭐ Trả về thông tin User ⭐
-        // Nếu bạn đang dùng DTO, hãy trả về DTO. Nếu không, trả về Model (ví dụ: user)
-        // Lưu ý: Tránh trả về trực tiếp ApplicationUser nếu nó chứa thông tin nhạy cảm.
         return Ok(user); 
     }
 }

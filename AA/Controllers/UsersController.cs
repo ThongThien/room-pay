@@ -1,9 +1,11 @@
 using AA.Features.Users;
+using AA.Features.Users.DTOs;
 using AA.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace AA.Controllers;
 
@@ -132,4 +134,127 @@ public class UsersController : ControllerBase
 
         return Ok(tenants);
     }
+
+    /// <summary>
+    /// Tạo người dùng mới (chỉ Owner)
+    /// </summary>
+    [HttpPost]
+    [Authorize(Roles = "Owner")]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        try
+        {
+            // Lấy userId của Owner từ JWT token
+            var ownerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (string.IsNullOrEmpty(ownerId))
+            {
+                return Unauthorized(new { error = "Không thể xác định Owner" });
+            }
+
+            var result = await _userService.CreateUserAsync(createUserDto, ownerId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi tạo người dùng");
+            return StatusCode(500, new UserResponseDto
+            {
+                Success = false,
+                Message = "Đã xảy ra lỗi khi tạo người dùng"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật thông tin người dùng (chỉ Owner)
+    /// </summary>
+    [HttpPut("{userId}")]
+    [Authorize(Roles = "Owner")]
+    public async Task<IActionResult> UpdateUser(string userId, [FromBody] UpdateUserDto updateUserDto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        try
+        {
+            // Lấy userId của Owner từ JWT token
+            var ownerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (string.IsNullOrEmpty(ownerId))
+            {
+                return Unauthorized(new { error = "Không thể xác định Owner" });
+            }
+
+            var result = await _userService.UpdateUserAsync(userId, updateUserDto, ownerId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Lỗi khi cập nhật người dùng {userId}");
+            return StatusCode(500, new UserResponseDto
+            {
+                Success = false,
+                Message = "Đã xảy ra lỗi khi cập nhật người dùng"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Xóa người dùng (chỉ Owner)
+    /// </summary>
+    [HttpDelete("{userId}")]
+    [Authorize(Roles = "Owner")]
+    public async Task<IActionResult> DeleteUser(string userId)
+    {
+        try
+        {
+            // Lấy userId của Owner từ JWT token
+            var ownerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (string.IsNullOrEmpty(ownerId))
+            {
+                return Unauthorized(new { error = "Không thể xác định Owner" });
+            }
+
+            var result = await _userService.DeleteUserAsync(userId, ownerId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Lỗi khi xóa người dùng {userId}");
+            return StatusCode(500, new UserResponseDto
+            {
+                Success = false,
+                Message = "Đã xảy ra lỗi khi xóa người dùng"
+            });
+        }
+    }
+
+
 }

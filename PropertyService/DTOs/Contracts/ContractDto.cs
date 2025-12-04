@@ -15,5 +15,7 @@ namespace PropertyService.DTOs.Contracts
         public ContractStatus Status { get; set; }
         public string? FileUrl { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string? HouseName { get; set; } 
+        public string? RoomNumber { get; set; } 
     }
 }

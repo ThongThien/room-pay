@@ -147,18 +147,40 @@ public class ContractService : IContractService
         var contracts = await _contractRepo.GetAllAsync();
         return _mapper.Map<IEnumerable<ContractDto>>(contracts);
     }
-// ContractService.cs
+    // ContractService.cs
 
     public async Task<IEnumerable<ContractDto>> GetContractsByTenantIdAsync(Guid tenantId)
     {
         string tenantIdString = tenantId.ToString();
-        
-        var contracts = await _contractRepo.Query()
-            // Truy vấn các hợp đồng có TenantId khớp với ID từ token
-            .Where(c => c.TenantId == tenantIdString) 
-            .ToListAsync();
+
+        // 1. Sử dụng Projection (Select) để chỉ lấy các trường cần thiết 
+        // và thực hiện JOIN thông qua navigation properties (giả định Models có navigation properties)
+        var contractsWithDetails = await _contractRepo.Query()
+            .Where(c => c.TenantId == tenantIdString)
             
-        return _mapper.Map<IEnumerable<ContractDto>>(contracts);
+            // ⭐ THỰC HIỆN JOIN VỚI ROOMS VÀ HOUSES BẰNG PROJECTION
+            // (Giả định Contract Model có Room navigation property, và Room Model có House navigation property)
+            .Select(c => new ContractDto
+            {
+                Id = c.Id,
+                RoomId = c.RoomId,
+                TenantId = Guid.Parse(c.TenantId),
+                StartDate = c.StartDate,
+                EndDate = c.EndDate,
+                Price = c.Price,
+                Status = c.Status,
+                FileUrl = c.FileUrl,
+                CreatedAt = c.CreatedAt,
+                
+                // ⭐ LẤY DỮ LIỆU TỪ ROOM VÀ HOUSE
+                // Giả định: Room có trường Name (cho RoomNumber) hoặc kết hợp Name/Floor
+                HouseName = c.Room.House.Name, 
+                RoomNumber = c.Room.Name // Hoặc c.Room.Floor.ToString() + " - " + c.Room.Name
+            })
+            .ToListAsync();
+
+        // 2. Không cần Mapper vì đã sử dụng Projection trực tiếp ra ContractDto
+        return contractsWithDetails;
     }
     // Triển khai phương thức cũ (Map CreateContract -> CreateContractDto -> CreateAsync)
     public Task<ContractDto?> CreateContractAsync(CreateContractDto request) 
@@ -202,5 +224,41 @@ public class ContractService : IContractService
         if (contract == null) return false; 
 
         return await IsRoomOwnedByAsync(contract.RoomId, ownerId);
+    }
+    // PropertyService/Services/Implementations/ContractService.cs
+
+    public async Task<ContractDto?> GetActiveContractByTenantIdAsync(Guid tenantId)
+    {
+        string tenantIdString = tenantId.ToString();
+        // Lấy ngày hiện tại dưới dạng DateOnly
+        var today = DateOnly.FromDateTime(DateTime.Today); 
+        
+        var activeContract = await _contractRepo.Query()
+            .Where(c => c.TenantId == tenantIdString)
+            // ⭐ LỌC HỢP ĐỒNG ĐANG HOẠT ĐỘNG
+            // Giả định ContractStatus.ACTIVE là trạng thái hợp lệ.
+            .Where(c => c.Status == ContractStatus.Active && 
+                        (c.EndDate == null || c.EndDate >= today))
+            
+            // ⭐ PROJECTION VÀ JOIN (Đã làm ở bước trước)
+            .Select(c => new ContractDto
+            {
+                Id = c.Id,
+                RoomId = c.RoomId,
+                TenantId = Guid.Parse(c.TenantId),
+                StartDate = c.StartDate,
+                EndDate = c.EndDate,
+                Price = c.Price,
+                Status = c.Status,
+                FileUrl = c.FileUrl,
+                CreatedAt = c.CreatedAt,
+                
+                // Lấy thông tin JOIN từ Rooms và Houses
+                HouseName = c.Room.House.Name, 
+                RoomNumber = c.Room.Name 
+            })
+            .FirstOrDefaultAsync(); // Lấy 1 bản ghi duy nhất
+
+        return activeContract;
     }
 }

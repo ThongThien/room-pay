@@ -10,6 +10,7 @@ export interface InvoiceItem {
 export interface Invoice {
     id: number;
     userId: string;
+    userName?: string;
     invoiceDate: string;
     dueDate: string;
     totalAmount: number;

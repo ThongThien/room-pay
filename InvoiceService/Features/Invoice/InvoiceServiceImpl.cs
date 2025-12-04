@@ -21,7 +21,7 @@ public class InvoiceServiceImpl : IInvoiceService
     private readonly IInvoiceRepository _invoiceRepo;
     private readonly ILogger<InvoiceServiceImpl> _logger;
     private readonly Pricing.IPricingService _pricingService;
-    private readonly ApplicationDbContext _context;
+    // private readonly ApplicationDbContext _context;
     
     // [ActivatorUtilitiesConstructor] chỉ cần thiết nếu có nhiều constructors,
     // nhưng ta giữ nó để đảm bảo DI Container dùng Constructor này.
@@ -51,7 +51,7 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task<IEnumerable<Models.Invoice>> GetAllInvoicesByOwnerAsync(string ownerId, List<string> tenantUserIds)
     {
-        return await _context.Invoices
+        return await _invoiceRepo.Query()
             .Include(i => i.Items)
             .Where(i => tenantUserIds.Contains(i.UserId))
             .OrderByDescending(i => i.CreatedAt)
@@ -185,7 +185,7 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status)
     {
-        return await _context.Invoices
+        return await _invoiceRepo.Query()
             .Include(i => i.Items)
             .Where(i => tenantUserIds.Contains(i.UserId) && i.Status == status)
             .OrderByDescending(i => i.CreatedAt)

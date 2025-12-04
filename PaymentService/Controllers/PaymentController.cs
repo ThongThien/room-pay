@@ -49,7 +49,8 @@ public class PaymentController : ControllerBase
         string invoiceRef;
         if (request.InvoiceId.HasValue)
         {
-            invoiceRef = $"INV{request.InvoiceId.Value}";
+            // Chỉ sử dụng số ID thuần, không thêm prefix
+            invoiceRef = request.InvoiceId.Value.ToString();
         }
         else if (!string.IsNullOrEmpty(request.InvoiceNumber))
         {
@@ -377,17 +378,25 @@ public class PaymentController : ControllerBase
 
     /// <summary>
     /// Extract Invoice ID từ transaction content
-    /// Format: INV42, INV123 (không có dấu gạch ngang)
+    /// Format: INV42, INV123 (không có dấu gạch ngang), hoặc "hoa don 42"
     /// </summary>
     private int? ExtractInvoiceId(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return null;
 
-        // Pattern: INV + số thuần (không có dấu gạch ngang)
+        // Pattern 1: INV + số thuần (không có dấu gạch ngang)
         // INV42, INV123
         var match = Regex.Match(content, @"\bINV(\d+)(?![-_])\b", RegexOptions.IgnoreCase);
         if (match.Success && int.TryParse(match.Groups[1].Value, out var id))
+        {
+            return id;
+        }
+
+        // Pattern 2: "hoa don" + số (cho tiếng Việt)
+        // "hoa don 42", "thanh toan hoa don 123"
+        match = Regex.Match(content, @"\bhoa\s+don\s+(\d+)\b", RegexOptions.IgnoreCase);
+        if (match.Success && int.TryParse(match.Groups[1].Value, out id))
         {
             return id;
         }

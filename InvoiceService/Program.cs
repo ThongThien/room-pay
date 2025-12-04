@@ -52,6 +52,7 @@ builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IInvoiceService, InvoiceServiceImpl>();
 builder.Services.AddScoped<IPricingService, PricingService>();
 builder.Services.AddHttpClient<InvoiceService.Services.IUserServiceClient, InvoiceService.Services.UserServiceClient>();
+builder.Services.AddSingleton<InvoiceService.Services.PaymentWebSocketHandler>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -105,6 +106,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
+
+// Enable WebSocket support
+app.UseWebSockets();
 
 app.UseAuthentication();
 app.UseAuthorization();

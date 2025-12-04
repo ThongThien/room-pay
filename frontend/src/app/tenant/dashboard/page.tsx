@@ -2,7 +2,9 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { getMyInvoices } from '@/services/invoiceService';
 
 // === INTERFACES DỮ LIỆU CỐT LÕI ===
 
@@ -35,40 +37,71 @@ interface TenantDashboardData {
     missingReadings: MissingReadingMonth[];
 }
 
-// API Giả lập (Tiếng Anh - Camel Case)
+// API Fetch real data
 const fetchTenantDashboardData = async (): Promise<TenantDashboardData> => {
-    const mockUnpaidInvoices: UnpaidInvoiceDetail[] = [
-        {
-            invoiceId: 'INV-202511001',
-            month: 'Tháng 11/2025',
-            amount: '12,500,000 ₫',
-            dueDate: '10/12/2025',
-            isOverdue: true
-        },
-        {
-            invoiceId: 'INV-202512001',
-            month: 'Tháng 12/2025',
-            amount: '10,000,000 ₫',
-            dueDate: '10/01/2026',
-            isOverdue: false
-        },
-    ];
+    try {
+        // Fetch invoices from API
+        const invoices = await getMyInvoices();
+        
+        // Filter unpaid invoices
+        const unpaidInvoices = invoices
+            .filter(inv => inv.status === 'Unpaid')
+            .map(inv => {
+                const dueDate = new Date(inv.dueDate);
+                const today = new Date();
+                const isOverdue = dueDate < today;
+                
+                // Format date as DD/MM/YYYY
+                const dueDateFormatted = `${dueDate.getDate().toString().padStart(2, '0')}/${(dueDate.getMonth() + 1).toString().padStart(2, '0')}/${dueDate.getFullYear()}`;
+                
+                // Format invoice date as month/year for display
+                const invoiceDate = new Date(inv.invoiceDate);
+                const monthDisplay = `${(invoiceDate.getMonth() + 1).toString().padStart(2, '0')}/${invoiceDate.getFullYear()}`;
+                
+                return {
+                    invoiceId: `${inv.id}`,
+                    month: monthDisplay,
+                    amount: `${inv.totalAmount.toLocaleString('vi-VN')} ₫`,
+                    dueDate: dueDateFormatted,
+                    isOverdue: isOverdue
+                } as UnpaidInvoiceDetail;
+            });
+        
+        // Calculate total unpaid amount
+        const totalUnpaid = unpaidInvoices.reduce((sum, inv) => {
+            const amount = parseFloat(inv.amount.replace(/[^\d]/g, ''));
+            return sum + amount;
+        }, 0);
+        
+        const totalUnpaidFormatted = `${totalUnpaid.toLocaleString('vi-VN')} ₫`;
 
-    return {
-        houseName: 'VCN Phước Hải',
-        roomNumber: 'P101',
-        contractStatus: 'Sắp hết hạn',
-        contractEndDate: '31/12/2025',
+        return {
+            houseName: 'VCN Phước Hải', // TODO: Fetch from Property API
+            roomNumber: 'P101', // TODO: Fetch from Property API
+            contractStatus: 'Còn hiệu lực', // TODO: Fetch from Property API
+            contractEndDate: '31/12/2025', // TODO: Fetch from Property API
+            
+            totalUnpaidAmount: totalUnpaidFormatted,
+            unpaidInvoices: unpaidInvoices,
 
-        // Dữ liệu mới: Tổng và chi tiết các hóa đơn chưa TT
-        totalUnpaidAmount: '22,500,000 ₫', // Tổng của 12.5M + 10M
-        unpaidInvoices: mockUnpaidInvoices,
-
-        openIncidents: 3,
-        missingReadings: [
-            { month: 'Tháng 01/2026', type: 'Both' },
-        ],
-    };
+            openIncidents: 0, // TODO: Fetch from Ticket/Incident API
+            missingReadings: [], // TODO: Fetch from Reading API
+        };
+    } catch (error) {
+        console.error('Error fetching tenant dashboard data:', error);
+        
+        // Return empty/default data on error
+        return {
+            houseName: 'N/A',
+            roomNumber: 'N/A',
+            contractStatus: 'Còn hiệu lực',
+            contractEndDate: 'N/A',
+            totalUnpaidAmount: '0 ₫',
+            unpaidInvoices: [],
+            openIncidents: 0,
+            missingReadings: [],
+        };
+    }
 };
 
 // Component Card dùng riêng cho Tenant
@@ -83,6 +116,7 @@ const TenantInfoCard: React.FC<{ title: string; value: string; className?: strin
 
 const TenantDashboardPage: React.FC = () => {
     const [data, setData] = React.useState<TenantDashboardData | null>(null);
+    const router = useRouter();
 
     React.useEffect(() => {
         fetchTenantDashboardData().then(setData);
@@ -98,9 +132,12 @@ const TenantDashboardPage: React.FC = () => {
             : 'text-green-600'; // Đã thanh toán hết
 
     // Giả lập chức năng thanh toán
-    const handlePayment = (invoiceId: string) => {
-        alert(`Tiến hành thanh toán cho Hóa đơn ID: ${invoiceId}`);
-        // Logic gọi API thanh toán thực tế sẽ ở đây
+    const handlePayment = (month: string, invoiceId: string) => {
+        //Hỏi người dùng có chắc chắn muốn thanh toán không
+        if (window.confirm(`Bạn muốn thanh toán cho hóa đơn ${month}?`)) {
+            // Chuyển hướng đến trang thanh toán
+            router.push(`/tenant/payment/${invoiceId}`);
+        }
     };
 
     return (
@@ -153,11 +190,11 @@ const TenantDashboardPage: React.FC = () => {
                                             {invoice.month}
                                         </span>
                                         <span className={`text-xs ${invoice.isOverdue ? 'text-red-400' : 'text-orange-400'}`}>
-                                            {invoice.amount} {invoice.isOverdue ? '(QUÁ HẠN)' : `(Hạn: ${invoice.dueDate})`}
+                                            Hạn thanh toán: {invoice.dueDate} {invoice.isOverdue ? ' - Quá hạn' : ''}
                                         </span>
                                     </div>
                                     <button
-                                        onClick={() => handlePayment(invoice.invoiceId)}
+                                        onClick={() => handlePayment(invoice.month, invoice.invoiceId)}
                                         className={`px-3 py-1 rounded-lg font-bold text-xs text-white transition ${invoice.isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
                                     >
                                         Thanh toán ngay

@@ -189,7 +189,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         // ElectricOld và WaterOld không cần cập nhật, đã có sẵn từ lần nộp trước
         reading.ElectricNew = dto.ElectricNew;
         reading.WaterNew = dto.WaterNew;
-        reading.Status = ReadingStatus.Submitted;
+        reading.Status = ReadingStatus.Confirmed; // Cập nhật trạng thái thành Confirmed
         reading.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

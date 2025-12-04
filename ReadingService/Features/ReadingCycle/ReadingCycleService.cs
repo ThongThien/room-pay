@@ -88,7 +88,7 @@ public class ReadingCycleService : IReadingCycleService
         // Lấy chỉ số mới từ lần nộp trước (nếu có) để làm chỉ số cũ cho tháng này
         var previousReading = await _context.MonthlyReadings
             .Include(mr => mr.ReadingCycle)
-            .Where(mr => mr.ReadingCycle!.UserId == createDto.UserId && mr.Status == Models.ReadingStatus.Submitted)
+            .Where(mr => mr.ReadingCycle!.UserId == createDto.UserId && mr.Status == Models.ReadingStatus.Confirmed)
             .OrderByDescending(mr => mr.UpdatedAt)
             .FirstOrDefaultAsync();
 

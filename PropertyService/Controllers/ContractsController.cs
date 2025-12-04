@@ -75,7 +75,7 @@ namespace PropertyService.Controllers
                 return StatusCode(500, new { success = false, message = "Internal server error." });
             }
         }
-
+        
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(ContractDto), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
@@ -263,5 +263,7 @@ namespace PropertyService.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        
     }
 }

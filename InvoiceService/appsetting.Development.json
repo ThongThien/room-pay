@@ -1,25 +1,21 @@
 {
   "ConnectionStrings": {
     "DefaultConnection": "Server=47.129.169.174;Port=3306;Database=invoice_service_db;User=root;Password=intern2025;"
-  },
+},
+
   "Logging": {
     "LogLevel": {
       "Default": "Information",
       "Microsoft.AspNetCore": "Warning"
     }
   },
-  "AllowedHosts": "*",
 
-<<<<<<< HEAD
-  "AuthService": {
-    "BaseUrl": "http://localhost:5286",
-    "ApiKey": "YOUR_SERVICE_API_KEY_HERE"
-=======
   "JwtSettings": {
     "Secret": "YourSuperSecretKeyForJWTAuthenticationThatIsAtLeast32CharactersLong",
     "Issuer": "PayroomAPI",
     "Audience": "PayroomClient",
     "ExpiresInMinutes": 1440
->>>>>>> thongthienv3
-  }
+  },
+
+  "AllowedHosts": "*"
 }

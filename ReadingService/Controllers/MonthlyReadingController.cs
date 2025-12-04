@@ -4,6 +4,8 @@ using System.Security.Claims;
 using ReadingService.Features.MonthlyReading;
 using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle;
+using ReadingService.Data;
+using ReadingService.Models;
 namespace ReadingService.Controllers;
 
 [ApiController]
@@ -14,15 +16,17 @@ public class MonthlyReadingController : ControllerBase
     private readonly IMonthlyReadingService _monthlyReadingService;
     private readonly IReadingCycleService _readingCycleService;
     private readonly ILogger<MonthlyReadingController> _logger;
-
+    private readonly ApplicationDbContext _context;
     public MonthlyReadingController(
         IMonthlyReadingService monthlyReadingService,
         IReadingCycleService readingCycleService,
-        ILogger<MonthlyReadingController> logger)
+        ILogger<MonthlyReadingController> logger,
+        ApplicationDbContext context)
     {
         _monthlyReadingService = monthlyReadingService;
         _readingCycleService = readingCycleService;
         _logger = logger;
+        _context = context;
     }
 
     /// <summary>
@@ -67,39 +71,6 @@ public class MonthlyReadingController : ControllerBase
             _logger.LogError(ex, "Lỗi khi nộp MonthlyReading");
             return StatusCode(500, new { message = "Có lỗi xảy ra khi nộp reading", error = ex.Message });
         }
-    }
-
-    /// <summary>
-    /// Lấy tất cả MonthlyReadings của user hiện tại
-    /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
-    {
-        // Lấy userId từ JWT token
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                     ?? User.FindFirstValue("sub") 
-                     ?? User.FindFirstValue("userId");
-        
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng" });
-        }
-
-        // Lấy tất cả cycles của user
-        var cycles = await _readingCycleService.GetByUserIdAsync(userId);
-        var cycleIds = cycles.Select(c => c.Id).ToList();
-
-        var readings = new List<MonthlyReadingResponseDto>();
-        foreach (var cycleId in cycleIds)
-        {
-            var reading = await _monthlyReadingService.GetByCycleIdAsync(cycleId);
-            if (reading != null)
-            {
-                readings.Add(reading);
-            }
-        }
-
-        return Ok(readings);
     }
 
     /// <summary>
@@ -150,7 +121,6 @@ public class MonthlyReadingController : ControllerBase
 
         return Ok(response);
     }
-
     /// <summary>
     /// Xóa MonthlyReading
     /// </summary>
@@ -171,6 +141,33 @@ public class MonthlyReadingController : ControllerBase
         {
             _logger.LogError(ex, "Lỗi khi xóa MonthlyReading");
             return StatusCode(500, new { message = "Có lỗi xảy ra khi xóa reading", error = ex.Message });
+        }
+    }
+
+    // Endpoint: GET api/MonthlyReading (FIXED: Lấy tất cả bản ghi)
+    [HttpGet] 
+    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng" });
+        }
+
+        try
+        {
+            // ⭐ GỌI HÀM ĐÃ SỬA để lấy TẤT CẢ bản ghi
+            var readings = await _monthlyReadingService.GetAllReadingsByUserIdAsync(userId);
+            
+            return Ok(readings);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings của user {UserId}", userId);
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings", error = ex.Message });
         }
     }
 }

@@ -9,6 +9,8 @@ using Amazon;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using ReadingService.Repositories.Interfaces;
+using ReadingService.Repositories.Implementations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -95,6 +97,9 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddScoped<IReadingCycleRepository, ReadingCycleRepository>();
+builder.Services.AddScoped<IMonthlyReadingRepository, MonthlyReadingRepository>();
 
 var app = builder.Build();
 

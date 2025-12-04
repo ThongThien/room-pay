@@ -66,6 +66,8 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpGet("{userId}")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(object), 200)] 
+    [ProducesResponseType(404)]
     public async Task<IActionResult> GetUserById(string userId)
     {
         // Validate service API key

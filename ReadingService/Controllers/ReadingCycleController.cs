@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using ReadingService.Features.ReadingCycle;
 using ReadingService.Features.ReadingCycle.DTOs;
-
+using ReadingService.Features.MonthlyReading; 
+using ReadingService.Features.MonthlyReading.DTOs;
 namespace ReadingService.Controllers;
 
 [ApiController]
@@ -12,11 +13,55 @@ namespace ReadingService.Controllers;
 public class ReadingCycleController : ControllerBase
 {
     private readonly IReadingCycleService _service;
-
-    public ReadingCycleController(IReadingCycleService service)
+    private readonly IMonthlyReadingService _monthlyReadingService;
+    private readonly ILogger<ReadingCycleController> _logger;
+    public ReadingCycleController(IReadingCycleService service,
+    IMonthlyReadingService monthlyReadingService,
+    ILogger<ReadingCycleController> logger)
     {
         _service = service;
+        _monthlyReadingService = monthlyReadingService; // ⭐ Gán
+        _logger = logger; // ⭐ Gán 
     }
+
+    // ⭐ HÀM MỚI: GetMyMissingReadings
+    /// <summary>
+    /// Lấy chu kỳ đọc quá khứ mà người dùng đăng nhập chưa nộp hoặc nộp thiếu chỉ số.
+    /// </summary>
+    /// <returns>MissingReadingsResponseDto</returns>
+    // ReadingService/Controllers/ReadingCycleController.cs (Chỉ thay đổi hàm này)
+    [HttpGet("me/missing-readings")] 
+    public async Task<ActionResult<MissingReadingsResponseDto>> GetMyMissingReadings()
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                         ?? User.FindFirstValue("sub") 
+                         ?? User.FindFirstValue("userId");
+        
+        // Chuyển đổi sang Guid để truyền vào Service
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var tenantId))
+        {
+            return Unauthorized(new { success = false, message = "Không tìm thấy hoặc User ID không hợp lệ." });
+        }
+        
+        try
+        {
+            // ⭐ GỌI HÀM ĐÃ SỬA (Lọc triệt để theo tenantId trong Service)
+            var result = await _monthlyReadingService.GetMissingReadingsAsync(tenantId);
+            
+            return Ok(new 
+            { 
+                success = true, 
+                message = "Missing readings retrieved successfully.", 
+                data = result 
+            });
+        }
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Lỗi khi lấy chỉ số còn thiếu cho user {TenantId}", tenantId); // ⭐ Fixed CS0168
+            return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi lấy danh sách chỉ số còn thiếu." });
+        }
+    }
+
 
     // GET: api/ReadingCycle
     [HttpGet]

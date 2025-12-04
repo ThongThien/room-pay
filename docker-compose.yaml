@@ -1,0 +1,12 @@
+services:
+  aa:
+    image: 976193221961.dkr.ecr.ap-southeast-1.amazonaws.com/intern2025/aa:latest
+    ports:
+      - "5286:8080"
+    environment:
+      ConnectionStrings__DefaultConnection: Server=172.31.13.87;Port=3306;Database=aa_db;User=;Password=;
+      ServiceApiKey: YOUR_SERVICE_API_KEY_HERE
+      JwtSettings__Secret: YourSuperSecretKeyForJWTAuthenticationThatIsAtLeast32CharactersLong
+      JwtSettings__Issuer: PayroomAPI
+      JwtSettings__Audience: PayroomClient
+      JwtSettings__ExpirationMinutes: 1440

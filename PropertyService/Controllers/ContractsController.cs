@@ -28,23 +28,14 @@ namespace PropertyService.Controllers
         private bool IsUserInRole(string role) => User.IsInRole(role);
 
         // --- 1. GET ALL (Chỉ Owner, lọc theo OwnerId) ---
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<ContractDto>), (int)HttpStatusCode.OK)]
-        [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+        [HttpGet("list-contracts")]
         [Authorize(Roles = "Owner")]
         public async Task<IActionResult> GetContracts()
         {
-            try
-            {
-                Guid ownerId = GetUserIdGuid();
-                // ⭐ Dùng GetAllByOwnerIdAsync
-                var contracts = await _contractService.GetAllByOwnerIdAsync(ownerId);
-                return Ok(new { success = true, data = contracts });
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized();
-            }
+            Guid ownerId = GetUserIdGuid();
+            // ✅ OwnerId được lấy, sau đó truyền vào Service để lọc
+            var contracts = await _contractService.GetAllByOwnerIdAsync(ownerId); 
+            return Ok(new { success = true, data = contracts });
         }
 
         [HttpGet("my-contracts")] 

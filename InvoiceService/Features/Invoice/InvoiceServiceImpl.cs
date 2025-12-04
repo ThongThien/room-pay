@@ -21,6 +21,7 @@ public class InvoiceServiceImpl : IInvoiceService
     private readonly IInvoiceRepository _invoiceRepo;
     private readonly ILogger<InvoiceServiceImpl> _logger;
     private readonly Pricing.IPricingService _pricingService;
+    private readonly ApplicationDbContext _context;
     
     // [ActivatorUtilitiesConstructor] chỉ cần thiết nếu có nhiều constructors,
     // nhưng ta giữ nó để đảm bảo DI Container dùng Constructor này.
@@ -182,7 +183,6 @@ public class InvoiceServiceImpl : IInvoiceService
             .ToListAsync();
     }
 
-<<<<<<< HEAD
     public async Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status)
     {
         return await _context.Invoices
@@ -191,8 +191,6 @@ public class InvoiceServiceImpl : IInvoiceService
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
     }
-}
-=======
     // InvoiceService/Features/Invoice/InvoiceServiceImpl.cs
     public async Task<UnpaidInvoicesResponseDto> GetUnpaidInvoicesByTenantIdAsync(Guid tenantId)
     {
@@ -257,4 +255,3 @@ public class InvoiceServiceImpl : IInvoiceService
         });
     }
 }
->>>>>>> thongthienv3

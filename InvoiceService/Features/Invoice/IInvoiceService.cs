@@ -20,14 +20,10 @@ public interface IInvoiceService
     Task<Models.Invoice?> MarkInvoiceAsPaidAsync(int id, string userId);
     Task<Models.Invoice?> MarkInvoiceAsPaidAsync(int id); // Service-to-service call
     Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusAsync(string userId, string status);
-<<<<<<< HEAD
     Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status);
-}
-=======
-    
+   
     // ⭐ CÁC HÀM MỚI (Đã thêm vào Interface chính)
     Task<UnpaidInvoicesResponseDto> GetUnpaidInvoicesByTenantIdAsync(Guid tenantId);
     // Bạn cần thêm hàm này nếu bạn muốn tính tổng trả tháng trước
     Task<TotalPaidLastMonthDto> GetTotalPaidAmountLastMonthAsync(Guid tenantId); 
 }
->>>>>>> thongthienv3

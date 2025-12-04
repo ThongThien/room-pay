@@ -1,3 +1,4 @@
+// Code này cho trang dashboard tenant
 using Microsoft.AspNetCore.Mvc;
 using PropertyService.DTOs.Contracts;
 using PropertyService.Services.Interfaces;

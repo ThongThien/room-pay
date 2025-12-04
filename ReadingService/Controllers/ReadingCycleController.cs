@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using ReadingService.Features.ReadingCycle;
 using ReadingService.Features.ReadingCycle.DTOs;
-
+using ReadingService.Features.MonthlyReading; 
+using ReadingService.Features.MonthlyReading.DTOs;
 namespace ReadingService.Controllers;
 
 [ApiController]
@@ -12,12 +13,52 @@ namespace ReadingService.Controllers;
 public class ReadingCycleController : ControllerBase
 {
     private readonly IReadingCycleService _service;
+    private readonly IMonthlyReadingService _monthlyReadingService;
 
-    public ReadingCycleController(IReadingCycleService service)
+    public ReadingCycleController(IReadingCycleService service,
+    IMonthlyReadingService monthlyReadingService)
     {
         _service = service;
+        _monthlyReadingService = monthlyReadingService; // ⭐ Gán
     }
 
+// ⭐ HÀM MỚI: GetMyMissingReadings
+    /// <summary>
+    /// Lấy chu kỳ đọc gần nhất mà người dùng đăng nhập chưa nộp hoặc nộp thiếu chỉ số.
+    /// </summary>
+    /// <returns>MissingReadingsResponseDto</returns>
+    [HttpGet("me/missing-readings")] // Route: api/ReadingCycle/me/missing-readings
+    public async Task<ActionResult<MissingReadingsResponseDto>> GetMyMissingReadings()
+    {
+        // 1. Lấy userId từ JWT token
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                         ?? User.FindFirstValue("sub") 
+                         ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var tenantId))
+        {
+            return Unauthorized(new { message = "Không tìm thấy hoặc User ID không hợp lệ." });
+        }
+        
+        try
+        {
+            // 2. Gọi Service đã triển khai
+            var result = await _monthlyReadingService.GetMissingReadingsAsync(tenantId);
+            
+            // 3. Trả về kết quả
+            return Ok(new 
+            { 
+                success = true, 
+                message = "Missing readings retrieved successfully.", 
+                data = result 
+            });
+        }
+        catch (Exception)
+        {
+            // Logging lỗi nếu cần thiết
+            return StatusCode(500, new { success = false, message = "Internal server error." });
+        }
+    }
     // GET: api/ReadingCycle
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ReadingCycleDto>>> GetReadingCycles()

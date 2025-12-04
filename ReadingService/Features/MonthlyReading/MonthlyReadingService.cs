@@ -3,6 +3,9 @@ using ReadingService.Data;
 using ReadingService.Models;
 using ReadingService.Services;
 using ReadingService.Features.MonthlyReading.DTOs;
+using ReadingService.Features.ReadingCycle; 
+using ReadingService.Features.MonthlyReading.DTOs; 
+using System.Linq;
 
 namespace ReadingService.Features.MonthlyReading;
 
@@ -12,17 +15,22 @@ public class MonthlyReadingService : IMonthlyReadingService
     private readonly IS3Service _s3Service;
     private readonly ILogger<MonthlyReadingService> _logger;
     private readonly IInvoiceHttpClient _invoiceHttpClient;
+    // ⭐ Dependency MỚI: Dùng Service để lấy chu kỳ đọc
+    private readonly IReadingCycleService _cycleService; 
 
     public MonthlyReadingService(
         ApplicationDbContext context,
         IS3Service s3Service,
         ILogger<MonthlyReadingService> logger,
-        IInvoiceHttpClient invoiceHttpClient)
+        IInvoiceHttpClient invoiceHttpClient,
+        // ⭐ Thêm Dependency cho ReadingCycleService
+        IReadingCycleService cycleService)
     {
         _context = context;
         _s3Service = s3Service;
         _logger = logger;
         _invoiceHttpClient = invoiceHttpClient;
+        _cycleService = cycleService; // ⭐ Gán
     }
 
     public async Task<MonthlyReadingResponseDto?> GetByIdAsync(int id)
@@ -50,7 +58,80 @@ public class MonthlyReadingService : IMonthlyReadingService
 
         return reading == null ? null : MapToResponseDto(reading);
     }
+    
+    // 💡 HÀM MỚI: GetMissingReadingsAsync
+    public async Task<MissingReadingsResponseDto> GetMissingReadingsAsync(Guid tenantId)
+    {
+        try
+        {
+            DateTime now = DateTime.Now;
+            string tenantIdString = tenantId.ToString();
+            
+            // 1. TÌM CHU KỲ ĐỌC GẦN NHẤT đã kết thúc
+            // ⭐ SỬA LỖI 1: Không có CycleEnd, sử dụng CycleYear và CycleMonth để xác định chu kỳ đã qua.
+            var latestCycle = await _context.ReadingCycles
+                // Điều kiện: Chu kỳ này phải kết thúc TRƯỚC tháng hiện tại (CycleMonth < now.Month)
+                .Where(c => c.CycleYear < now.Year || 
+                            (c.CycleYear == now.Year && c.CycleMonth < now.Month)) 
+                .OrderByDescending(c => c.CycleYear)
+                .ThenByDescending(c => c.CycleMonth)
+                .FirstOrDefaultAsync(); 
+                
+            if (latestCycle == null) 
+                return new MissingReadingsResponseDto();
 
+            // 2. TÌM BẢN GHI ĐÃ NỘP CỦA TENANT TRONG CHU KỲ ĐÓ
+            var submittedReading = await _context.MonthlyReadings
+                .Include(r => r.ReadingCycle)
+                .FirstOrDefaultAsync(r => 
+                    // ⭐ SỬA LỖI 2: Dùng r.CycleId (Đã sửa chính xác theo Model)
+                    r.CycleId == latestCycle.Id && 
+                    r.ReadingCycle!.UserId == tenantIdString 
+                );
+
+            bool isMissing = false;
+
+            if (submittedReading == null)
+            {
+                // TH1: Hoàn toàn chưa nộp bản ghi MonthlyReading nào
+                isMissing = true;
+            }
+            else
+            {
+                // TH2: Đã nộp nhưng thiếu chỉ số (kiểm tra null HOẶC <= 0, vì kiểu là int?)
+                if (submittedReading.ElectricNew is null || submittedReading.ElectricNew <= 0 ||
+                    submittedReading.WaterNew is null || submittedReading.WaterNew <= 0)
+                {
+                    isMissing = true;
+                }
+            }
+
+            if (isMissing)
+            {
+                _logger.LogWarning("Missing reading found for CycleId: {CycleId}, TenantId: {TenantId}", latestCycle.Id, tenantId);
+                return new MissingReadingsResponseDto
+                {
+                    MissingReadings = new List<MissingReadingMonthDto>
+                    {
+                        new MissingReadingMonthDto
+                        {
+                            ReadingCycleId = latestCycle.Id,
+                            // Dùng Month/Year từ ReadingCycle để hiển thị
+                            MonthYear = $"Tháng {latestCycle.CycleMonth:D2}/{latestCycle.CycleYear}" 
+                        }
+                    }
+                };
+            }
+            
+            return new MissingReadingsResponseDto();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "🔥 ERROR in GetMissingReadingsAsync for Tenant {TenantId}", tenantId);
+            throw; 
+        }
+    }
+    
     public async Task<MonthlyReadingResponseDto> SubmitAsync(int cycleId, SubmitMonthlyReadingDto dto)
     {
         try
@@ -132,10 +213,10 @@ public class MonthlyReadingService : IMonthlyReadingService
         return MapToResponseDto(reading);
         }
             catch (Exception ex)
-    {
-        _logger.LogError(ex, "🔥 ERROR in SubmitAsync()");
-        throw;
-    }
+        {
+            _logger.LogError(ex, "🔥 ERROR in SubmitAsync()");
+            throw;
+        }
     }
 
     public async Task<bool> DeleteAsync(int id)

@@ -55,6 +55,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Hóa đơn'}
             </Link>
 
+            <Link href="/owner/monthlymanage" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Quản lý tháng'}
+            </Link>
+
             <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Yêu cầu sửa chữa'}
             </Link>

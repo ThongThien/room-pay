@@ -4,6 +4,7 @@ public class InvoiceResponse
 {
     public int Id { get; set; }
     public string UserId { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
     public DateTime DueDate { get; set; }
     public decimal TotalAmount { get; set; }

@@ -72,7 +72,7 @@ public class InvoicesController : ControllerBase
             invoices = await _invoiceService.GetAllInvoicesByUserAsync(userId);
         }
 
-        var response = invoices.Select(MapToResponse);
+        var response = await MapToResponseWithUserNameAsync(invoices);
         return Ok(response);
     }
 
@@ -118,7 +118,7 @@ public class InvoicesController : ControllerBase
             invoices = await _invoiceService.GetInvoicesByStatusAsync(userId, status);
         }
 
-        var response = invoices.Select(MapToResponse);
+        var response = await MapToResponseWithUserNameAsync(invoices);
         return Ok(response);
     }
 
@@ -157,7 +157,14 @@ public class InvoicesController : ControllerBase
                 return NotFound(new { error = $"Invoice with ID {id} not found" });
             }
             
-            return Ok(MapToResponse(invoice));
+            var response = MapToResponse(invoice);
+            var userInfo = await _userServiceClient.GetUserInfoAsync(invoice.UserId);
+            if (userInfo != null)
+            {
+                response.UserName = userInfo.FullName;
+            }
+            
+            return Ok(response);
         }
 
         // JWT auth: only return user's own invoice
@@ -167,7 +174,14 @@ public class InvoicesController : ControllerBase
             return NotFound(new { error = $"Invoice with ID {id} not found for user {userId}" });
         }
 
-        return Ok(MapToResponse(userInvoice));
+        var userResponse = MapToResponse(userInvoice);
+        var userInfoData = await _userServiceClient.GetUserInfoAsync(userInvoice.UserId);
+        if (userInfoData != null)
+        {
+            userResponse.UserName = userInfoData.FullName;
+        }
+
+        return Ok(userResponse);
     }
 
     /// <summary>
@@ -446,6 +460,7 @@ public class InvoicesController : ControllerBase
         {
             Id = invoice.Id,
             UserId = invoice.UserId,
+            UserName = string.Empty, // Will be populated separately
             InvoiceDate = invoice.InvoiceDate,
             DueDate = invoice.DueDate,
             TotalAmount = invoice.TotalAmount,
@@ -463,5 +478,26 @@ public class InvoicesController : ControllerBase
                 ProductCode = item.ProductCode
             }).ToList()
         };
+    }
+
+    private async Task<List<InvoiceResponse>> MapToResponseWithUserNameAsync(IEnumerable<Invoice> invoices)
+    {
+        var response = new List<InvoiceResponse>();
+        
+        foreach (var invoice in invoices)
+        {
+            var invoiceResponse = MapToResponse(invoice);
+            
+            // Fetch user name from AA service
+            var userInfo = await _userServiceClient.GetUserInfoAsync(invoice.UserId);
+            if (userInfo != null)
+            {
+                invoiceResponse.UserName = userInfo.FullName;
+            }
+            
+            response.Add(invoiceResponse);
+        }
+        
+        return response;
     }
 }

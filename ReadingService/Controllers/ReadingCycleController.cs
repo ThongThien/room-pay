@@ -14,38 +14,40 @@ public class ReadingCycleController : ControllerBase
 {
     private readonly IReadingCycleService _service;
     private readonly IMonthlyReadingService _monthlyReadingService;
-
+    private readonly ILogger<ReadingCycleController> _logger;
     public ReadingCycleController(IReadingCycleService service,
-    IMonthlyReadingService monthlyReadingService)
+    IMonthlyReadingService monthlyReadingService,
+    ILogger<ReadingCycleController> logger)
     {
         _service = service;
         _monthlyReadingService = monthlyReadingService; // ⭐ Gán
+        _logger = logger; // ⭐ Gán 
     }
 
-// ⭐ HÀM MỚI: GetMyMissingReadings
+    // ⭐ HÀM MỚI: GetMyMissingReadings
     /// <summary>
-    /// Lấy chu kỳ đọc gần nhất mà người dùng đăng nhập chưa nộp hoặc nộp thiếu chỉ số.
+    /// Lấy chu kỳ đọc quá khứ mà người dùng đăng nhập chưa nộp hoặc nộp thiếu chỉ số.
     /// </summary>
     /// <returns>MissingReadingsResponseDto</returns>
-    [HttpGet("me/missing-readings")] // Route: api/ReadingCycle/me/missing-readings
+    // ReadingService/Controllers/ReadingCycleController.cs (Chỉ thay đổi hàm này)
+    [HttpGet("me/missing-readings")] 
     public async Task<ActionResult<MissingReadingsResponseDto>> GetMyMissingReadings()
     {
-        // 1. Lấy userId từ JWT token
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) 
                          ?? User.FindFirstValue("sub") 
                          ?? User.FindFirstValue("userId");
         
+        // Chuyển đổi sang Guid để truyền vào Service
         if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var tenantId))
         {
-            return Unauthorized(new { message = "Không tìm thấy hoặc User ID không hợp lệ." });
+            return Unauthorized(new { success = false, message = "Không tìm thấy hoặc User ID không hợp lệ." });
         }
         
         try
         {
-            // 2. Gọi Service đã triển khai
+            // ⭐ GỌI HÀM ĐÃ SỬA (Lọc triệt để theo tenantId trong Service)
             var result = await _monthlyReadingService.GetMissingReadingsAsync(tenantId);
             
-            // 3. Trả về kết quả
             return Ok(new 
             { 
                 success = true, 
@@ -53,12 +55,14 @@ public class ReadingCycleController : ControllerBase
                 data = result 
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Logging lỗi nếu cần thiết
-            return StatusCode(500, new { success = false, message = "Internal server error." });
+             _logger.LogError(ex, "Lỗi khi lấy chỉ số còn thiếu cho user {TenantId}", tenantId); // ⭐ Fixed CS0168
+            return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi lấy danh sách chỉ số còn thiếu." });
         }
     }
+
+
     // GET: api/ReadingCycle
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ReadingCycleDto>>> GetReadingCycles()

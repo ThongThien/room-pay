@@ -177,7 +177,7 @@ export default function OwnerInvoicesPage() {
                             <thead className="bg-gray-50 text-gray-600 uppercase text-xs font-semibold">
                                 <tr>
                                     <th className="p-4 border-b">Mã HĐ</th>
-                                    <th className="p-4 border-b">Khách thuê (ID)</th> 
+                                    <th className="p-4 border-b">Khách thuê</th> 
                                     <th className="p-4 border-b">Hạn đóng</th>
                                     <th className="p-4 border-b text-right">Tổng tiền</th>
                                     <th className="p-4 border-b text-center">Trạng thái</th>
@@ -193,9 +193,11 @@ export default function OwnerInvoicesPage() {
                                     >
                                         <td className="p-4 font-mono text-gray-500">#{inv.id}</td>
                                         <td className="p-4">
-                                            <span className="font-medium text-gray-900 block truncate max-w-[150px]" title={inv.userId}>
-                                                {inv.userId} 
-                                            </span>
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-gray-900">
+                                                    {inv.userName || "Khách vãng lai"}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="p-4 text-gray-600">{formatDate(inv.dueDate)}</td>
                                         <td className="p-4 text-right font-bold text-gray-800">{formatCurrency(inv.totalAmount)}</td>

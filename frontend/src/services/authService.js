@@ -2,7 +2,7 @@ const AA_API_URL = process.env.NEXT_PUBLIC_AA_API_URL;
 
 export const loginAPI = async (email, password) => {
   try {
-    const res = await fetch(`${AA_API_URL}/Auth/login`, {
+    const res = await fetch(`${AA_API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -29,7 +29,7 @@ export const loginAPI = async (email, password) => {
 
 export const registerAPI = async (fullName, email, password, confirmPassword) => {
   try {
-    const res = await fetch(`${AA_API_URL}/Auth/register`, {
+    const res = await fetch(`${AA_API_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

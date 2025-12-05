@@ -24,6 +24,7 @@ interface ReadingCardProps {
     icon: string;
     oldValue: number;
     newValue: number;
+    usedValue?: number;
     status: string | number; // Chấp nhận cả string và number (ví dụ: 1)
     imageUrl: string;
     isLoading?: boolean;
@@ -340,6 +341,7 @@ export default function TenantDashboard() {
                     icon: "⚡",
                     oldValue: electric.old,
                     newValue: electric.new,
+                    usedValue: electric.new - electric.old,
                     status: electric.status,
                     imageUrl: electric.img,
                     isLoading: uploadingElec,
@@ -351,6 +353,7 @@ export default function TenantDashboard() {
                     icon: "💧",
                     oldValue: water.old,
                     newValue: water.new,
+                    usedValue: water.new - water.old,
                     status: water.status,
                     imageUrl: water.img,
                     isLoading: uploadingWater,
@@ -369,6 +372,7 @@ function ReadingCard({
     icon,
     oldValue,
     newValue,
+    usedValue,
     status,
     imageUrl,
     isLoading,
@@ -408,9 +412,10 @@ function ReadingCard({
                 </div>
             </label>
 
-            <p>Chỉ số tháng trước: **{oldValue}**</p>
-            <p>Chỉ số tháng này: **{newValue}**</p>
-            <p>Trạng thái: **{statusVietnamese}**</p>
+            <p>Chỉ số tháng trước: {oldValue}</p>
+            <p>Chỉ số tháng này: {newValue}</p>
+            <p>Chỉ tố tiêu thụ: {usedValue}</p>
+            <p>Trạng thái: {statusVietnamese}</p>
         </div>
     );
 }

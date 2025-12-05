@@ -52,7 +52,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         // Lấy reading gần nhất đã được submit của user
         var reading = await _context.MonthlyReadings
             .Include(mr => mr.ReadingCycle)
-            .Where(mr => mr.ReadingCycle!.UserId == userId && mr.Status == ReadingStatus.Confirmed)
+            .Where(mr => mr.ReadingCycle!.UserId == userId && (mr.Status == ReadingStatus.Confirmed))
             .OrderByDescending(mr => mr.UpdatedAt)
             .FirstOrDefaultAsync();
 

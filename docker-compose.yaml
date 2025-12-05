@@ -14,12 +14,6 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   invoice-service:
     image: ${ECR_REGISTRY}/intern2025/invoice-service:latest
@@ -40,12 +34,6 @@ services:
       - aa
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   payment-service:
     image: ${ECR_REGISTRY}/intern2025/payment-service:latest
@@ -65,12 +53,6 @@ services:
       - invoice-service
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   property-service:
     image: ${ECR_REGISTRY}/intern2025/property-service:latest
@@ -90,12 +72,6 @@ services:
       - aa
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   reading-service:
     image: ${ECR_REGISTRY}/intern2025/reading-service:latest
@@ -118,12 +94,6 @@ services:
       - invoice-service
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   image-scan-service:
     image: ${ECR_REGISTRY}/intern2025/image-scan-service:latest
@@ -144,12 +114,6 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   frontend:
     image: ${ECR_REGISTRY}/intern2025/frontend:latest
@@ -174,12 +138,6 @@ services:
       - image-scan-service
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 networks:
   app-network:

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation' 
+import { useRouter } from 'next/navigation'
 import RoleGuard from '@/components/auth/RoleGuard'
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
@@ -32,23 +32,23 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
 
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             <Link href="/owner/dashboard" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-               {isSidebarOpen && 'Tổng quan'}
+              {isSidebarOpen && 'Tổng quan'}
             </Link>
 
             <Link href="/owner/houses" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Danh sách nhà'}
+              {isSidebarOpen && 'Danh sách nhà - Nam'}
             </Link>
 
             <Link href="/owner/rooms" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Danh sách phòng'}
+              {isSidebarOpen && 'Danh sách phòng - Nam'}
             </Link>
 
             <Link href="/owner/tenants" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Khách thuê'}
+              {isSidebarOpen && 'Khách thuê - Mạnh'}
             </Link>
 
             <Link href="/owner/contracts" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Hợp đồng'}
+              {isSidebarOpen && 'Hợp đồng - Mạnh'}
             </Link>
 
             <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
@@ -60,7 +60,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             </Link>
 
             <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Yêu cầu sửa chữa'}
+              {isSidebarOpen && 'Yêu cầu sửa chữa - Nam'}
             </Link>
 
             <Link href="/owner/notification" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
@@ -70,10 +70,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             <Link href="/owner/profile" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Hồ sơ'}
             </Link>
-            
-            <button 
-                onClick={handleLogout}
-                className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"
+
+            <button
+              onClick={handleLogout}
+              className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"
             >
               {isSidebarOpen && 'Đăng xuất'}
             </button>

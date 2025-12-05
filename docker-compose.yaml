@@ -1,12 +1,186 @@
 services:
   aa:
-    image: 976193221961.dkr.ecr.ap-southeast-1.amazonaws.com/intern2025/aa:latest
+    image: ${ECR_REGISTRY}/intern2025/aa:latest
+    container_name: aa-service
     ports:
       - "5286:8080"
     environment:
-      ConnectionStrings__DefaultConnection: Server=172.31.13.87;Port=3306;Database=aa_db;User=;Password=;
-      ServiceApiKey: YOUR_SERVICE_API_KEY_HERE
-      JwtSettings__Secret: YourSuperSecretKeyForJWTAuthenticationThatIsAtLeast32CharactersLong
-      JwtSettings__Issuer: PayroomAPI
-      JwtSettings__Audience: PayroomClient
-      JwtSettings__ExpirationMinutes: 1440
+      ConnectionStrings__DefaultConnection: ${AA_DB_CONNECTION_STRING}
+      ServiceApiKey: ${SERVICE_API_KEY}
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: ${JWT_ISSUER}
+      JwtSettings__Audience: ${JWT_AUDIENCE}
+      JwtSettings__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES}
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  invoice-service:
+    image: ${ECR_REGISTRY}/intern2025/invoice-service:latest
+    container_name: invoice-service
+    ports:
+      - "5150:8080"
+    environment:
+      ConnectionStrings__DefaultConnection: ${INVOICE_DB_CONNECTION_STRING}
+      ServiceApiKey: ${SERVICE_API_KEY}
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: ${JWT_ISSUER}
+      JwtSettings__Audience: ${JWT_AUDIENCE}
+      JwtSettings__ExpiresInMinutes: ${JWT_EXPIRATION_MINUTES}
+      AuthService__BaseUrl: http://aa-service:8080
+      AuthService__ApiKey: ${SERVICE_API_KEY}
+    restart: unless-stopped
+    depends_on:
+      - aa
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  payment-service:
+    image: ${ECR_REGISTRY}/intern2025/payment-service:latest
+    container_name: payment-service
+    ports:
+      - "5241:8080"
+    environment:
+      ConnectionStrings__DefaultConnection: ${PAYMENT_DB_CONNECTION_STRING}
+      SePay__BankCode: ${SEPAY_BANK_CODE}
+      SePay__AccountNumber: ${SEPAY_ACCOUNT_NUMBER}
+      SePay__AccountName: ${SEPAY_ACCOUNT_NAME}
+      SePay__WebhookUrl: ${SEPAY_WEBHOOK_URL}
+      InvoiceService__BaseUrl: http://invoice-service:8080
+      InvoiceService__ApiKey: ${SERVICE_API_KEY}
+    restart: unless-stopped
+    depends_on:
+      - invoice-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  property-service:
+    image: ${ECR_REGISTRY}/intern2025/property-service:latest
+    container_name: property-service
+    ports:
+      - "5018:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+      ConnectionStrings__DefaultConnection: ${PROPERTY_DB_CONNECTION_STRING}
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: ${JWT_ISSUER}
+      JwtSettings__Audience: ${JWT_AUDIENCE}
+      JwtSettings__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES}
+      ServiceUrls__AA: http://aa-service:8080
+    restart: unless-stopped
+    depends_on:
+      - aa
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  reading-service:
+    image: ${ECR_REGISTRY}/intern2025/reading-service:latest
+    container_name: reading-service
+    ports:
+      - "5176:8080"
+    environment:
+      ConnectionStrings__DefaultConnection: ${READING_DB_CONNECTION_STRING}
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: ${JWT_ISSUER}
+      JwtSettings__Audience: ${JWT_AUDIENCE}
+      JwtSettings__ExpiresInMinutes: ${JWT_EXPIRATION_MINUTES}
+      AWS__Region: ${AWS_REGION}
+      AWS__BucketName: ${AWS_BUCKET_NAME}
+      AWS__AccessKey: ${AWS_ACCESS_KEY}
+      AWS__SecretKey: ${AWS_SECRET_KEY}
+      Services__InvoiceService__BaseUrl: http://invoice-service:8080
+    restart: unless-stopped
+    depends_on:
+      - invoice-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  image-scan-service:
+    image: ${ECR_REGISTRY}/intern2025/image-scan-service:latest
+    container_name: image-scan-service
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      FLASK_ENV: ${FLASK_ENV}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB}
+      PRESERVE_UPLOADS: ${PRESERVE_UPLOADS}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      GEMINI_TIMEOUT: ${GEMINI_TIMEOUT}
+      ELECTRIC_METER_PROMPT: ${ELECTRIC_METER_PROMPT}
+      WATER_METER_PROMPT: ${WATER_METER_PROMPT}
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ${ECR_REGISTRY}/intern2025/frontend:latest
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      NEXT_PUBLIC_AA_API_URL: ${NEXT_PUBLIC_AA_API_URL}
+      NEXT_PUBLIC_INVOICE_API_URL: ${NEXT_PUBLIC_INVOICE_API_URL}
+      NEXT_PUBLIC_PROPERTY_API_URL: ${NEXT_PUBLIC_PROPERTY_API_URL}
+      NEXT_PUBLIC_PAYMENT_API_URL: ${NEXT_PUBLIC_PAYMENT_API_URL}
+      NEXT_PUBLIC_READING_API_URL: ${NEXT_PUBLIC_READING_API_URL}
+      NEXT_PUBLIC_IMAGE_SCAN_API_URL: ${NEXT_PUBLIC_IMAGE_SCAN_API_URL}
+    restart: unless-stopped
+    depends_on:
+      - aa
+      - invoice-service
+      - payment-service
+      - property-service
+      - reading-service
+      - image-scan-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  app-network:
+    driver: bridge

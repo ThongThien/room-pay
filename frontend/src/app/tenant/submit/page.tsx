@@ -53,9 +53,9 @@ interface ReadingCycle {
 /* ------------------------------
     API URL
 ------------------------------ */
-const IMAGE_API = "http://localhost:5000";
-const READING_API = "http://localhost:5176";
-const INVOICE_API = "http://localhost:5150";
+const IMAGE_API = process.env.NEXT_PUBLIC_IMAGE_SCAN_API_URL;
+const READING_API = process.env.NEXT_PUBLIC_READING_API_URL;
+const INVOICE_API = process.env.NEXT_PUBLIC_INVOICE_API_URL;
 
 function authHeaders() {
     return {
@@ -120,7 +120,7 @@ export default function TenantDashboard() {
     --------------------------------*/
     useEffect(() => {
         async function fetchCycle() {
-            const res = await fetch(`${READING_API}/api/ReadingCycle`, { headers: authHeaders() });
+            const res = await fetch(`${READING_API}/ReadingCycle`, { headers: authHeaders() });
             const data = await res.json() as ReadingCycle[];
             if (data?.length) {
                 const latest = data.sort((a: ReadingCycle, b: ReadingCycle) =>
@@ -135,7 +135,7 @@ export default function TenantDashboard() {
 
     // Hàm mới: Fetch trạng thái hóa đơn sau khi load reading
     async function fetchInvoiceStatus(cycleId: number) {
-        const res = await fetch(`${INVOICE_API}/api/invoices/by-cycle/${cycleId}`, {
+        const res = await fetch(`${INVOICE_API}/invoices/by-cycle/${cycleId}`, {
             headers: authHeaders(),
         });
 
@@ -153,7 +153,7 @@ export default function TenantDashboard() {
         if (!cycle) return;
 
         async function fetchReading(cycleId: number) {
-            const res = await fetch(`${READING_API}/api/MonthlyReading/by-cycle/${cycleId}`, {
+            const res = await fetch(`${READING_API}/MonthlyReading/by-cycle/${cycleId}`, {
                 headers: authHeaders(),
             });
 
@@ -203,7 +203,7 @@ export default function TenantDashboard() {
         const form = new FormData();
         form.append("file", file);
 
-        const res = await fetch(`${IMAGE_API}/api/${type}/upload`, {
+        const res = await fetch(`${IMAGE_API}/${type}/upload`, {
             method: "POST",
             body: form
         });
@@ -244,7 +244,7 @@ export default function TenantDashboard() {
             form.append("waterPhoto", waterFile);
         }
 
-        const res = await fetch(`${READING_API}/api/MonthlyReading/${cycle.id}/submit`, {
+        const res = await fetch(`${READING_API}/MonthlyReading/${cycle.id}/submit`, {
             method: "POST",
             headers: authHeaders(),
             body: form
@@ -273,7 +273,7 @@ export default function TenantDashboard() {
             waterUsage: water.new - water.old,
         };
 
-        const res = await fetch(`${INVOICE_API}/api/invoices`, {
+        const res = await fetch(`${INVOICE_API}/invoices`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...authHeaders() },
             body: JSON.stringify(body)

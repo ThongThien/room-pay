@@ -26,7 +26,7 @@ jobs:
 
       - name: Generate version tag
         id: version
-        run: echo "IMAGE_TAG=$(date +'%Y-%m-%d-%Hh%Mm%Ss')" >> $GITHUB_OUTPUT
+        run: echo "IMAGE_TAG=$(date +'%Y.%m.%d.%Hh%Mm%Ss')" >> $GITHUB_OUTPUT
 
       - name: Set up Python
         uses: actions/setup-python@v5

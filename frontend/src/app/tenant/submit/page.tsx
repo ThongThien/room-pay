@@ -15,7 +15,7 @@ interface InvoiceItem {
 interface Invoice {
     id: number;
     month: string;
-    status: string; // Thay đổi sang string để bao gồm "paid" / "unpaid" hoặc các giá trị khác từ API
+    status: string;
     items: InvoiceItem[];
     total: number;
 }
@@ -42,7 +42,7 @@ interface ReadingValue {
     old: number;
     new: number;
     img: string;
-    status: string | number; // Chấp nhận cả string và number (ví dụ: 1)
+    status: string | number;
 }
 interface ReadingCycle {
     id: number;
@@ -301,11 +301,7 @@ export default function TenantDashboard() {
         });
     }
 
-    // ✅ Logic disable nút: Disable nếu chưa có ảnh HOẶC nếu hóa đơn đã được tạo
-    const shouldDisableButton = !electric.img || !water.img || invoiceStatus === 'created';
     const isConfirmedReading = mapStatusToVietnamese(electric.status) === "Đã xác nhận" && mapStatusToVietnamese(water.status) === "Đã xác nhận";
-
-
     /* ------------------------------
         UI ĐÃ CHỈNH SỬA
 ------------------------------ */
@@ -313,9 +309,28 @@ export default function TenantDashboard() {
         <div className="space-y-7">
             {cycle && (
                 <div className="bg-white p-5 rounded-xl shadow text-gray-700">
-                    <h2 className="font-bold text-lg">
-                        Kỳ thu tháng {cycle.cycleMonth}/{cycle.cycleYear}
-                    </h2>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="font-bold text-lg">
+                            Kỳ thu tháng {cycle.cycleMonth}/{cycle.cycleYear}
+                        </h2>
+                        <div>
+                            <button
+                                onClick={handleApprove}
+                                disabled={isInitialLoading || isConfirmedReading || invoiceStatus === 'created'}
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isInitialLoading ? "Đang tải dữ liệu..." : "Xác nhận số liệu"}
+                            </button>
+
+                            {/* Thêm dòng thông báo nếu đã xác nhận hoặc hóa đơn đã tạo */}
+                            {(isConfirmedReading || invoiceStatus === 'created') && (
+                                <p className="mt-3 text-sm text-green-700 font-medium">
+                                    ✅ Đã xác nhận chỉ số thành công. Hóa đơn đã được tạo.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
             )}
 
@@ -342,25 +357,6 @@ export default function TenantDashboard() {
                     onUpload: (f: File) => handleUpload("water", f)
                 }} />
             </div>
-
-            <div className="bg-white p-5 rounded-xl shadow">
-                <button
-                    onClick={handleApprove}
-                    disabled={shouldDisableButton} // Dùng shouldDisableButton mới
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isInitialLoading ? "Đang tải dữ liệu..." : "Xác nhận số liệu"}
-                </button>
-
-                {/* Thêm dòng thông báo nếu đã xác nhận hoặc hóa đơn đã tạo */}
-                {(isConfirmedReading || invoiceStatus === 'created') && (
-                    <p className="mt-3 text-sm text-green-700 font-medium">
-                        ✅ Đã xác nhận chỉ số thành công. Hóa đơn đã được tạo.
-                    </p>
-                )}
-            </div>
-
-            {/* XÓA BỎ Component InvoiceCard */}
         </div>
     );
 }

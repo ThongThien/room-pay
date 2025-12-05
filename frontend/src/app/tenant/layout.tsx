@@ -3,8 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useRouter } from "next/navigation" 
-import RoleGuard from "@/components/auth/RoleGuard" 
+import { useRouter } from "next/navigation"
+import RoleGuard from "@/components/auth/RoleGuard"
 
 export default function TenantLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -17,7 +17,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
         }
         router.push('/public/login')
     }
-    
+
     // Lấy tên người thuê
     const userFullName = typeof window !== 'undefined' ? localStorage.getItem('userFullName') : 'Tenant'
 
@@ -52,7 +52,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                         </Link>
 
                         <Link href="/tenant/requests" className="block p-2 hover:bg-gray-700 rounded">
-                            {isSidebarOpen && "Yêu cầu sửa chữa"}
+                            {isSidebarOpen && "Yêu cầu sửa chữa - Mạnh"}
                         </Link>
 
                         <Link href="/tenant/notification" className="block p-2 hover:bg-gray-700 rounded">
@@ -64,11 +64,11 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                         </Link>
 
                         {/* Nút Đăng xuất */}
-                        <button 
+                        <button
                             onClick={handleLogout}
                             className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded mt-4"
                         >
-                           {isSidebarOpen && 'Đăng xuất'}
+                            {isSidebarOpen && 'Đăng xuất'}
                         </button>
                     </nav>
 

@@ -11,6 +11,7 @@ Desktop.ini
 # IDEs
 .vscode/
 .idea/
+
 .vs/
 
 # Sensitive configuration files
@@ -28,11 +29,3 @@ obj/
 *.dll
 *.exe
 *.pdb
-
-# Logs
-nginx/logs/
-*.log
-
-# Python
-__pycache__/
-uploads/

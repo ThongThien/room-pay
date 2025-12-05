@@ -10,7 +10,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1 # Change to your AWS region
-  ECR_REPOSITORY: intern2025 # Change to your ECR repository name
+  ECR_REPOSITORY: intern2025/aa # Change to your ECR repository name
   IMAGE_NAME: aa
   DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: true # Apply globally for all steps
 

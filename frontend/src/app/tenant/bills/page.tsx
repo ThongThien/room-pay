@@ -8,7 +8,7 @@ import InvoiceDetailModal from "@/components/invoice/InvoiceDetailModal";
 export default function TenantBillsPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<"ALL" | "PENDING" | "PAID">("ALL");
+    const [filter, setFilter] = useState<"ALL" | "UNPAID" | "PAID">("ALL");
     
     // State để lưu hóa đơn đang được chọn xem chi tiết
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -33,7 +33,7 @@ export default function TenantBillsPage() {
 
     const filteredInvoices = invoices.filter(inv => {
         if (filter === "ALL") return true;
-        if (filter === "PENDING") return inv.status === "Pending" || inv.status === "Overdue";
+        if (filter === "UNPAID") return inv.status === "Unpaid" || inv.status === "Overdue";
         if (filter === "PAID") return inv.status === "Paid";
         return true;
     });
@@ -48,7 +48,7 @@ export default function TenantBillsPage() {
                 </div>
                 <div className="flex bg-white p-1 rounded-lg shadow-sm border">
                     <button onClick={() => setFilter("ALL")} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === "ALL" ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-50"}`}>Tất cả</button>
-                    <button onClick={() => setFilter("PENDING")} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === "PENDING" ? "bg-yellow-100 text-yellow-700" : "text-gray-600 hover:bg-gray-50"}`}>Chưa thanh toán</button>
+                    <button onClick={() => setFilter("UNPAID")} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === "UNPAID" ? "bg-yellow-100 text-yellow-700" : "text-gray-600 hover:bg-gray-50"}`}>Chưa thanh toán</button>
                     <button onClick={() => setFilter("PAID")} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === "PAID" ? "bg-green-100 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>Đã thanh toán</button>
                 </div>
             </div>

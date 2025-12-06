@@ -18,5 +18,6 @@ namespace PropertyService.Services.Interfaces
         Task<bool> IsContractOwnedByAsync(int contractId, Guid ownerId);
         Task<IEnumerable<ContractDto>> GetContractsByTenantIdAsync(Guid tenantId);
         Task<ContractDto?> GetActiveContractByTenantIdAsync(Guid tenantId);
+        Task<IEnumerable<ContractDto>> GetExpiringContractsAsync(Guid ownerId, int daysThreshold = 30);
     }
 }

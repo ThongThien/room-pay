@@ -1,12 +1,13 @@
-using Microsoft.AspNetCore.Mvc;
-using PropertyService.DTOs.Contracts;
-using PropertyService.Services.Interfaces; 
-using System.Net;
-using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims; 
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using PropertyService.DTOs.Contracts;
+using PropertyService.Services.Interfaces;
 
 namespace PropertyService.Controllers
 {
@@ -23,11 +24,16 @@ namespace PropertyService.Controllers
             _logger = logger;
         }
 
-        // --- HELPER: Lấy User ID và Role từ JWT ---
+        // ==================== Helper Methods ====================
+        
         private Guid GetUserIdGuid() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("User ID not found in token."));
         private bool IsUserInRole(string role) => User.IsInRole(role);
 
-        // --- 1. GET ALL (Chỉ Owner, lọc theo OwnerId) ---
+        // ==================== GET Endpoints ====================
+
+        /// <summary>
+        /// Get all contracts owned by the current owner
+        /// </summary>
         [HttpGet("list-contracts")]
         [Authorize(Roles = "Owner")]
         public async Task<IActionResult> GetContracts()
@@ -38,6 +44,35 @@ namespace PropertyService.Controllers
             return Ok(new { success = true, data = contracts });
         }
 
+        /// <summary>
+        /// Get contracts expiring within specified days (default 30 days)
+        /// </summary>
+        [HttpGet("expiring")]
+        [ProducesResponseType(typeof(IEnumerable<ContractDto>), (int)HttpStatusCode.OK)]
+        [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+        [Authorize(Roles = "Owner")]
+        public async Task<IActionResult> GetExpiringContracts([FromQuery] int days = 30)
+        {
+            try
+            {
+                Guid ownerId = GetUserIdGuid();
+                var contracts = await _contractService.GetExpiringContractsAsync(ownerId, days);
+                return Ok(new { success = true, data = contracts, expiringWithinDays = days });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching expiring contracts for owner {OwnerId}", GetUserIdGuid());
+                return StatusCode(500, new { success = false, message = "Internal server error." });
+            }
+        }
+
+        /// <summary>
+        /// Get all contracts for the current tenant
+        /// </summary>
         [HttpGet("my-contracts")] 
         [ProducesResponseType(typeof(IEnumerable<ContractDto>), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
@@ -67,11 +102,14 @@ namespace PropertyService.Controllers
             }
         }
         
+        /// <summary>
+        /// Get a specific contract by ID (Owner or Tenant)
+        /// </summary>
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(ContractDto), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
         [ProducesResponseType((int)HttpStatusCode.Forbidden)]
-        [Authorize(Roles = "Owner, Tenant")] // SỬA: Cho phép cả 2 vai trò
+        [Authorize(Roles = "Owner, Tenant")]
         public async Task<IActionResult> GetContract(int id)
         {
             try
@@ -120,7 +158,11 @@ namespace PropertyService.Controllers
             }
         }
 
-        // --- 3. CREATE (Chỉ Owner, kiểm tra Room thuộc Owner) ---
+        // ==================== POST Endpoints ====================
+
+        /// <summary>
+        /// Create a new contract (Owner only)
+        /// </summary>
         [HttpPost]
         [ProducesResponseType(typeof(ContractDto), (int)HttpStatusCode.Created)]
         [ProducesResponseType((int)HttpStatusCode.BadRequest)]
@@ -166,7 +208,11 @@ namespace PropertyService.Controllers
         }
         }
 
-        // --- 4. UPDATE (Chỉ Owner, kiểm tra Hợp đồng thuộc Owner) ---
+        // ==================== PUT Endpoints ====================
+
+        /// <summary>
+        /// Update an existing contract (Owner only)
+        /// </summary>
         [HttpPut("{id}")]
         [ProducesResponseType(typeof(ContractDto), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
@@ -216,7 +262,11 @@ namespace PropertyService.Controllers
             }
         }
 
-        // --- 5. DELETE (Chỉ Owner, kiểm tra Hợp đồng thuộc Owner) ---
+        // ==================== DELETE Endpoints ====================
+
+        /// <summary>
+        /// Delete a contract (Owner only)
+        /// </summary>
         [HttpDelete("{id}")]
         [ProducesResponseType((int)HttpStatusCode.NoContent)]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]

@@ -1,16 +1,17 @@
-using AutoMapper;
-using PropertyService.DTOs.Contracts;
-using PropertyService.Models;
-using PropertyService.Services.Interfaces; 
-using PropertyService.Repositories;
-using PropertyService.Services.Clients;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using PropertyService.Models.Enums; 
-using Microsoft.EntityFrameworkCore;
 using System.Linq;
+using System.Threading.Tasks;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PropertyService.DTOs.Contracts;
+using PropertyService.Models;
+using PropertyService.Models.Enums;
+using PropertyService.Repositories;
+using PropertyService.Services.Clients;
+using PropertyService.Services.Interfaces;
+
 namespace PropertyService.Services;
 
 public class ContractService : IContractService
@@ -260,5 +261,45 @@ public class ContractService : IContractService
             .FirstOrDefaultAsync(); // Lấy 1 bản ghi duy nhất
 
         return activeContract;
+    }
+
+    /// <summary>
+    /// Get contracts expiring within specified days threshold for a specific owner
+    /// </summary>
+    public async Task<IEnumerable<ContractDto>> GetExpiringContractsAsync(Guid ownerId, int daysThreshold = 30)
+    {
+        // Lấy tất cả houses thuộc owner
+        var houses = await _houseService.GetHousesOwnedByAsync(ownerId);
+        var houseIds = houses.Select(h => h.Id).ToList();
+
+        // Tính toán ngày threshold
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var thresholdDate = today.AddDays(daysThreshold);
+
+        // Lấy các contracts sắp hết hạn (chưa parse TenantId)
+        var expiringContracts = await _contractRepo.Query()
+            .Include(c => c.Room)
+            .ThenInclude(r => r.House)
+            .Where(c => c.Room != null && houseIds.Contains(c.Room.HouseId))
+            .Where(c => c.Status == ContractStatus.Active) // Chỉ lấy hợp đồng đang active
+            .Where(c => c.EndDate != null && c.EndDate >= today && c.EndDate <= thresholdDate)
+            .OrderBy(c => c.EndDate)
+            .ToListAsync();
+
+        // Map sang DTO sau khi đã load từ database
+        return expiringContracts.Select(c => new ContractDto
+        {
+            Id = c.Id,
+            RoomId = c.RoomId,
+            TenantId = Guid.TryParse(c.TenantId, out var tenantGuid) ? tenantGuid : Guid.Empty,
+            StartDate = c.StartDate,
+            EndDate = c.EndDate,
+            Price = c.Price,
+            Status = c.Status,
+            FileUrl = c.FileUrl,
+            CreatedAt = c.CreatedAt,
+            HouseName = c.Room?.House?.Name ?? string.Empty,
+            RoomNumber = c.Room?.Name ?? string.Empty
+        }).ToList();
     }
 }

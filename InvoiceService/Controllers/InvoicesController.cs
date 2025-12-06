@@ -1,9 +1,9 @@
-using InvoiceService.Models;
+using System.Security.Claims;
 using InvoiceService.Features.Invoice;
 using InvoiceService.Features.Invoice.DTOs;
-using Microsoft.AspNetCore.Mvc;
+using InvoiceService.Models;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 
 namespace InvoiceService.Controllers;
 
@@ -28,6 +28,8 @@ public class InvoicesController : ControllerBase
         _userServiceClient = userServiceClient;
         _wsHandler = wsHandler;
     }
+
+    // ==================== GET Endpoints ====================
 
     /// <summary>
     /// Get all invoices for the current user
@@ -77,56 +79,7 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
-    /// Get invoices by status for the current user
-    /// If user is an owner, returns invoices for all their tenants with the specified status
-    /// If user is a regular tenant, returns only their own invoices with the specified status
-    /// </summary>
-    [HttpGet("status/{status}")]
-    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetInvoicesByStatus(string status)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                     ?? User.FindFirstValue("sub") 
-                     ?? User.FindFirstValue("userId");
-        
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { error = "UserId not found in access token" });
-        }
-
-        // Get user info to check if they are an owner
-        var userInfo = await _userServiceClient.GetUserInfoAsync(userId);
-        
-        IEnumerable<Models.Invoice> invoices;
-        
-        // If user has no OwnerId, they are an owner themselves
-        if (userInfo?.OwnerId == null)
-        {
-            var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
-            if (tenantUserIds.Any())
-            {
-                invoices = await _invoiceService.GetInvoicesByStatusForOwnerAsync(userId, tenantUserIds, status);
-            }
-            else
-            {
-                // Owner has no tenants, return empty list
-                invoices = new List<Models.Invoice>();
-            }
-        }
-        else
-        {
-            // Regular user, return only their invoices
-            invoices = await _invoiceService.GetInvoicesByStatusAsync(userId, status);
-        }
-
-        var response = await MapToResponseWithUserNameAsync(invoices);
-        return Ok(response);
-    }
-
-    /// <summary>
-    /// Get a specific invoice by ID for the current user
-    /// </summary>
-    /// <summary>
-    /// Get invoice by ID
+    /// Get a specific invoice by ID
     /// Supports both JWT auth (user access) and API key auth (service-to-service)
     /// </summary>
     [HttpGet("{id}")]
@@ -183,6 +136,54 @@ public class InvoicesController : ControllerBase
 
         return Ok(userResponse);
     }
+
+    /// <summary>
+    /// Get invoices by status for the current user
+    /// If user is an owner, returns invoices for all their tenants with the specified status
+    /// If user is a regular tenant, returns only their own invoices with the specified status
+    /// </summary>
+    [HttpGet("status/{status}")]
+    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetInvoicesByStatus(string status)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { error = "UserId not found in access token" });
+        }
+
+        // Get user info to check if they are an owner
+        var userInfo = await _userServiceClient.GetUserInfoAsync(userId);
+        
+        IEnumerable<Models.Invoice> invoices;
+        
+        // If user has no OwnerId, they are an owner themselves
+        if (userInfo?.OwnerId == null)
+        {
+            var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
+            if (tenantUserIds.Any())
+            {
+                invoices = await _invoiceService.GetInvoicesByStatusForOwnerAsync(userId, tenantUserIds, status);
+            }
+            else
+            {
+                // Owner has no tenants, return empty list
+                invoices = new List<Models.Invoice>();
+            }
+        }
+        else
+        {
+            // Regular user, return only their invoices
+            invoices = await _invoiceService.GetInvoicesByStatusAsync(userId, status);
+        }
+
+        var response = await MapToResponseWithUserNameAsync(invoices);
+        return Ok(response);
+    }
+
+    // ==================== POST Endpoints ====================
 
     /// <summary>
     /// Create a new invoice for the current user
@@ -326,6 +327,59 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
+    /// Mark invoice as paid
+    /// Supports both JWT auth (user access) and API key auth (service-to-service)
+    /// </summary>
+    [HttpPost("{id}/mark-paid")]
+    [AllowAnonymous]
+    public async Task<ActionResult<InvoiceResponse>> MarkInvoiceAsPaid(int id)
+    {
+        // Try to get userId from JWT token first
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        // If no JWT token, check for service API key
+        if (string.IsNullOrEmpty(userId))
+        {
+            var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+            var configuredApiKey = HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>()["ServiceApiKey"];
+            
+            if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+            {
+                return Unauthorized(new { error = "Invalid or missing authentication" });
+            }
+            
+            // API Key is valid, allow marking any invoice as paid
+            var invoice = await _invoiceService.MarkInvoiceAsPaidAsync(id);
+            if (invoice == null)
+            {
+                return NotFound(new { error = $"Invoice with ID {id} not found" });
+            }
+            
+            // Notify WebSocket clients about payment status update
+            await _wsHandler.NotifyPaymentStatusAsync(id, "Paid");
+            
+            return Ok(MapToResponse(invoice));
+        }
+
+        // JWT auth: only mark user's own invoice as paid
+        var userInvoice = await _invoiceService.MarkInvoiceAsPaidAsync(id, userId);
+        if (userInvoice == null)
+        {
+            return NotFound(new { error = $"Invoice with ID {id} not found for user {userId}" });
+        }
+
+        // Notify WebSocket clients about payment status update
+        await _wsHandler.NotifyPaymentStatusAsync(id, "Paid");
+
+        return Ok(MapToResponse(userInvoice));
+    }
+
+    // ==================== PUT Endpoints ====================
+
+    /// <summary>
     /// Update an existing invoice for the current user
     /// </summary>
     [HttpPut("{id}")]
@@ -376,6 +430,8 @@ public class InvoicesController : ControllerBase
         return Ok(MapToResponse(updatedInvoice));
     }
 
+    // ==================== DELETE Endpoints ====================
+
     /// <summary>
     /// Delete an invoice for the current user
     /// </summary>
@@ -400,59 +456,7 @@ public class InvoicesController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// Mark an invoice as paid for the current user
-    /// </summary>
-    /// <summary>
-    /// Mark invoice as paid
-    /// Supports both JWT auth (user access) and API key auth (service-to-service)
-    /// </summary>
-    [HttpPost("{id}/mark-paid")]
-    [AllowAnonymous]
-    public async Task<ActionResult<InvoiceResponse>> MarkInvoiceAsPaid(int id)
-    {
-        // Try to get userId from JWT token first
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                     ?? User.FindFirstValue("sub") 
-                     ?? User.FindFirstValue("userId");
-        
-        // If no JWT token, check for service API key
-        if (string.IsNullOrEmpty(userId))
-        {
-            var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
-            var configuredApiKey = HttpContext.RequestServices
-                .GetRequiredService<IConfiguration>()["ServiceApiKey"];
-            
-            if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
-            {
-                return Unauthorized(new { error = "Invalid or missing authentication" });
-            }
-            
-            // API Key is valid, allow marking any invoice as paid
-            var invoice = await _invoiceService.MarkInvoiceAsPaidAsync(id);
-            if (invoice == null)
-            {
-                return NotFound(new { error = $"Invoice with ID {id} not found" });
-            }
-            
-            // Notify WebSocket clients about payment status update
-            await _wsHandler.NotifyPaymentStatusAsync(id, "Paid");
-            
-            return Ok(MapToResponse(invoice));
-        }
-
-        // JWT auth: only mark user's own invoice as paid
-        var userInvoice = await _invoiceService.MarkInvoiceAsPaidAsync(id, userId);
-        if (userInvoice == null)
-        {
-            return NotFound(new { error = $"Invoice with ID {id} not found for user {userId}" });
-        }
-
-        // Notify WebSocket clients about payment status update
-        await _wsHandler.NotifyPaymentStatusAsync(id, "Paid");
-
-        return Ok(MapToResponse(userInvoice));
-    }
+    // ==================== Private Helper Methods ====================
 
     private static InvoiceResponse MapToResponse(Invoice invoice)
     {

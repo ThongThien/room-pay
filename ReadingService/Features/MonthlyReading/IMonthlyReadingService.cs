@@ -11,6 +11,7 @@ public interface IMonthlyReadingService
     Task<bool> DeleteAsync(int id);
     Task<MissingReadingsResponseDto> GetMissingReadingsAsync(Guid tenantId);
     Task<IEnumerable<MonthlyReadingResponseDto>> GetAllReadingsByUserIdAsync(string userId);
+    Task<List<MonthlyReadingResponseDto>> GetAllAsync();
     
     
 }

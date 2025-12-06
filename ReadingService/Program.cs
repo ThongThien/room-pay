@@ -15,6 +15,11 @@ using ReadingService.Repositories.Implementations;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// CORS Configuration
+var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
+if (allowedOrigins == null || allowedOrigins.Length == 0)
+    throw new Exception("CORS origin not configured. Please set 'Cors:AllowedOrigins' in appsettings.json.");
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFE", policy =>

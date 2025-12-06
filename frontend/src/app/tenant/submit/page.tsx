@@ -25,7 +25,7 @@ interface ReadingCardProps {
     oldValue: number;
     newValue: number;
     usedValue?: number;
-    status: string | number; // Chấp nhận cả string và number (ví dụ: 1)
+    status: string | number;
     imageUrl: string;
     isLoading?: boolean;
     onUpload: (file: File) => void;
@@ -134,19 +134,6 @@ export default function TenantDashboard() {
         fetchCycle();
     }, []);
 
-    // Hàm mới: Fetch trạng thái hóa đơn sau khi load reading
-    async function fetchInvoiceStatus(cycleId: number) {
-        const res = await fetch(`${INVOICE_API}/invoices/by-cycle/${cycleId}`, {
-            headers: authHeaders(),
-        });
-
-        if (res.ok) {
-            const inv = await res.json();
-            // Cập nhật trạng thái sau khi tìm thấy hóa đơn
-            setInvoiceStatus('created');
-        }
-    }
-
     /* ------------------------------
         2️⃣ LOAD READING (chỉ 1 lần sau khi có cycle)
     --------------------------------*/
@@ -175,16 +162,7 @@ export default function TenantDashboard() {
                 img: data.waterPhotoUrl,
                 status: data.status // Có thể là số 1 hoặc chuỗi "approved"
             });
-            const isReadingConfirmed = data.status === 1 || data.status === "approved";
 
-            if (isReadingConfirmed) {
-                // ✅ Dùng 'await' để chờ fetch Invoice xong
-                await fetchInvoiceStatus(cycleId);
-            } else {
-                setInvoiceStatus('pending');
-            }
-
-            // ✅ KẾT THÚC LOADING SAU KHI CÓ KẾT QUẢ ĐẦY ĐỦ
             setIsInitialLoading(false);
         }
 

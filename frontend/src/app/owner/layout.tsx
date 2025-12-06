@@ -35,6 +35,19 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Tổng quan'}
             </Link>
 
+
+            <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Quản lý hóa đơn'}
+            </Link>
+
+            <Link href="/owner/monthlyreading" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Quản lý nộp chỉ số'}
+            </Link>
+
+            <Link href="/owner/createtenant" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Thêm khách thuê'}
+            </Link>
+
             <Link href="/owner/houses" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Danh sách nhà - Nam'}
             </Link>
@@ -51,14 +64,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Hợp đồng - Mạnh'}
             </Link>
 
-            <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Hóa đơn'}
-            </Link>
-
-            <Link href="/owner/monthlymanage" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Quản lý tháng'}
-            </Link>
-
             <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Yêu cầu sửa chữa - Nam'}
             </Link>
@@ -66,11 +71,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             <Link href="/owner/notification" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Thông báo'}
             </Link>
-
-            <Link href="/owner/profile" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Hồ sơ'}
-            </Link>
-
             <button
               onClick={handleLogout}
               className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"

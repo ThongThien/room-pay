@@ -59,11 +59,6 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                             {isSidebarOpen && 'Thông báo'}
                         </Link>
 
-                        <Link href="/tenant/profile" className="block p-2 hover:bg-gray-700 rounded">
-                            {isSidebarOpen && "Thông tin cá nhân"}
-                        </Link>
-
-                        {/* Nút Đăng xuất */}
                         <button
                             onClick={handleLogout}
                             className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded mt-4"

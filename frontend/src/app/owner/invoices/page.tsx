@@ -4,22 +4,35 @@ import { useEffect, useState } from "react";
 import { getMyInvoices, markInvoiceAsPaid } from "@/services/invoiceService";
 import { Invoice } from "@/types/invoice";
 import InvoiceDetailModal from "@/components/invoice/InvoiceDetailModal";
+// --- DANH SÁCH NHÀ CHỈ CÒN A, B, C ---
+const MOCK_HOUSES_FOR_UI = [
+    { id: 0, name: "Tất cả các Nhà/Tòa" }, // Tùy chọn mặc định
+    { id: 1, name: "A" },
+    { id: 2, name: "B" },
+    { id: 3, name: "C" },
+];
 
+// Hàm lấy tên nhà 
+const getHouseName = (houseId: number | string) => {
+    const id = typeof houseId === 'string' ? parseInt(houseId) : houseId;
+    return MOCK_HOUSES_FOR_UI.find(h => h.id === id)?.name || "Tất cả các Nhà/Tòa";
+};
 export default function OwnerInvoicesPage() {
     // STATE QUẢN LÝ DỮ LIỆU VÀ FILTER 
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Filter Status: Trạng thái (Tất cả / Chưa thu / Đã thu)
     const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "PAID">("ALL");
-    
+
     // Filter Date: Mặc định chọn Tháng hiện tại và Năm hiện tại
     const [selectedMonth, setSelectedMonth] = useState<number | "ALL">(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [processingId, setProcessingId] = useState<number | null>(null);
-
+    // FILTER MỚI: Nhà (House)
+    const [selectedHouseId, setSelectedHouseId] = useState<number>(0);
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     };
@@ -43,18 +56,18 @@ export default function OwnerInvoicesPage() {
     }, []);
 
     const handleMarkAsPaid = async (id: number, e: React.MouseEvent) => {
-        e.stopPropagation(); 
+        e.stopPropagation();
         const confirmPayment = window.confirm("Xác nhận khách đã thanh toán hóa đơn này?");
         if (!confirmPayment) return;
 
         setProcessingId(id);
         const success = await markInvoiceAsPaid(id);
-        
+
         if (success) {
-            setInvoices(prev => prev.map(inv => 
-                inv.id === id 
-                ? { ...inv, status: "Paid", paidDate: new Date().toISOString() } 
-                : inv
+            setInvoices(prev => prev.map(inv =>
+                inv.id === id
+                    ? { ...inv, status: "Paid", paidDate: new Date().toISOString() }
+                    : inv
             ));
         } else {
             alert("Có lỗi xảy ra, vui lòng thử lại.");
@@ -85,7 +98,7 @@ export default function OwnerInvoicesPage() {
     };
 
     return (
-        <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
+        <div className="space-y-6 p-6 bg-gray-50 min-h-screen text-gray-800">
             {/* Header & Stats Cards */}
             <div className="flex flex-col gap-6">
                 <div className="flex justify-between items-start">
@@ -117,23 +130,23 @@ export default function OwnerInvoicesPage() {
 
             {/* --- THANH CÔNG CỤ BỘ LỌC --- */}
             <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg shadow-sm border items-center justify-between">
-                
+
                 {/* Bộ lọc Trạng thái */}
                 <div className="flex bg-gray-100 p-1 rounded-md">
-                    <button 
-                        onClick={() => setStatusFilter("ALL")} 
+                    <button
+                        onClick={() => setStatusFilter("ALL")}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "ALL" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                     >
                         Tất cả
                     </button>
-                    <button 
-                        onClick={() => setStatusFilter("PENDING")} 
+                    <button
+                        onClick={() => setStatusFilter("PENDING")}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "PENDING" ? "bg-white text-red-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                     >
                         Chưa thu
                     </button>
-                    <button 
-                        onClick={() => setStatusFilter("PAID")} 
+                    <button
+                        onClick={() => setStatusFilter("PAID")}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "PAID" ? "bg-white text-green-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                     >
                         Đã thu
@@ -142,8 +155,17 @@ export default function OwnerInvoicesPage() {
 
                 {/* Bộ lọc Thời gian (Tháng / Năm) */}
                 <div className="flex gap-2">
-                    <select 
-                        value={selectedMonth} 
+                    <select
+                        value={selectedHouseId}
+                        onChange={(e) => setSelectedHouseId(Number(e.target.value))}
+                        className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                        {MOCK_HOUSES_FOR_UI.map(house => (
+                            <option key={house.id} value={house.id}>{house.name}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
                         className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
@@ -153,8 +175,8 @@ export default function OwnerInvoicesPage() {
                         ))}
                     </select>
 
-                    <select 
-                        value={selectedYear} 
+                    <select
+                        value={selectedYear}
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
                         className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
@@ -177,7 +199,7 @@ export default function OwnerInvoicesPage() {
                             <thead className="bg-gray-50 text-gray-600 uppercase text-xs font-semibold">
                                 <tr>
                                     <th className="p-4 border-b">Mã HĐ</th>
-                                    <th className="p-4 border-b">Khách thuê</th> 
+                                    <th className="p-4 border-b">Khách thuê</th>
                                     <th className="p-4 border-b">Hạn đóng</th>
                                     <th className="p-4 border-b text-right">Tổng tiền</th>
                                     <th className="p-4 border-b text-center">Trạng thái</th>
@@ -186,8 +208,8 @@ export default function OwnerInvoicesPage() {
                             </thead>
                             <tbody className="text-sm divide-y divide-gray-100">
                                 {filteredInvoices.length > 0 ? filteredInvoices.map((inv) => (
-                                    <tr 
-                                        key={inv.id} 
+                                    <tr
+                                        key={inv.id}
                                         className="hover:bg-gray-50 transition-colors cursor-pointer"
                                         onClick={() => setSelectedInvoice(inv)}
                                     >
@@ -214,7 +236,7 @@ export default function OwnerInvoicesPage() {
                                         </td>
                                         <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                                             {inv.status !== "Paid" ? (
-                                                <button 
+                                                <button
                                                     onClick={(e) => handleMarkAsPaid(inv.id, e)}
                                                     disabled={processingId === inv.id}
                                                     className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-blue-700 transition disabled:bg-blue-300 shadow-sm whitespace-nowrap"
@@ -242,9 +264,9 @@ export default function OwnerInvoicesPage() {
 
             {/* Modal Chi tiết */}
             {selectedInvoice && (
-                <InvoiceDetailModal 
-                    invoice={selectedInvoice} 
-                    onClose={() => setSelectedInvoice(null)} 
+                <InvoiceDetailModal
+                    invoice={selectedInvoice}
+                    onClose={() => setSelectedInvoice(null)}
                 />
             )}
         </div>

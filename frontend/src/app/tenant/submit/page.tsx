@@ -149,17 +149,37 @@ export default function TenantDashboard() {
 
             const data = await res.json();
 
+            // Helper: Lấy object key từ URL S3
+            async function getPresignedUrl(photoUrl: string | null | undefined) {
+                if (!photoUrl) return "";
+                try {
+                    const u = new URL(photoUrl);
+                    const key = u.pathname.startsWith("/") ? u.pathname.slice(1) : u.pathname;
+                    const resp = await fetch(`${READING_API}/MonthlyReading/image-proxy?key=${encodeURIComponent(key)}`);
+                    if (!resp.ok) return "";
+                    const json = await resp.json();
+                    return json.url || "";
+                } catch {
+                    return "";
+                }
+            }
+
+            const [electricImg, waterImg] = await Promise.all([
+                getPresignedUrl(data.electricPhotoUrl),
+                getPresignedUrl(data.waterPhotoUrl)
+            ]);
+
             setElectric({
                 old: data.electricOld,
                 new: data.electricNew,
-                img: data.electricPhotoUrl,
+                img: electricImg,
                 status: data.status // Có thể là số 1 hoặc chuỗi "approved"
             });
 
             setWater({
                 old: data.waterOld,
                 new: data.waterNew,
-                img: data.waterPhotoUrl,
+                img: waterImg,
                 status: data.status // Có thể là số 1 hoặc chuỗi "approved"
             });
 
@@ -383,7 +403,7 @@ function ReadingCard({
                     {isLoading ? (
                         "Đang xử lý ảnh..."
                     ) : imageUrl ? (
-                        <Image src={imageUrl} alt="" fill className="object-contain" />
+                        <Image src={imageUrl} alt="Ảnh đồng hồ chỉ số" className="object-contain w-full h-full rounded-lg" />
                     ) : (
                         "Chọn ảnh"
                     )}

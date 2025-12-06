@@ -95,7 +95,7 @@ function mapStatusToVietnamese(status: string | number | null | undefined): stri
 /* ============================================
     MAIN COMPONENT
 =============================================== */
-export default function TenantDashboard() {
+export default function SubmitMeter() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [cycle, setCycle] = useState<ReadingCycle | null>(null);
     const [loadingCycle, setLoadingCycle] = useState(true);

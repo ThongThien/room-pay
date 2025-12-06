@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { 
     getTenantDashboardData, 
@@ -42,6 +43,7 @@ const TenantDashboardPage: React.FC = () => {
     // State lưu dữ liệu hiển thị
     const [data, setData] = useState<TenantViewData | null>(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -104,11 +106,6 @@ const TenantDashboardPage: React.FC = () => {
             ? 'text-orange-500'
             : 'text-green-600';
 
-    const handlePayment = (invoiceId: number) => {
-        alert(`Tiến hành thanh toán cho Hóa đơn ID: ${invoiceId}`);
-        // router.push(`/tenant/payment/${invoiceId}`);
-    };
-
     return (
         <div className="p-8 bg-gray-50 min-h-screen">
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Bảng Thông Tin Người thuê</h1>
@@ -163,7 +160,7 @@ const TenantDashboardPage: React.FC = () => {
                                         </span>
                                     </div>
                                     <button
-                                        onClick={() => handlePayment(invoice.invoiceId)}
+                                        onClick={() => router.push(`/tenant/payment/${invoice.invoiceId}`)}
                                         className={`px-3 py-1 rounded-lg font-bold text-xs text-white transition ${invoice.isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
                                     >
                                         Thanh toán ngay

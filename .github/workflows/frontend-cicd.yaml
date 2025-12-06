@@ -1,25 +1,25 @@
-name: AA CI/CD
+name: Frontend CI/CD
 
 on:
   push:
     branches: 
       - main
     paths:
-      - 'AA/**'
-      - '.github/workflows/aa-cicd.yaml'
+      - 'frontend/**'
+      - '.github/workflows/frontend-cicd.yaml'
 
 env:
   AWS_REGION: ap-southeast-1 # Change to your AWS region
   ECR_REPOSITORY: intern2025 # Change to your ECR repository name
-  IMAGE_NAME: aa
-  DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: true # Apply globally for all steps
+  IMAGE_NAME: frontend
+  NODE_VERSION: '20'
 
 jobs:
   main:
     runs-on: ubuntu-22.04
     defaults:
       run:
-        working-directory: AA
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
         with: 
@@ -29,19 +29,21 @@ jobs:
         id: version
         run: echo "IMAGE_TAG=$(date +'%Y.%m.%d.%Hh%Mm%Ss')" >> $GITHUB_OUTPUT
 
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          dotnet-version: 8.0.x
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: dotnet restore --locked-mode
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
 
       - name: Build
-        run: dotnet build --no-restore -c Release
-
-      - name: Publish
-        run: dotnet publish --no-build -c Release -o app/publish
+        run: npm run build
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -58,7 +60,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ steps.version.outputs.IMAGE_TAG }}
-        working-directory: AA
+        working-directory: frontend
         run: |
           docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG .
           docker tag $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest

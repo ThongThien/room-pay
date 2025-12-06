@@ -10,28 +10,31 @@ namespace ReadingService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class MonthlyReadingController : ControllerBase
 {
     private readonly IMonthlyReadingService _monthlyReadingService;
     private readonly IReadingCycleService _readingCycleService;
     private readonly ILogger<MonthlyReadingController> _logger;
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _config;
     public MonthlyReadingController(
         IMonthlyReadingService monthlyReadingService,
         IReadingCycleService readingCycleService,
         ILogger<MonthlyReadingController> logger,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IConfiguration config)
     {
         _monthlyReadingService = monthlyReadingService;
         _readingCycleService = readingCycleService;
         _logger = logger;
         _context = context;
+        _config = config;
     }
 
     /// <summary>
     /// Nộp chỉ số điện nước cho MonthlyReading (submit reading)
     /// </summary>
+    [Authorize]
     [HttpPost("{cycleId}/submit")]
     public async Task<ActionResult<MonthlyReadingResponseDto>> SubmitMonthlyReading(
         int cycleId,
@@ -76,6 +79,7 @@ public class MonthlyReadingController : ControllerBase
     /// <summary>
     /// Lấy MonthlyReading của user theo CycleId
     /// </summary>
+    [Authorize]
     [HttpGet("by-cycle/{cycleId}")]
     public async Task<ActionResult<MonthlyReadingResponseDto>> GetMyMonthlyReadingByCycle(int cycleId)
     {
@@ -109,6 +113,7 @@ public class MonthlyReadingController : ControllerBase
     /// <summary>
     /// Lấy thông tin MonthlyReading theo ID
     /// </summary>
+    [Authorize]
     [HttpGet("{id}")]
     public async Task<ActionResult<MonthlyReadingResponseDto>> GetMonthlyReading(int id)
     {
@@ -124,8 +129,8 @@ public class MonthlyReadingController : ControllerBase
     /// <summary>
     /// Xóa MonthlyReading
     /// </summary>
-    [HttpDelete("{id}")]
     [Authorize(Roles = "Owner")]
+    [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteMonthlyReading(int id)
     {
         try
@@ -145,6 +150,7 @@ public class MonthlyReadingController : ControllerBase
     }
 
     // Endpoint: GET api/MonthlyReading (FIXED: Lấy tất cả bản ghi)
+    [Authorize]
     [HttpGet] 
     public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
     {
@@ -168,6 +174,46 @@ public class MonthlyReadingController : ControllerBase
         {
             _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings của user {UserId}", userId);
             return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings", error = ex.Message });
+        }
+    }
+
+
+    /// <summary>
+    /// Proxy S3 image: trả về ảnh từ S3 (dùng cho frontend)
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("image-proxy")]
+    public async Task<IActionResult> GetS3Image([FromQuery] string key)
+    {
+        // Đọc config AWS từ appsettings
+        var awsSection = _config.GetSection("AWS");
+        var awsAccessKey = awsSection["AccessKey"];
+        var awsSecretKey = awsSection["SecretKey"];
+        var regionStr = awsSection["Region"] ?? "ap-southeast-1";
+        var bucketName = awsSection["BucketName"];
+        var region = Amazon.RegionEndpoint.GetBySystemName(regionStr);
+
+        try
+        {
+            using var s3 = new Amazon.S3.AmazonS3Client(awsAccessKey, awsSecretKey, region);
+            var request = new Amazon.S3.Model.GetPreSignedUrlRequest
+            {
+                BucketName = bucketName,
+                Key = key,
+                Expires = DateTime.UtcNow.AddMinutes(10),
+                Verb = Amazon.S3.HttpVerb.GET
+            };
+            var url = s3.GetPreSignedURL(request);
+            return Ok(new { url });
+        }
+        catch (Amazon.S3.AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return NotFound(new { message = "Không tìm thấy ảnh trên S3", key });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi tạo pre-signed URL ảnh từ S3");
+            return StatusCode(500, new { message = "Lỗi tạo pre-signed URL ảnh từ S3", error = ex.Message });
         }
     }
 }

@@ -5,7 +5,7 @@
 
 # dotenv files
 .env
-appsettings.Development.json
+appsettings.*.json
 
 git pull origin main# User-specific files
 *.rsuser

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
-import { createUserAPI } from "@/services/userService"; 
+import { createUserAPI } from "@/services/userTenantService"; 
 
 export default function CreateTenantPage() {
   

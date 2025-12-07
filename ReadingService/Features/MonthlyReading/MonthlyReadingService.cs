@@ -3,8 +3,8 @@ using ReadingService.Data;
 using ReadingService.Models;
 using ReadingService.Services;
 using ReadingService.Features.MonthlyReading.DTOs;
-using ReadingService.Features.ReadingCycle; 
-using ReadingService.Features.MonthlyReading.DTOs; 
+using ReadingService.Features.ReadingCycle;
+using ReadingService.Features.MonthlyReading.DTOs;
 using System.Linq;
 
 namespace ReadingService.Features.MonthlyReading;
@@ -16,7 +16,7 @@ public class MonthlyReadingService : IMonthlyReadingService
     private readonly ILogger<MonthlyReadingService> _logger;
     private readonly IInvoiceHttpClient _invoiceHttpClient;
     // ⭐ Dependency MỚI: Dùng Service để lấy chu kỳ đọc
-    private readonly IReadingCycleService _cycleService; 
+    private readonly IReadingCycleService _cycleService;
 
     public MonthlyReadingService(
         ApplicationDbContext context,
@@ -31,6 +31,12 @@ public class MonthlyReadingService : IMonthlyReadingService
         _logger = logger;
         _invoiceHttpClient = invoiceHttpClient;
         _cycleService = cycleService; // ⭐ Gán
+    }
+
+    public async Task<List<MonthlyReadingResponseDto>> GetAllAsync()
+    {
+        var readings = await _context.MonthlyReadings.OrderByDescending(r => r.CreatedAt).ToListAsync();
+        return readings.Select(MapToResponseDto).ToList();
     }
 
     public async Task<MonthlyReadingResponseDto?> GetByIdAsync(int id)

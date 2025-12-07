@@ -12,7 +12,7 @@ using System.Text;
 using ReadingService.Repositories.Interfaces;
 using ReadingService.Repositories.Implementations;
 using ReadingService.Features.User;
-
+using ReadingService.Features.Property;
 var builder = WebApplication.CreateBuilder(args);
 
 // builder.Services.AddCors(options =>
@@ -92,6 +92,7 @@ builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
 builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
 
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHttpClient<IPropertyService, PropertyService>();
 // Add Controllers
 builder.Services.AddControllers();
 

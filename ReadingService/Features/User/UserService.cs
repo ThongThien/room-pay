@@ -63,4 +63,37 @@ public class UserService : IUserService
             return new List<string>();
         }
     }
+
+    public async Task<List<UserInfo>> GetUsersByIdsAsync(List<string> userIds)
+    {
+        // Giả sử AuthService/UserService có endpoint POST để nhận List<string> và trả về List<UserInfo>
+        var apiUrl = "/api/users/batch-info"; 
+
+        try
+        {
+            // Gửi danh sách userIds qua Body bằng POST
+            var response = await _httpClient.PostAsJsonAsync(apiUrl, userIds);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to get batch user info. Status: {StatusCode}", response.StatusCode);
+                return new List<UserInfo>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            
+            var users = JsonSerializer.Deserialize<List<UserInfo>>(content, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            // Trả về danh sách UserInfo (chứa Id và FullName)
+            return users ?? new List<UserInfo>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling AuthService to get batch user info");
+            return new List<UserInfo>();
+        }
+    }
 }

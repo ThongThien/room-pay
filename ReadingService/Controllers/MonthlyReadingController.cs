@@ -157,42 +157,49 @@ public class MonthlyReadingController : ControllerBase
     [HttpGet] 
     public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
     {
-        // 1. Trích xuất thông tin cần thiết từ JWT Token
+        // 1. TRÍCH XUẤT CLAIMS TỪ JWT TOKEN
+        
         // Lấy User ID (sẽ là Tenant ID hoặc Owner ID tùy vai trò)
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
                     ?? User.FindFirstValue("sub") 
                     ?? User.FindFirstValue("userId");
         
-        // Lấy Role (Quan trọng để Service biết cách lọc)
+        // Lấy Role (Quan trọng nhất cho Service để biết cách lọc)
         var role = User.FindFirstValue(ClaimTypes.Role);
         
-        // Lấy OwnerId (Claim có sẵn trong token của Tenant)
+        // Lấy OwnerId (Claim này có thể có nếu Role là Tenant, nhưng không bắt buộc cho logic Owner)
         var ownerIdClaim = User.FindFirstValue("ownerId"); 
         
-        // 2. Kiểm tra tính hợp lệ cơ bản
+        // 2. KIỂM TRA TÍNH HỢP LỆ
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
         {
+            // Ghi log lỗi nếu không tìm thấy thông tin cần thiết
+            _logger.LogWarning("Truy cập không hợp lệ: Không tìm thấy UserId hoặc Role.");
             return Unauthorized(new { message = "Không tìm thấy thông tin người dùng hoặc vai trò trong token." });
         }
 
         try
         {
-            // 3. Gọi hàm Service mới để xử lý logic truy vấn dựa trên Role
-            // Hàm Service sẽ tự động xử lý:
-            // - Nếu Role = Tenant: Dùng userId để lọc.
-            // - Nếu Role = Owner: Dùng userId (là OwnerId) gọi User Service để lấy Tenant IDs, sau đó lọc.
+            // 3. GỌI SERVICE XỬ LÝ LOGIC LỌC VÀ LÀM GIÀU DỮ LIỆU
+            // Service sẽ tự động: 
+            // a) Dùng Role và UserId để xác định phạm vi truy vấn (Tenant cá nhân vs Owner quản lý)
+            // b) Gọi User Service và Property Service để lấy tên Tenant, Nhà, Phòng.
             var readings = await _monthlyReadingService.GetAllReadingsByRoleAsync(
                 userId, 
                 role, 
                 ownerIdClaim 
             );
             
+            // Ghi log thông báo thành công
+            _logger.LogInformation("UserId {UserId} ({Role}) đã lấy thành công {Count} MonthlyReadings.", userId, role, readings.Count());
+
             return Ok(readings);
         }
         catch (Exception ex)
         {
+            // Ghi log lỗi và trả về 500 Internal Server Error
             _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings của user {UserId}", userId);
-            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings", error = ex.Message });
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings từ Service", error = ex.Message });
         }
     }
 

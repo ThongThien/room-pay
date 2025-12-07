@@ -15,6 +15,9 @@ public interface IMonthlyReadingService
         string role, 
         string? ownerId
     );
+    Task<IEnumerable<MonthlyReadingResponseDto>> GetAllReadingsByUserIdAsync(string userId);
+    Task<List<MonthlyReadingResponseDto>> GetAllAsync();
+    
     
 }
 

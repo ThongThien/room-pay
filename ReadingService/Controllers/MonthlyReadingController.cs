@@ -204,6 +204,46 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
+    /// API trả về hoá đơn có chỉ số điện bất thường (tiêu thụ điện > threshold)
+    /// </summary>
+    [Authorize(Roles = "Owner")]
+    [HttpGet("abnormal-electric")]
+    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAbnormalElectricReadings([FromQuery] int threshold)
+    {
+        try
+        {
+            var allReadings = await _monthlyReadingService.GetAllAsync();
+            var abnormal = allReadings.Where(r => (r.ElectricNew - r.ElectricOld > threshold)).ToList();
+            return Ok(abnormal);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings điện bất thường");
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings điện bất thường", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// API trả về hoá đơn có chỉ số nước bất thường (tiêu thụ nước > threshold)
+    /// </summary>
+    [Authorize(Roles = "Owner")]
+    [HttpGet("abnormal-water")]
+    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAbnormalWaterReadings([FromQuery] int threshold)
+    {
+        try
+        {
+            var allReadings = await _monthlyReadingService.GetAllAsync();
+            var abnormal = allReadings.Where(r => (r.WaterNew - r.WaterOld > threshold)).ToList();
+            return Ok(abnormal);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings nước bất thường");
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings nước bất thường", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Proxy S3 image: trả về ảnh từ S3 (dùng cho frontend)
     /// </summary>
     [AllowAnonymous]

@@ -92,6 +92,7 @@ services:
       AWS__AccessKey: ${AWS_ACCESS_KEY}
       AWS__SecretKey: ${AWS_SECRET_KEY}
       Services__InvoiceService__BaseUrl: http://invoice-service:8080
+      Cors__AllowedOrigins: "http://frontend:3000"
     restart: unless-stopped
     depends_on:
       - invoice-service

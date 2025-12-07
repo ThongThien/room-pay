@@ -20,7 +20,7 @@ public class MonthlyReadingService : IMonthlyReadingService
     private readonly ILogger<MonthlyReadingService> _logger;
     private readonly IInvoiceHttpClient _invoiceHttpClient;
     // ⭐ Dependency MỚI: Dùng Service để lấy chu kỳ đọc
-    private readonly IReadingCycleService _cycleService; 
+    private readonly IReadingCycleService _cycleService;
 
     public MonthlyReadingService(
         ApplicationDbContext context,
@@ -39,6 +39,12 @@ public class MonthlyReadingService : IMonthlyReadingService
         _invoiceHttpClient = invoiceHttpClient;
         _cycleService = cycleService; // ⭐ Gán
         _propertyService = propertyService; // ⭐ Gán
+    }
+
+    public async Task<List<MonthlyReadingResponseDto>> GetAllAsync()
+    {
+        var readings = await _context.MonthlyReadings.OrderByDescending(r => r.CreatedAt).ToListAsync();
+        return readings.Select(MapToResponseDto).ToList();
     }
 
     public async Task<MonthlyReadingResponseDto?> GetByIdAsync(int id)

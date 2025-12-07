@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getInvoiceDetail } from '@/services/invoiceService';
-import { getCurrentUser } from '@/services/userService';
+import { getCurrentUser } from '@/services/userTenantService';
 import { Invoice } from '@/types/invoice';
 
 const PAYMENT_API_URL = process.env.NEXT_PUBLIC_PAYMENT_API_URL;

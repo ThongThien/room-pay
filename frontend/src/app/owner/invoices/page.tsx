@@ -241,7 +241,7 @@ export default function OwnerInvoicesPage() {
                                                     disabled={processingId === inv.id}
                                                     className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-blue-700 transition disabled:bg-blue-300 shadow-sm whitespace-nowrap"
                                                 >
-                                                    {processingId === inv.id ? "..." : "Thu tiền"}
+                                                    {processingId === inv.id ? "..." : "Nhắc thanh toán"}
                                                 </button>
                                             ) : (
                                                 <span className="text-xs text-gray-400 italic">Xong</span>

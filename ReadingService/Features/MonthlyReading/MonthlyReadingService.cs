@@ -11,6 +11,7 @@ namespace ReadingService.Features.MonthlyReading;
 
 public class MonthlyReadingService : IMonthlyReadingService
 {
+    private readonly IUserService _userService;
     private readonly ApplicationDbContext _context;
     private readonly IS3Service _s3Service;
     private readonly ILogger<MonthlyReadingService> _logger;
@@ -22,6 +23,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         ApplicationDbContext context,
         IS3Service s3Service,
         ILogger<MonthlyReadingService> logger,
+        IUserService userService,
         IInvoiceHttpClient invoiceHttpClient,
         // ⭐ Thêm Dependency cho ReadingCycleService
         IReadingCycleService cycleService)
@@ -29,6 +31,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         _context = context;
         _s3Service = s3Service;
         _logger = logger;
+        _userService = userService;
         _invoiceHttpClient = invoiceHttpClient;
         _cycleService = cycleService; // ⭐ Gán
     }
@@ -126,22 +129,73 @@ public class MonthlyReadingService : IMonthlyReadingService
             return new MissingReadingsResponseDto(); 
         }
     }
-    public async Task<IEnumerable<MonthlyReadingResponseDto>> GetAllReadingsByUserIdAsync(string userId)
+    public async Task<IEnumerable<MonthlyReadingResponseDto>> GetAllReadingsByRoleAsync(
+    string userId, 
+    string role, 
+    string? ownerId)
     {
-        // 1. Lấy tất cả Cycle IDs của user
-        var cycleIds = await _context.ReadingCycles
-            .Where(c => c.UserId == userId)
-            .Select(c => c.Id)
-            .ToListAsync();
+        // Khởi tạo danh sách các Cycle IDs cần truy vấn
+        List<int> cycleIds;
 
-        // 2. Lấy TẤT CẢ MonthlyReadings tương ứng (Sử dụng ToListAsync)
+        if (role == "Tenant")
+        {
+            // LOGIC 1: TENANT (Khách thuê)
+            // Tenant chỉ được xem các Cycle mà họ là UserId
+            
+            cycleIds = await _context.ReadingCycles
+                .Where(c => c.UserId == userId) // UserId của Cycle phải khớp với TenantId đang đăng nhập
+                .Select(c => c.Id)
+                .ToListAsync();
+            
+            _logger.LogInformation("Truy vấn cho Tenant {UserId}. Tìm thấy {Count} Cycles.", userId, cycleIds.Count);
+        }
+        else if (role == "Owner")
+        {
+            // LOGIC 2: OWNER (Chủ nhà/Quản lý) - Dùng Microservice call
+            
+            // BƯỚC 1: GỌI SERVICE USER để lấy danh sách Tenant IDs thuộc Owner này
+            // (userId ở đây chính là OwnerId đang đăng nhập)
+            var tenantUserIds = await _userService.GetTenantIdsByOwnerAsync(userId); 
+            
+            if (!tenantUserIds.Any())
+            {
+                _logger.LogInformation("Truy vấn cho Owner {UserId}. Không có Tenant ID nào được trả về từ User Service.", userId);
+                return Enumerable.Empty<MonthlyReadingResponseDto>();
+            }
+
+            // BƯỚC 2: Lấy tất cả Cycle IDs của các Tenant vừa tìm thấy
+            // (Sử dụng Contains để lọc qua các Cycle mà Tenant đó sở hữu)
+            cycleIds = await _context.ReadingCycles
+                .Where(c => tenantUserIds.Contains(c.UserId))
+                .Select(c => c.Id)
+                .ToListAsync();
+                
+            _logger.LogInformation("Truy vấn cho Owner {UserId}. Tìm thấy {Count} Cycles liên quan.", userId, cycleIds.Count);
+        }
+        else
+        {
+            // Xử lý các vai trò không hợp lệ hoặc không xác định
+            _logger.LogWarning("Vai trò {Role} không được hỗ trợ trong truy vấn MonthlyReading.", role);
+            return Enumerable.Empty<MonthlyReadingResponseDto>();
+        }
+
+        // THỰC THI TRUY VẤN CHUNG (Sau khi đã xác định được cycleIds)
+        if (!cycleIds.Any())
+        {
+            return Enumerable.Empty<MonthlyReadingResponseDto>();
+        }
+
+        // Lấy TẤT CẢ MonthlyReadings tương ứng
         var readings = await _context.MonthlyReadings
             .Where(r => cycleIds.Contains(r.CycleId))
-            .OrderByDescending(r => r.CreatedAt) // Sắp xếp theo thời gian nộp
+            .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
         // Map và trả về
-        return readings.Select(MapToResponseDto);
+        var result = readings.Select(MapToResponseDto).ToList();
+        _logger.LogInformation("Hoàn tất Map. Trả về {ResultCount} bản ghi DTO.", result.Count);
+        
+        return result;
     }
 
     public async Task<MonthlyReadingResponseDto> SubmitAsync(int cycleId, SubmitMonthlyReadingDto dto)

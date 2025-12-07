@@ -11,20 +11,20 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using ReadingService.Repositories.Interfaces;
 using ReadingService.Repositories.Implementations;
-
+using ReadingService.Features.User;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFE", policy =>
-    {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+// builder.Services.AddCors(options =>
+// {
+//     options.AddPolicy("AllowFE", policy =>
+//     {
+//         policy.WithOrigins(allowedOrigins)
+//               .AllowAnyHeader()
+//               .AllowAnyMethod()
+//               .AllowCredentials();
+//     });
+// });
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
@@ -91,6 +91,7 @@ builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
 // Add ReadingCycle Service
 builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
 
+builder.Services.AddScoped<IUserService, UserService>();
 // Add Controllers
 builder.Services.AddControllers();
 

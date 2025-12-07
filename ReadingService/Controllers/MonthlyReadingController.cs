@@ -149,24 +149,43 @@ public class MonthlyReadingController : ControllerBase
         }
     }
 
-    // Endpoint: GET api/MonthlyReading (FIXED: Lấy tất cả bản ghi)
+    /// <summary>
+    /// Lấy TẤT CẢ MonthlyReadings của user (Tenant: lấy của mình; Owner: lấy của tất cả Tenant được quản lý)
+    /// Endpoint: GET api/MonthlyReading
+    /// </summary>
     [Authorize]
     [HttpGet] 
     public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
     {
+        // 1. Trích xuất thông tin cần thiết từ JWT Token
+        // Lấy User ID (sẽ là Tenant ID hoặc Owner ID tùy vai trò)
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                     ?? User.FindFirstValue("sub") 
-                     ?? User.FindFirstValue("userId");
+                    ?? User.FindFirstValue("sub") 
+                    ?? User.FindFirstValue("userId");
         
-        if (string.IsNullOrEmpty(userId))
+        // Lấy Role (Quan trọng để Service biết cách lọc)
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        
+        // Lấy OwnerId (Claim có sẵn trong token của Tenant)
+        var ownerIdClaim = User.FindFirstValue("ownerId"); 
+        
+        // 2. Kiểm tra tính hợp lệ cơ bản
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
         {
-            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng" });
+            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng hoặc vai trò trong token." });
         }
 
         try
         {
-            // ⭐ GỌI HÀM ĐÃ SỬA để lấy TẤT CẢ bản ghi
-            var readings = await _monthlyReadingService.GetAllReadingsByUserIdAsync(userId);
+            // 3. Gọi hàm Service mới để xử lý logic truy vấn dựa trên Role
+            // Hàm Service sẽ tự động xử lý:
+            // - Nếu Role = Tenant: Dùng userId để lọc.
+            // - Nếu Role = Owner: Dùng userId (là OwnerId) gọi User Service để lấy Tenant IDs, sau đó lọc.
+            var readings = await _monthlyReadingService.GetAllReadingsByRoleAsync(
+                userId, 
+                role, 
+                ownerIdClaim 
+            );
             
             return Ok(readings);
         }
@@ -176,7 +195,6 @@ public class MonthlyReadingController : ControllerBase
             return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings", error = ex.Message });
         }
     }
-
 
     /// <summary>
     /// Proxy S3 image: trả về ảnh từ S3 (dùng cho frontend)

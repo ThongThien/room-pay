@@ -2,5 +2,6 @@ using ReadingService.Features.Property.DTOs;
 
 public interface IPropertyService
 {
-    Task<Dictionary<int, PropertyDetailsDto>> GetDetailsByCycleIdsAsync(List<int> cycleIds);
+    Task<List<PropertyDetailsDto>> GetDetailsByCycleUserIdsAsync(
+        List<CycleUserIdsRequestDto> cycleUserIds);
 }

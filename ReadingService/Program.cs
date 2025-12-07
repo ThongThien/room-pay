@@ -93,6 +93,7 @@ builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
 
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddHttpClient<IPropertyService, PropertyService>();
+
 // Add Controllers
 builder.Services.AddControllers();
 

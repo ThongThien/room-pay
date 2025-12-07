@@ -148,8 +148,6 @@ public class MonthlyReadingService : IMonthlyReadingService
         if (role == "Tenant")
         {
             // LOGIC 1: TENANT (Khách thuê)
-            // Tenant chỉ xem các Cycle mà họ là UserId
-            
             cycleIds = await _context.ReadingCycles
                 .Where(c => c.UserId == userId) 
                 .Select(c => c.Id)
@@ -161,118 +159,145 @@ public class MonthlyReadingService : IMonthlyReadingService
         {
             // LOGIC 2: OWNER (Chủ nhà/Quản lý) - Dùng Microservice call
             
-            // BƯỚC 1: Gọi User Service để lấy danh sách Tenant IDs thuộc Owner này
-            // (userId ở đây chính là OwnerId đang đăng nhập)
-            var tenantUserIds = await _userService.GetTenantIdsByOwnerAsync(userId); 
-            
-            if (!tenantUserIds.Any())
+            try
             {
-                _logger.LogInformation("Truy vấn cho Owner {UserId}. Không có Tenant ID nào được trả về từ User Service.", userId);
+                // BƯỚC 1: Gọi User Service để lấy danh sách Tenant IDs thuộc Owner này
+                // ⭐ ĐÃ SỬA: Phải dùng tên hàm GetTenantIdsByOwnerIdAsync nếu đây là hàm bạn muốn dùng ⭐
+                var tenantUserIds = await _userService.GetTenantIdsByOwnerAsync(userId); 
+                
+                if (!tenantUserIds.Any())
+                {
+                    _logger.LogInformation("Truy vấn cho Owner {UserId}. Không có Tenant ID nào được trả về từ User Service.", userId);
+                    return Enumerable.Empty<MonthlyReadingResponseDto>();
+                }
+
+                // BƯỚC 2: Lấy tất cả Cycle IDs của các Tenant vừa tìm thấy
+                cycleIds = await _context.ReadingCycles
+                    .Where(c => tenantUserIds.Contains(c.UserId))
+                    .Select(c => c.Id)
+                    .ToListAsync();
+            
+                _logger.LogInformation("Truy vấn cho Owner {UserId}. Tìm thấy {Count} Cycles liên quan.", userId, cycleIds.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "🔥 Lỗi khi gọi UserService lấy danh sách Tenant IDs cho Owner.");
                 return Enumerable.Empty<MonthlyReadingResponseDto>();
             }
-
-            // BƯỚC 2: Lấy tất cả Cycle IDs của các Tenant vừa tìm thấy
-            cycleIds = await _context.ReadingCycles
-                .Where(c => tenantUserIds.Contains(c.UserId))
-                .Select(c => c.Id)
-                .ToListAsync();
-                
-            _logger.LogInformation("Truy vấn cho Owner {UserId}. Tìm thấy {Count} Cycles liên quan.", userId, cycleIds.Count);
         }
         else
         {
-            // Xử lý các vai trò không hợp lệ
             _logger.LogWarning("Vai trò {Role} không được hỗ trợ trong truy vấn MonthlyReading.", role);
             return Enumerable.Empty<MonthlyReadingResponseDto>();
         }
 
-        // --- 2. THỰC THI TRUY VẤN CƠ SỞ (Lấy MonthlyReadings và Cycle) ---
+        // --- 2. THỰC THI TRUY VẤN CƠ SỞ --- 
         
         if (!cycleIds.Any())
         {
             return Enumerable.Empty<MonthlyReadingResponseDto>();
         }
 
-        // Lấy MonthlyReadings và JOIN với ReadingCycles để lấy TenantId
         var readings = await _context.MonthlyReadings
-            .Include(r => r.ReadingCycle) // Yêu cầu FK (Foreign Key) ReadingCycle trong MonthlyReading
+            .Include(r => r.ReadingCycle) 
             .Where(r => cycleIds.Contains(r.CycleId))
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
+        _logger.LogInformation("Đã lấy được {Count} bản ghi MonthlyReading từ DB.", readings.Count);
+        
         // --- 3. LÀM GIÀU DỮ LIỆU TỪ MICROSERVICE (Data Enrichment) ---
         
-        // 3.1. Chuẩn bị IDs (Xử lý an toàn Null tiềm ẩn)
-    var allReadingCycleIds = readings.Select(r => r.CycleId).ToList();
-    var allTenantIds = readings
-                        .Where(r => r.ReadingCycle != null) // Đảm bảo an toàn
-                        .Select(r => r.ReadingCycle!.UserId) 
-                        .Distinct().ToList();
+        // 3.1. Chuẩn bị IDs
+        var allTenantIds = readings
+            .Select(r => r.ReadingCycle!.UserId)
+            .Distinct().ToList();
 
-    // 3.2. Lấy thông tin Nhà/Phòng (PropertyService)
-    var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>();
-    try
-    {
-        propertyDetailsMap = await _propertyService.GetDetailsByCycleIdsAsync(allReadingCycleIds);
-        _logger.LogInformation("Property Service: Đã lấy thành công {Count} chi tiết Property.", propertyDetailsMap.Count);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "🔥 Lỗi gọi PropertyService để lấy chi tiết Cycle IDs.");
-    }
-    
-    // 3.3. Lấy thông tin Tên Người Thuê (UserService)
-    var tenantMap = new Dictionary<string, string>(); // ⭐ Khởi tạo Map
-    try
-    {
-        var tenantInfos = await _userService.GetUsersByIdsAsync(allTenantIds);
-        tenantMap = tenantInfos.ToDictionary(t => t.Id, t => t.FullName); // ⭐ Chỉ gán 1 lần
-        _logger.LogInformation("User Service: Đã lấy thành công {Count} thông tin Tenant.", tenantMap.Count);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "🔥 Lỗi gọi UserService để lấy thông tin chi tiết Tenant.");
-    }
-
-    // --- 4. MAP VÀ TRẢ VỀ ---
-    var responseList = new List<MonthlyReadingResponseDto>();
-
-    foreach (var reading in readings)
-    {
-        // Sử dụng Toán tử khẳng định Null '!' vì đã .Include()
-        var cycle = reading.ReadingCycle!; 
+        var cycleUserIds = readings
+            .Where(r => r.ReadingCycle != null && !string.IsNullOrEmpty(r.ReadingCycle.UserId)) // Lọc để tránh lỗi UserID rỗng
+            .Select(r => new CycleUserIdsRequestDto // 🔥 SỬA: Tạo DTO thay vì Tuple
+            { 
+                CycleId = r.CycleId, 
+                UserId = r.ReadingCycle!.UserId 
+            })
+            .ToList();
         
-        var dto = MapToResponseDto(reading); 
-        
-        // TenantId đã được MapToResponseDto gán, giờ chỉ cần làm giàu TenantName
-        
-        // 4.1. LOG LỖI KHI THIẾU TÊN TENANT
-        if (tenantMap.TryGetValue(cycle.UserId, out var tenantName))
+        var firstCycleUser = cycleUserIds.FirstOrDefault();
+        if (firstCycleUser != null)
         {
-            dto.TenantName = tenantName;
+            _logger.LogWarning("🔥 Reading Service Outbound Check: First CycleId={CycleId}, UserId={UserId} (Length={Length})", 
+                firstCycleUser.CycleId, firstCycleUser.UserId, firstCycleUser.UserId.Length);
         }
-        else
+        // 3.2. Lấy thông tin Nhà/Phòng (PropertyService)
+        var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>();
+        try
         {
-            _logger.LogWarning("⚠️ Thiếu Tenant Name: Không tìm thấy tên cho TenantId {TenantId} (Cycle {CycleId}).", 
-                cycle.UserId, reading.CycleId);
-            // DTO giữ giá trị mặc định "Unknown User"
+            var detailsList = await _propertyService.GetDetailsByCycleUserIdsAsync(cycleUserIds);
+            propertyDetailsMap = detailsList.ToDictionary(d => d.CycleId, d => d);
+            _logger.LogInformation("Property Service: Đã lấy thành công {Count} chi tiết Property.", propertyDetailsMap.Count);
+
+            // ⭐ LOG MỚI: KIỂM TRA MAP KEY ⭐
+            if (propertyDetailsMap.Any())
+            {
+                var firstKey = propertyDetailsMap.Keys.First();
+                var firstDetail = propertyDetailsMap[firstKey];
+                _logger.LogWarning("🔥 Property Map Check: First Key (CycleId)={Key}, HouseName={House}", firstKey, firstDetail.HouseName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "🔥 Lỗi gọi PropertyService để lấy chi tiết Property.");
+        }
+        
+        // 3.3. Lấy thông tin Tên Người Thuê (UserService)
+        var tenantMap = new Dictionary<string, string>();
+        try
+        {
+            var tenantInfos = await _userService.GetUsersByIdsAsync(allTenantIds); 
+            tenantMap = tenantInfos.ToDictionary(t => t.Id, t => t.FullName);
+            _logger.LogInformation("User Service: Đã lấy thành công {Count} thông tin Tenant.", tenantMap.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "🔥 Lỗi gọi UserService để lấy thông tin chi tiết Tenant.");
         }
 
-        // 4.2. LOG LỖI KHI THIẾU THÔNG TIN PROPERTY
-        if (propertyDetailsMap.TryGetValue(reading.CycleId, out var details))
-        {
-            dto.HouseName = details.HouseName;
-            dto.RoomName = details.RoomName;
-            dto.Floor = details.Floor;
-        }
-        else
-        {
-            _logger.LogWarning("⚠️ Thiếu Property: Không tìm thấy chi tiết Nhà/Phòng cho CycleId {CycleId}.", 
-                reading.CycleId);
-        }
+        // --- 4. MAP VÀ TRẢ VỀ ---
+        var responseList = new List<MonthlyReadingResponseDto>();
 
-        responseList.Add(dto);
-    }
+        foreach (var reading in readings)
+        {
+            var cycle = reading.ReadingCycle!; 
+            var dto = MapToResponseDto(reading); 
+            
+            bool isPropertyMapped = false;
+
+            // 4.1. Tenant Name (Làm giàu)
+            if (tenantMap.TryGetValue(cycle.UserId, out var tenantName) && !string.IsNullOrEmpty(tenantName))
+            {
+                dto.TenantName = tenantName;
+            }
+
+            // 4.2. Property Details (Làm giàu)
+            if (propertyDetailsMap.TryGetValue(reading.CycleId, out var details))
+            {
+                dto.HouseName = details.HouseName;
+                dto.RoomName = details.RoomName;
+                dto.Floor = details.Floor;
+                isPropertyMapped = true;
+            }
+
+            // ⭐ LOG: KIỂM TRA ÁNH XẠ CÓ THÀNH CÔNG KHÔNG ⭐
+            if (!isPropertyMapped)
+            {
+                _logger.LogWarning("MonthlyReading ID {ReadingId}: Không tìm thấy chi tiết Property cho Cycle ID {CycleId} (UserId {UserId}). Các trường HouseName/RoomName/Floor sẽ là mặc định.", 
+                    reading.Id, reading.CycleId, cycle.UserId);
+            } else {
+                _logger.LogDebug("Mapped successfully: Reading ID {ReadingId} -> House {HouseName}", reading.Id, dto.HouseName);
+            }
+
+            responseList.Add(dto);
+        }
         
         return responseList;
     }
@@ -408,13 +433,6 @@ public class MonthlyReadingService : IMonthlyReadingService
             Status = reading.Status,
             CreatedAt = reading.CreatedAt,
             UpdatedAt = reading.UpdatedAt,
-
-            // --- CÁC TRƯỜNG MỚI (Làm giàu dữ liệu) ---
-            TenantId = tenantId, // Gán TenantId (từ ReadingCycle)
-            HouseName = string.Empty,
-            RoomName = string.Empty,
-            Floor = 0,
-            TenantName = "Unknown User" // Giá trị mặc định
         };
     }
 }

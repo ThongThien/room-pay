@@ -1,16 +1,12 @@
-// File: PropertyService/Controllers/PropertyController.cs
-
 using Microsoft.AspNetCore.Mvc;
 using PropertyService.Services.Interfaces;
-using PropertyService.DTOs; // Giả sử PropertyDetailsDto nằm ở đây
+using PropertyService.DTOs; 
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration; // Để đọc ServiceApiKey
-using Microsoft.Extensions.Logging; // Để ghi log
-
+using Microsoft.Extensions.Configuration; 
+using Microsoft.Extensions.Logging; 
+using Microsoft.EntityFrameworkCore;
 namespace PropertyService.Controllers;
-
-// File: PropertyService/Controllers/PropertyController.cs (Tạo mới)
 
 [ApiController]
 [Route("api/[controller]")] // Route: api/property
@@ -18,32 +14,27 @@ public class PropertyController : ControllerBase
 {
     private readonly IPropertyQueryService _queryService;
     private readonly IConfiguration _configuration;
-    // ... (Logger)
-
+    private readonly ILogger<PropertyController> _logger;   
     public PropertyController(IPropertyQueryService queryService, IConfiguration configuration, ILogger<PropertyController> logger)
     {
         _queryService = queryService;
         _configuration = configuration;
-        // ...
+        _logger = logger;
     }
 
-    [HttpPost("details-by-cycles")] // ⭐ ROUTE CẦN THIẾT: api/property/details-by-cycles
-    [AllowAnonymous] 
-    [ProducesResponseType(typeof(List<PropertyDetailsDto>), (int)HttpStatusCode.OK)]
-    public async Task<IActionResult> GetDetailsByCycleIds([FromBody] List<(int CycleId, string UserId)> cycleUserIds)
+    [HttpPost("details-by-cycles")]
+    [ProducesResponseType(typeof(List<PropertyDetailsDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<PropertyDetailsDto>>> GetDetailsByCycles(
+        [FromBody] List<CycleUserIdsRequestDto> cycleUserIds)
     {
-        // 1. Kiểm tra API Key (Service-to-Service Authentication)
-        var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
-        var configuredApiKey = _configuration["ServiceApiKey"];
-        
-        if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+        if (cycleUserIds == null || !cycleUserIds.Any())
         {
-            return Unauthorized(new { error = "Invalid or missing authentication" });
+            return BadRequest("Input list cannot be empty.");
         }
         
-        // 2. Gọi Service Query
-        var details = await _queryService.GetDetailsByCycleUserIdsAsync(cycleUserIds);
-        
-        return Ok(details);
+        var results = await _queryService.GetDetailsByCycleUserIdsAsync(cycleUserIds);
+        _logger.LogWarning("🔥 Final Output Check: Returning {Count} Property details.", results.Count);
+        return Ok(results);
     }
 }

@@ -105,12 +105,22 @@ builder.Services.AddScoped<IMonthlyReadingRepository, MonthlyReadingRepository>(
 builder.Services.AddScoped<IS3Service, S3Service>();
 builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
 builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
-builder.Services.AddScoped<IUserService, UserService>();
+
+// Register IUserService with configured HttpClient
+builder.Services.AddHttpClient<IUserService, UserService>(client => 
+{ 
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:AAService"]); 
+});
 
 // Register HttpClients (I...HttpClient)
 builder.Services.AddHttpClient<IInvoiceHttpClient, InvoiceHttpClient>();
 builder.Services.AddHttpClient<IPropertyService, PropertyService>();
 
+// Register HttpClient for AA service
+builder.Services.AddHttpClient("AA", client => 
+{ 
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:AAService"]); 
+});
 
 // Configure Controllers, Swagger/OpenAPI (Usually placed at the end of Services section)
 builder.Services.AddControllers();
@@ -144,9 +154,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseRouting(); // Tùy chọn, nhưng nên có trước CORS, Auth/Authz
+app.UseRouting();
 
-app.UseCors("AllowFE"); // CORS phải đứng trước UseAuthentication/UseAuthorization
+app.UseCors("AllowFE");
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -19,10 +19,8 @@ public class UserService : IUserService
         _logger = logger;
         _configuration = configuration;
         
-        var baseUrl = configuration ["AuthService:BaseUrl"] 
-            ?? throw new InvalidOperationException("AuthService:BaseUrl not configured");
-        _httpClient.BaseAddress = new Uri(baseUrl);
-        
+        // BaseAddress is already configured in Program.cs HttpClient registration
+        // Add API key header
         var apiKey = configuration["AuthService:ApiKey"] ?? configuration["ServiceApiKey"];
         if (!string.IsNullOrEmpty(apiKey))
         {

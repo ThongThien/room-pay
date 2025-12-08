@@ -57,7 +57,7 @@ export default function OwnerInvoicesPage() {
 
     const handleMarkAsPaid = async (id: number, e: React.MouseEvent) => {
         e.stopPropagation();
-        const confirmPayment = window.confirm("Xác nhận khách đã thanh toán hóa đơn này?");
+        const confirmPayment = window.confirm("Nhắc thanh toán khách hàng?");
         if (!confirmPayment) return;
 
         setProcessingId(id);

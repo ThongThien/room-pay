@@ -21,6 +21,7 @@ public class MonthlyReadingResponseDto
     public DateTime UpdatedAt { get; set; }
 
     // --- THÔNG TIN NHÀ/PHÒNG (Từ PropertyService) ---
+    public int? TenantContractId { get; set; } // Thêm TenantContractId để dễ Join/Group sau này
     public string HouseName { get; set; } = string.Empty; // Cột 'Nhà'
     public string RoomName { get; set; } = string.Empty; // Cột 'Phòng'
     public int Floor { get; set; } // Cột 'Tầng'

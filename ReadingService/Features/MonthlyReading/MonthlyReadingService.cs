@@ -216,30 +216,25 @@ public class MonthlyReadingService : IMonthlyReadingService
         
         // 3.1. Chuẩn bị IDs
         var allTenantIds = readings
-            .Select(r => r.ReadingCycle!.UserId)
-            .Distinct().ToList();
+        .Where(r => r.ReadingCycle != null)
+        .Select(r => r.ReadingCycle!.UserId)
+        .Distinct().ToList();
 
-        var cycleUserIds = readings
-            .Where(r => r.ReadingCycle != null && !string.IsNullOrEmpty(r.ReadingCycle.UserId)) // Lọc để tránh lỗi UserID rỗng
-            .Select(r => new CycleUserIdsRequestDto // 🔥 SỬA: Tạo DTO thay vì Tuple
-            { 
-                CycleId = r.CycleId, 
-                UserId = r.ReadingCycle!.UserId 
-            })
-            .ToList();
-        
-        var firstCycleUser = cycleUserIds.FirstOrDefault();
-        if (firstCycleUser != null)
-        {
-            _logger.LogWarning("🔥 Reading Service Outbound Check: First CycleId={CycleId}, UserId={UserId} (Length={Length})", 
-                firstCycleUser.CycleId, firstCycleUser.UserId, firstCycleUser.UserId.Length);
-        }
+        var contractIds = readings
+        .Where(r => r.TenantContractId.HasValue) // Chỉ lấy các bản ghi đã có Contract ID
+        .Select(r => r.TenantContractId!.Value)
+        .Distinct()
+        .ToList();
+
+        _logger.LogInformation("Thu thập được {Count} Contract IDs để làm giàu dữ liệu.", contractIds.Count);
         // 3.2. Lấy thông tin Nhà/Phòng (PropertyService)
         var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>();
         try
         {
-            var detailsList = await _propertyService.GetDetailsByCycleUserIdsAsync(cycleUserIds);
-            propertyDetailsMap = detailsList.ToDictionary(d => d.CycleId, d => d);
+            var detailsList = await _propertyService.GetDetailsByContractIdsAsync(contractIds);
+            propertyDetailsMap = detailsList
+            .Where(d => d.ContractId.HasValue) 
+            .ToDictionary(d => d.ContractId!.Value, d => d);
             _logger.LogInformation("Property Service: Đã lấy thành công {Count} chi tiết Property.", propertyDetailsMap.Count);
 
             // ⭐ LOG MỚI: KIỂM TRA MAP KEY ⭐
@@ -285,24 +280,21 @@ public class MonthlyReadingService : IMonthlyReadingService
             }
 
             // 4.2. Property Details (Làm giàu)
-            if (propertyDetailsMap.TryGetValue(reading.CycleId, out var details))
-            {
-                dto.HouseName = details.HouseName;
-                dto.RoomName = details.RoomName;
-                dto.Floor = details.Floor;
-                isPropertyMapped = true;
-            }
+            if (reading.TenantContractId.HasValue &&
+                        propertyDetailsMap.TryGetValue(reading.TenantContractId.Value, out var details)) // ⭐ TÌM KIẾM BẰNG CONTRACT ID ⭐
+                    {
+                        dto.HouseName = details.HouseName;
+                        dto.RoomName = details.RoomName;
+                        dto.Floor = details.Floor;
+                        _logger.LogDebug("Mapped successfully: Reading ID {ReadingId} -> House {HouseName}", reading.Id, dto.HouseName);
+                    }
+                    else 
+                    {
+                        _logger.LogWarning("MonthlyReading ID {ReadingId}: Không tìm thấy chi tiết Property cho Contract ID {ContractId} (UserId {UserId}).", 
+                            reading.Id, reading.TenantContractId, cycle.UserId);
+                    }
 
-            // ⭐ LOG: KIỂM TRA ÁNH XẠ CÓ THÀNH CÔNG KHÔNG ⭐
-            if (!isPropertyMapped)
-            {
-                _logger.LogWarning("MonthlyReading ID {ReadingId}: Không tìm thấy chi tiết Property cho Cycle ID {CycleId} (UserId {UserId}). Các trường HouseName/RoomName/Floor sẽ là mặc định.", 
-                    reading.Id, reading.CycleId, cycle.UserId);
-            } else {
-                _logger.LogDebug("Mapped successfully: Reading ID {ReadingId} -> House {HouseName}", reading.Id, dto.HouseName);
-            }
-
-            responseList.Add(dto);
+                    responseList.Add(dto);
         }
         
         return responseList;
@@ -439,6 +431,7 @@ public class MonthlyReadingService : IMonthlyReadingService
             Status = reading.Status,
             CreatedAt = reading.CreatedAt,
             UpdatedAt = reading.UpdatedAt,
+            TenantContractId = reading.TenantContractId,
         };
     }
 }

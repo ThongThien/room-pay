@@ -13,6 +13,7 @@ public class MonthlyReading
     public ReadingStatus Status { get; set; } = ReadingStatus.Pending;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public int? TenantContractId { get; set; }
     
     // Navigation property
     public ReadingCycle? ReadingCycle { get; set; }

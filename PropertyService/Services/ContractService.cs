@@ -302,4 +302,46 @@ public class ContractService : IContractService
             RoomNumber = c.Room?.Name ?? string.Empty
         }).ToList();
     }
+
+    public async Task<PropertyDetailsDto?> GetPropertyDetailsByContractIdAsync(int contractId)
+    {
+        // Giả định _contractRepo.Query() trả về IQueryable<TenantContracts>
+        var result = await _contractRepo.Query()
+            .Where(c => c.Id == contractId)
+            .Include(c => c.Room)
+                .ThenInclude(r => r.House)
+            .Select(c => new PropertyDetailsDto
+            {
+                ContractId = c.Id,
+                HouseName = c.Room.House.Name,
+                RoomName = c.Room.Name, // Giả định c.Room.Name là RoomNumber
+                Floor = c.Room.Floor // Giả định Room có thuộc tính Floor (int)
+            })
+            .FirstOrDefaultAsync();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<PropertyDetailsDto>> GetPropertyDetailsByContractIdsAsync(IEnumerable<int> contractIds)
+    {
+        if (contractIds == null || !contractIds.Any())
+        {
+            return Enumerable.Empty<PropertyDetailsDto>();
+        }
+
+        var results = await _contractRepo.Query()
+            .Where(c => contractIds.Contains(c.Id))
+            .Include(c => c.Room)
+                .ThenInclude(r => r.House)
+            .Select(c => new PropertyDetailsDto
+            {
+                ContractId = c.Id,
+                HouseName = c.Room.House.Name,
+                RoomName = c.Room.Name, 
+                Floor = c.Room.Floor 
+            })
+            .ToListAsync();
+
+        return results;
+    }
 }

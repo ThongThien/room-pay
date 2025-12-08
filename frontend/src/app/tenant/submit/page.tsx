@@ -403,7 +403,10 @@ function ReadingCard({
                     {isLoading ? (
                         "Đang xử lý ảnh..."
                     ) : imageUrl ? (
-                        <Image src={imageUrl} alt="Ảnh đồng hồ chỉ số" className="object-contain w-full h-full rounded-lg" />
+                        <Image src={imageUrl} alt="Ảnh đồng hồ chỉ số"
+                            width={400}
+                            height={300}
+                            className="object-contain w-full h-full rounded-lg" />
                     ) : (
                         "Chọn ảnh"
                     )}

@@ -3,6 +3,7 @@
 using System.Text.Json;
 using ReadingService.Features.Property.DTOs;
 using System.Net.Http.Json; 
+using System.Net;
 
 namespace ReadingService.Features.Property;
 
@@ -69,6 +70,56 @@ public class PropertyService : IPropertyService
         {
             _logger.LogError(ex, "🔥 Error calling PropertyService batch endpoint.");
             return new List<PropertyDetailsDto>();
+        }
+    }
+    public async Task<int?> GetActiveContractIdByUserIdAsync(string userId)
+    {
+        // Sử dụng endpoint đã tạo trong Property Service
+        var apiUrl = $"api/property/active-id/{userId}"; 
+        
+        if (string.IsNullOrEmpty(userId))
+        {
+            _logger.LogWarning("GetActiveContractIdByUserIdAsync: User ID is null or empty.");
+            return null;
+        }
+        
+        try
+        {
+            _logger.LogInformation("➡️ PropertyService Client: Requesting Active Contract ID for User: {UserId}", userId);
+            
+            var response = await _httpClient.GetAsync(apiUrl);
+
+            if (response.StatusCode == HttpStatusCode.NoContent) // HTTP 204 No Content
+            {
+                _logger.LogInformation("✅ No active contract found for User: {UserId}", userId);
+                return null;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("🔥 Property Service failed to get active ID. Status {Status}. Content: {Error}", 
+                    response.StatusCode, errorContent);
+                return null;
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            
+            // Endpoint trả về ID đơn thuần (int)
+            // Cần trim và loại bỏ dấu ngoặc kép (nếu có)
+            if (int.TryParse(content.Trim().Replace("\"", ""), out int contractId))
+            {
+                _logger.LogInformation("✅ Active Contract ID found: {ContractId}", contractId);
+                return contractId;
+            }
+            
+            _logger.LogError("🛑 Failed to parse contract ID from content: {Content}", content);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "🔥 Error calling PropertyService for active contract ID.");
+            return null;
         }
     }
 }

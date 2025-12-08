@@ -304,83 +304,123 @@ public class MonthlyReadingService : IMonthlyReadingService
     {
         try
         {
-        // Tìm MonthlyReading theo CycleId
-        var reading = await _context.MonthlyReadings
-            .Include(r => r.ReadingCycle) // Include để lấy UserId
-            .FirstOrDefaultAsync(r => r.CycleId == cycleId);
+            // Tìm MonthlyReading theo CycleId
+            var reading = await _context.MonthlyReadings
+                .Include(r => r.ReadingCycle) // Include để lấy UserId
+                .FirstOrDefaultAsync(r => r.CycleId == cycleId);
 
-        if (reading == null)
-        {
-            throw new InvalidOperationException("Không tìm thấy MonthlyReading cho CycleId này");
-        }
-
-        var userId = reading.ReadingCycle?.UserId ?? "unknown";
-        
-        // Log để debug
-        _logger.LogInformation($"SubmitAsync - CycleId: {cycleId}, UserId: {userId}, ElectricOld (from DB): {reading.ElectricOld}, ElectricNew (from user): {dto.ElectricNew}, WaterOld (from DB): {reading.WaterOld}, WaterNew (from user): {dto.WaterNew}");
-
-        // Upload ảnh điện lên S3
-        if (dto.ElectricPhoto != null)
-        {
-            // Xóa ảnh cũ nếu có
-            if (!string.IsNullOrEmpty(reading.ElectricPhotoUrl))
+            if (reading == null)
             {
-                await _s3Service.DeleteFileAsync(reading.ElectricPhotoUrl);
+                throw new InvalidOperationException("Không tìm thấy MonthlyReading cho CycleId này");
             }
-            reading.ElectricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, $"{userId}/electric-meter-photos");
-        }
 
-        // Upload ảnh nước lên S3
-        if (dto.WaterPhoto != null)
-        {
-            // Xóa ảnh cũ nếu có
-            if (!string.IsNullOrEmpty(reading.WaterPhotoUrl))
-            {
-                await _s3Service.DeleteFileAsync(reading.WaterPhotoUrl);
-            }
-            reading.WaterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, $"{userId}/water-meter-photos");
-        }
-
-        // Cập nhật thông tin - chỉ số cũ đã được set tự động khi tạo ReadingCycle
-        // ElectricOld và WaterOld không cần cập nhật, đã có sẵn từ lần nộp trước
-        reading.ElectricNew = dto.ElectricNew;
-        reading.WaterNew = dto.WaterNew;
-        reading.Status = ReadingStatus.Confirmed; // Cập nhật trạng thái thành Confirmed
-        reading.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        // Automatically create invoice after submitting monthly reading
-        var electricUsage = (reading.ElectricNew ?? 0) - (reading.ElectricOld ?? 0);
-        var waterUsage = (reading.WaterNew ?? 0) - (reading.WaterOld ?? 0);
-
-        if (electricUsage > 0 || waterUsage > 0)
-        {
-            var cycleMonth = reading.ReadingCycle?.CycleMonth ?? 0;
-            var cycleYear = reading.ReadingCycle?.CycleYear ?? 0;
+            // Lấy userId, nếu null thì throw ngoại lệ để bảo đảm logic tiếp theo
+            var userId = reading.ReadingCycle?.UserId 
+                        ?? throw new InvalidOperationException("Không tìm thấy User ID trong Reading Cycle.");
             
-            _ = Task.Run(async () =>
+            // Log để debug
+            _logger.LogInformation($"SubmitAsync - CycleId: {cycleId}, UserId: {userId}, ElectricOld (from DB): {reading.ElectricOld}, ElectricNew (from user): {dto.ElectricNew}, WaterOld (from DB): {reading.WaterOld}, WaterNew (from user): {dto.WaterNew}");
+
+            // --- BƯỚC MỚI: ĐẢM BẢO GÁN TENANT CONTRACT ID ---
+            // Chỉ gán nếu nó chưa có giá trị (null)
+            if (reading.TenantContractId == null)
             {
+                _logger.LogInformation("TenantContractId hiện đang NULL. Tiến hành tra cứu Active Contract ID cho User {UserId}.", userId);
+                
                 try
                 {
-                    await _invoiceHttpClient.CreateInvoiceForMonthlyReadingAsync(
-                        userId,
-                        cycleId,
-                        cycleMonth,
-                        cycleYear,
-                        electricUsage,
-                        waterUsage);
+                    // Gọi Property Service Client
+                    var activeContractId = await _propertyService.GetActiveContractIdByUserIdAsync(userId);
+                    
+                    if (activeContractId.HasValue)
+                    {
+                        reading.TenantContractId = activeContractId.Value;
+                        _logger.LogInformation("✅ Đã gán TenantContractId: {ContractId}", activeContractId.Value);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Không tìm thấy Active Contract ID cho User {UserId} khi nộp MonthlyReading. TenantContractId sẽ vẫn NULL.", userId);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Failed to create invoice for user {userId}, cycle {cycleId}");
+                    _logger.LogError(ex, "🔥 Lỗi khi gọi PropertyService lấy Active Contract ID cho User {UserId}.", userId);
+                    // reading.TenantContractId vẫn là null
                 }
-            });
-        }
+            }
+            else
+            {
+                _logger.LogInformation("TenantContractId đã có sẵn: {ContractId}. Bỏ qua tra cứu.", reading.TenantContractId.Value);
+            }
+            // ---------------------------------------------------
 
-        return MapToResponseDto(reading);
+            // Upload ảnh điện lên S3
+            if (dto.ElectricPhoto != null)
+            {
+                // Xóa ảnh cũ nếu có
+                if (!string.IsNullOrEmpty(reading.ElectricPhotoUrl))
+                {
+                    await _s3Service.DeleteFileAsync(reading.ElectricPhotoUrl);
+                }
+                reading.ElectricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, $"{userId}/electric-meter-photos");
+            }
+
+            // Upload ảnh nước lên S3
+            if (dto.WaterPhoto != null)
+            {
+                // Xóa ảnh cũ nếu có
+                if (!string.IsNullOrEmpty(reading.WaterPhotoUrl))
+                {
+                    await _s3Service.DeleteFileAsync(reading.WaterPhotoUrl);
+                }
+                reading.WaterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, $"{userId}/water-meter-photos");
+            }
+
+            // Cập nhật thông tin
+            reading.ElectricNew = dto.ElectricNew;
+            reading.WaterNew = dto.WaterNew;
+            reading.Status = ReadingStatus.Confirmed; // Cập nhật trạng thái thành Confirmed
+            reading.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // Automatically create invoice after submitting monthly reading
+            var electricUsage = (reading.ElectricNew ?? 0) - (reading.ElectricOld ?? 0);
+            var waterUsage = (reading.WaterNew ?? 0) - (reading.WaterOld ?? 0);
+
+            if (electricUsage > 0 || waterUsage > 0)
+            {
+                var cycleMonth = reading.ReadingCycle?.CycleMonth ?? 0;
+                var cycleYear = reading.ReadingCycle?.CycleYear ?? 0;
+                
+                // ⭐ TRUYỀN CONTRACT ID KHI TẠO INVOICE (Chỉ khi nó có giá trị) ⭐
+                var contractIdForInvoice = reading.TenantContractId; // Sử dụng ID vừa được gán (hoặc ID cũ)
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // LƯU Ý: Phải đảm bảo IInvoiceHttpClient đã được cập nhật để nhận thêm tham số này
+                        await _invoiceHttpClient.CreateInvoiceForMonthlyReadingAsync(
+                            userId,
+                            cycleId,
+                            cycleMonth,
+                            cycleYear,
+                            electricUsage,
+                            waterUsage,
+                            contractIdForInvoice // ⭐ TRUYỀN Contract ID ⭐
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Failed to create invoice for user {userId}, cycle {cycleId}");
+                    }
+                });
+            }
+
+            return MapToResponseDto(reading);
         }
-            catch (Exception ex)
+        catch (Exception ex)
         {
             _logger.LogError(ex, "🔥 ERROR in SubmitAsync()");
             throw;

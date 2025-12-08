@@ -6,6 +6,7 @@ using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle;
 using ReadingService.Data;
 using ReadingService.Models;
+using System.Net;
 namespace ReadingService.Controllers;
 
 [ApiController]

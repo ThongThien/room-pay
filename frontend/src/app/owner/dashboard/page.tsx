@@ -1,258 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-
-// Giả lập hàm navigate cho chuyển trang
-const useNavigate = () => (path: string) => alert(`Chuyển hướng đến: ${path}`);
-
-// === UTILS ===
-// Hàm chuyển đổi chuỗi tiền tệ (VNĐ) sang số (đơn vị Triệu VNĐ) để tính toán
-const parseRevenueToNumber = (revenueStr: string): number => {
-    // Loại bỏ ' ₫', dấu cách, dấu phẩy, và chuyển đổi thành số
-    const cleanStr = revenueStr.replace(/[\s₫,]/g, '');
-    const numberValue = parseFloat(cleanStr) / 1000000; // Chia cho 1 triệu để lấy đơn vị Triệu VNĐ
-    return isNaN(numberValue) ? 0 : numberValue;
-};
-
-
-// === 1. INTERFACES DỮ LIỆU CHI TIẾT CHO MODAL ===
-interface OverdueInvoiceListItem {
-    id: string;
-    tenantName: string;
-    roomNumber: string;
-    amount: string;
-    dueDate: string;
-    overdueDays: number;
-}
-
-interface PendingInvoiceListItem {
-    id: string;
-    tenantName: string;
-    roomNumber: string;
-    amount: string;
-    invoiceDate: string;
-}
-
-interface AbnormalReadingListItem {
-    id: string;
-    tenantName: string;
-    roomNumber: string;
-    houseName: string;
-    type: 'Electricity' | 'Water';
-    increasePercent: number;
-}
-
-interface NearExpiryContractListItem {
-    id: string;
-    tenantName: string;
-    roomNumber: string;
-    houseName: string;
-    endDate: string;
-    remainingDays: number;
-}
-
-// === 2. INTERFACES DỮ LIỆU CHÍNH ===
-interface RevenueDataPoint {
-    month: string;
-    paidAmount: number; // Đã thanh toán (Triệu)
-    pendingAmount: number; // Chờ thanh toán (chưa quá hạn - Triệu)
-    overdueAmount: number; // Quá hạn (Overdue - Triệu)
-}
-
-interface BuildingPerformance {
-    buildingId: string;
-    buildingName: string;
-    totalRooms: number;
-    vacantRooms: number;
-    occupiedRooms: number;
-    occupancyRate: string;
-    currentMonthRevenue: string; // Chuỗi tiền tệ
-}
-
-interface OwnerDashboardData {
-    // Dữ liệu Tổng quan
-    totalRooms: number;
-    occupiedRooms: number;
-    annualTurnover: string; // Tổng thu 1 năm
-    pendingIncidents: number;
-
-    // Cảnh báo Count
-    endContractsCount: number;
-    abnormalReadingCount: number;
-
-    // Tài chính
-    invoiceSummary: {
-        totalAmount: string;
-        paidAmount: string;
-        currentUnpaidAmount: string;
-        overdueAmount: string;
-    };
-
-    // Dữ liệu Chart và Bảng
-    revenueChartData: RevenueDataPoint[];
-    buildingPerformanceData: BuildingPerformance[];
-
-    // Thêm các trường details để Modal truy cập
-    overdueDetails: OverdueInvoiceListItem[];
-    pendingDetails: PendingInvoiceListItem[];
-    abnormalReadingDetails: AbnormalReadingListItem[];
-    nearExpiryContractDetails: NearExpiryContractListItem[];
-}
-
-// === 3. FAKE API DATA (Đã cập nhật cấu trúc) ===
-const fetchOwnerDashboardData = async (): Promise<OwnerDashboardData> => {
-    const totalRooms = 400;
-    const occupiedRooms = 360;
-    const overdueAmountValue = 8_800_000;
-    const pendingAmountValue = 10_020_000;
-
-    const overdueList: OverdueInvoiceListItem[] = [
-        { id: 'I001', tenantName: 'Nguyễn Văn A', roomNumber: 'A101', amount: '5,500,000 ₫', dueDate: '2025-11-20', overdueDays: 13 },
-        { id: 'I002', tenantName: 'Lê Thị B', roomNumber: 'B205', amount: '3,300,000 ₫', dueDate: '2025-11-25', overdueDays: 8 },
-    ];
-    const pendingList: PendingInvoiceListItem[] = [
-        { id: 'P001', tenantName: 'Trần Văn C', roomNumber: 'C301', amount: '4,000,000 ₫', invoiceDate: '2025-12-01' },
-        { id: 'P002', tenantName: 'Phạm Thị D', roomNumber: 'D402', amount: '6,020,000 ₫', invoiceDate: '2025-12-15' },
-    ];
-    const abnormalList = [
-        { id: 'R001', tenantName: 'Hoàng Văn E', roomNumber: 'A201', houseName: 'Tòa A', type: 'Electricity', increasePercent: 55 },
-        { id: 'R002', tenantName: 'Đỗ Thị G', roomNumber: 'C305', houseName: 'Tòa C', type: 'Water', increasePercent: 40 },
-        { id: 'R003', tenantName: 'Mai Văn H', roomNumber: 'B102', houseName: 'Tòa B', type: 'Electricity', increasePercent: 35 },
-    ];
-    const nearExpiryList: NearExpiryContractListItem[] = [
-        { id: 'C001', tenantName: 'Vũ Văn I', roomNumber: 'A102', houseName: 'Tòa A', endDate: '2026-01-01', remainingDays: 29 },
-        { id: 'C002', tenantName: 'Bùi Thị K', roomNumber: 'C405', houseName: 'Tòa C', endDate: '2026-01-15', remainingDays: 15 },
-    ];
-    const typedAbnormalList: AbnormalReadingListItem[] = abnormalList.map(item => ({
-        ...item,
-        type: item.type as 'Electricity' | 'Water'
-    }));
-
-    const buildingData: BuildingPerformance[] = [
-        { buildingId: 'B01', buildingName: 'Tòa A - Sông Hàn', totalRooms: 150, occupiedRooms: 135, vacantRooms: 15, occupancyRate: '90%', currentMonthRevenue: '450,000,000 ₫' },
-        { buildingId: 'B02', buildingName: 'Tòa B - Bến Nghé', totalRooms: 200, occupiedRooms: 180, vacantRooms: 20, occupancyRate: '90%', currentMonthRevenue: '400,000,000 ₫' },
-        { buildingId: 'B03', buildingName: 'Tòa C - Phố Cổ', totalRooms: 50, occupiedRooms: 45, vacantRooms: 5, occupancyRate: '90%', currentMonthRevenue: '150,000,000 ₫' },
-    ];
-
-    return {
-        // Dữ liệu Tổng quan
-        totalRooms: totalRooms,
-        occupiedRooms: occupiedRooms,
-        annualTurnover: '12,500,000,000 ₫',
-        pendingIncidents: 7,
-
-        // Cảnh báo Count
-        endContractsCount: nearExpiryList.length,
-        abnormalReadingCount: typedAbnormalList.length,
-
-        // Tài chính
-        invoiceSummary: {
-            totalAmount: '100,820,000 ₫',
-            paidAmount: '82,000,000 ₫',
-            currentUnpaidAmount: `${pendingAmountValue.toLocaleString('vi-VN')} ₫`,
-            overdueAmount: `${overdueAmountValue.toLocaleString('vi-VN')} ₫`,
-        },
-
-        // Dữ liệu Chart và Bảng
-        revenueChartData: [
-            { month: '09/25', paidAmount: 15, pendingAmount: 3, overdueAmount: 2 },
-            { month: '10/25', paidAmount: 25, pendingAmount: 4, overdueAmount: 1 },
-            { month: '11/25', paidAmount: 40, pendingAmount: 5, overdueAmount: 5 },
-            { month: '12/25', paidAmount: 35, pendingAmount: 8, overdueAmount: 0 },
-        ],
-        buildingPerformanceData: buildingData,
-
-        // DỮ LIỆU CHI TIẾT CHO MODAL
-        overdueDetails: overdueList,
-        pendingDetails: pendingList,
-        abnormalReadingDetails: typedAbnormalList,
-        nearExpiryContractDetails: nearExpiryList,
-    };
-};
-
-// === 4. COMPONENT MODAL CHUNG ===
-interface ModalProps {
-    title: string;
-    isOpen: boolean;
-    onClose: () => void;
-    children: React.ReactNode;
-}
-
-const Modal: React.FC<ModalProps> = ({ title, isOpen, onClose, children }) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[100] flex justify-center items-center font-sans">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-                <div className="flex justify-between items-center p-4 border-b border-gray-200">
-                    <h3 className="text-xl font-bold text-gray-800">{title}</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl font-light">
-                        &times;
-                    </button>
-                </div>
-                <div className="p-6 overflow-y-auto max-h-[80vh]">
-                    {children}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-// === 5. COMPONENT THẺ MẶC ĐỊNH ===
-const DashboardCard: React.FC<{
-    title: string;
-    value: string;
-    apiEndpoint: string;
-    color: 'green' | 'red' | 'yellow' | 'default';
-    onClick?: () => void;
-    isClickable?: boolean;
-}> = ({ title, value, apiEndpoint, color, onClick, isClickable = false }) => {
-    let borderColor = 'border-gray-300';
-    let textColor = 'text-gray-800';
-    let apiBgColor = 'bg-gray-100';
-
-    switch (color) {
-        case 'green':
-            borderColor = 'border-green-500';
-            textColor = 'text-green-700';
-            apiBgColor = 'bg-green-50';
-            break;
-        case 'red':
-            borderColor = 'border-red-500';
-            textColor = 'text-red-700';
-            apiBgColor = 'bg-red-50';
-            break;
-        case 'yellow':
-            borderColor = 'border-yellow-600';
-            textColor = 'text-yellow-700';
-            apiBgColor = 'bg-yellow-50';
-            break;
-        case 'default':
-        default:
-            borderColor = 'border-indigo-400';
-            textColor = 'text-gray-800';
-            apiBgColor = 'bg-indigo-50';
-            break;
-    }
-
-    const baseClasses = `bg-white p-4 rounded-xl shadow-lg border-l-4 ${borderColor} flex flex-col justify-between transition-all duration-300`;
-    const clickableClasses = isClickable ? 'cursor-pointer hover:shadow-xl hover:scale-[1.02]' : '';
-
-    return (
-        <div
-            className={`${baseClasses} ${clickableClasses}`}
-            onClick={onClick}
-        >
-            <div className="text-sm font-medium text-gray-700 mb-2 leading-tight">{title}</div>
-            <div className={`text-2xl font-extrabold my-1 ${textColor}`}>{value}</div>
-            {isClickable && <div className="text-xs font-semibold text-blue-500 mt-1">Click để xem chi tiết</div>}
-            <div className="text-xs text-gray-700 mt-2">
-                <span className={`font-mono ${apiBgColor} p-0.5 rounded text-wrap break-all text-xs text-gray-600`}>API: {apiEndpoint}</span>
-            </div>
-        </div>
-    );
-};
+import { useRouter } from 'next/navigation';
+import { Modal, DashboardCard, RevenueChart } from '@/components/dashboard';
+import { OwnerDashboardData, OverdueInvoiceListItem, PendingInvoiceListItem, AbnormalReadingListItem, NearExpiryContractListItem, BuildingPerformance } from '@/types/dashboard';
+import { parseRevenueToNumber } from '@/utils/dashboard';
+import { fetchOwnerDashboardData } from '@/services/dashboardService';
 
 // === 6. COMPONENTS DANH SÁCH CHO MODAL (Không đổi) ===
 const OverdueInvoiceList: React.FC<{ data: OverdueInvoiceListItem[] }> = ({ data }) => (
@@ -306,82 +59,6 @@ const NearExpiryContractList: React.FC<{ data: NearExpiryContractListItem[] }> =
 
 // --- COMPONENTS CHART (Đã Cập nhật) ---
 
-interface RevenueChartProps {
-    data: OwnerDashboardData['revenueChartData'];
-    annualTurnover: string;
-}
-
-const RevenueChart: React.FC<RevenueChartProps> = ({ data, annualTurnover }) => {
-    const maxTotal = Math.max(...data.map(item => item.paidAmount + item.pendingAmount + item.overdueAmount)) * 1.2;
-    const yAxisSteps = 4; // 4 bước chia (0, 25%, 50%, 75%, 100%)
-    const stepValue = maxTotal / yAxisSteps;
-
-    return (
-        <div className="bg-white p-6 rounded-xl shadow-lg col-span-full relative">
-            <h3 className="text-lg font-semibold mb-4 text-gray-700 flex justify-between items-center">
-                <span>📈 Biểu đồ Dòng tiền Theo tháng (Đơn vị: Triệu VNĐ)</span>
-                {/* Tổng thu 1 năm được merge vào đây */}
-                <div className="text-sm text-green-700 font-bold bg-green-100 p-2 rounded-lg shadow-sm whitespace-nowrap">
-                    Tổng Thu 1 Năm: {annualTurnover}
-                </div>
-            </h3>
-
-            <div className="flex justify-between items-end h-72 pt-4 space-x-6 relative">
-                {/* Trục Y và Grid Lines */}
-                <div className="absolute left-0 bottom-0 w-full h-full border-l border-b border-gray-300">
-                    {Array.from({ length: yAxisSteps }).map((_, i) => (
-                        <div
-                            key={i}
-                            className="absolute left-0 w-full border-t border-gray-200"
-                            style={{ bottom: `${((i + 1) / yAxisSteps) * 100}%` }}
-                        >
-                            <span className="absolute -left-12 -translate-y-1/2 text-xs text-gray-500">
-                                {Math.round(stepValue * (i + 1))}M
-                            </span>
-                        </div>
-                    ))}
-                    <span className="absolute -left-12 -bottom-2 text-xs text-gray-500">0M</span>
-                </div>
-
-                {/* Các cột dữ liệu */}
-                <div className='flex flex-1 justify-around h-full pl-10'>
-                    {data.map((item) => {
-                        const paidHeight = (item.paidAmount / maxTotal) * 100;
-                        const pendingHeight = (item.pendingAmount / maxTotal) * 100;
-                        const overdueHeight = (item.overdueAmount / maxTotal) * 100;
-
-                        return (
-                            <div key={item.month} className="flex flex-col items-center flex-1 h-full relative group cursor-pointer z-10 max-w-[50px]">
-                                <div className="w-full relative flex flex-col justify-end h-full rounded-t-md overflow-hidden border border-gray-100/50 hover:shadow-lg transition-shadow duration-300">
-                                    {/* 1. Quá hạn (Overdue - ĐỎ) */}
-                                    <div className="w-full bg-red-500/80 hover:bg-red-600 transition-all duration-300" style={{ height: `${overdueHeight}%` }} title={`Quá Hạn: ${item.overdueAmount}M`} />
-                                    {/* 2. Chờ thanh toán (Pending - VÀNG CAM) */}
-                                    <div className="w-full bg-orange-400/80 hover:bg-orange-500 transition-all duration-300" style={{ height: `${pendingHeight}%` }} title={`Chờ TT: ${item.pendingAmount}M`} />
-                                    {/* 3. Đã Thanh toán (Paid - XANH) */}
-                                    <div className="w-full bg-green-500/80 hover:bg-green-600 transition-all duration-300" style={{ height: `${paidHeight}%` }} title={`Đã TT: ${item.paidAmount}M`} />
-                                </div>
-                                <div className="absolute bottom-full mb-10 p-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl transform group-hover:-translate-y-2">
-                                    <p className="font-bold">🗓️ {item.month}</p>
-                                    <p className="text-green-300">Đã TT: {item.paidAmount}M</p>
-                                    <p className="text-orange-300">Chờ TT: {item.pendingAmount}M</p>
-                                    <p className="text-red-300">Quá Hạn: {item.overdueAmount}M</p>
-                                </div>
-                                <div className="text-xs text-gray-700 mt-1 z-20 font-medium">{item.month}</div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-            <div className="mt-6 flex justify-center space-x-6 text-sm pt-2 border-t border-gray-200">
-                <span className="flex items-center"><span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>Đã TT</span>
-                <span className="flex items-center"><span className="w-3 h-3 rounded-full bg-orange-400 mr-2"></span>Chờ TT (Pending)</span>
-                <span className="flex items-center"><span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>Quá Hạn (Overdue)</span>
-            </div>
-            <div className="text-xs text-gray-400 mt-2 text-right">API: /api/v1/invoice/chart/monthly-status</div>
-        </div>
-    );
-};
-
 
 // Biểu đồ Phân bổ số phòng theo Nhà (Room Occupancy by Building)
 const RoomOccupancyByBuildingPieChart: React.FC<{ data: BuildingPerformance[]; totalRooms: number }> = ({ data, totalRooms }) => {
@@ -423,9 +100,9 @@ const RoomOccupancyByBuildingPieChart: React.FC<{ data: BuildingPerformance[]; t
             <div className="flex flex-col sm:flex-row items-center justify-start h-full">
 
                 {/* Chart: Dùng SVG để vẽ Pie Chart */}
-                <div className="w-40 h-40 flex-shrink-0 relative mb-4 sm:mb-0">
+                <div className="w-40 h-40 shrink-0 relative mb-4 sm:mb-0">
                     <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                        {houseSegments.map((segment, index) => {
+                        {houseSegments.map((segment) => {
                             const radius = 50;
                             const largeArcFlag = segment.angle > 180 ? 1 : 0;
                             const endX = radius + radius * Math.cos((segment.startAngle + segment.angle) * Math.PI / 180);
@@ -459,7 +136,7 @@ const RoomOccupancyByBuildingPieChart: React.FC<{ data: BuildingPerformance[]; t
 
                 {/* Details: Dùng để show chi tiết từng nhà */}
                 <div className="ml-0 sm:ml-6 space-y-3 text-sm flex-1 w-full sm:w-auto">
-                    {houseSegments.map((item, index) => (
+                    {houseSegments.map((item) => (
                         <div key={item.buildingId} className="p-2 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                             <div className="flex justify-between items-center mb-1">
                                 <span className="flex items-center text-gray-800 font-semibold">
@@ -493,10 +170,9 @@ const RoomOccupancyByBuildingPieChart: React.FC<{ data: BuildingPerformance[]; t
 
 // NEW: Biểu đồ Phân bổ Doanh thu Theo Tòa Nhà
 const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ data }) => {
-    const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6']; // Emerald, Blue, Amber, Pink, Purple
-
     // Tính toán tổng doanh thu và chuẩn bị dữ liệu cho biểu đồ
     const revenueSegments = useMemo(() => {
+        const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6']; // Emerald, Blue, Amber, Pink, Purple
         const segments = data.map(item => ({
             ...item,
             revenueValue: parseRevenueToNumber(item.currentMonthRevenue),
@@ -536,14 +212,14 @@ const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ 
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-green-500">
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">💰 Phân bổ Doanh thu Theo Tòa Nhà</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700">💰 Phân bổ Doanh thu Theo Loại</h3>
 
             <div className="flex flex-col sm:flex-row items-center justify-start h-full">
 
                 {/* Chart: Dùng SVG để vẽ Pie Chart */}
-                <div className="w-40 h-40 flex-shrink-0 relative mb-4 sm:mb-0">
+                <div className="w-40 h-40 shrink-0 relative mb-4 sm:mb-0">
                     <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                        {revenueSegments.map((segment, index) => {
+                        {revenueSegments.map((segment) => {
                             const radius = 50;
                             const largeArcFlag = segment.angle > 180 ? 1 : 0;
                             const endX = radius + radius * Math.cos((segment.startAngle + segment.angle) * Math.PI / 180);
@@ -577,7 +253,7 @@ const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ 
 
                 {/* Details: Dùng để show chi tiết từng nhà */}
                 <div className="ml-0 sm:ml-6 space-y-3 text-sm flex-1 w-full sm:w-auto">
-                    {revenueSegments.map((item, index) => (
+                    {revenueSegments.map((item) => (
                         <div key={item.buildingId} className="p-2 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                             <div className="flex justify-between items-center mb-1">
                                 <span className="flex items-center text-gray-800 font-semibold">
@@ -606,74 +282,11 @@ const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ 
     );
 };
 
-
-const BuildingPerformanceTable: React.FC<{ data: BuildingPerformance[] }> = ({ data }) => {
-    const availableMonths = ['Tháng 12/2025', 'Tháng 11/2025', 'Tháng 10/2025', 'Tháng 09/2025'];
-    const [selectedMonth, setSelectedMonth] = useState(availableMonths[0]);
-
-    const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        setSelectedMonth(event.target.value);
-    };
-
-    return (
-        <div className="bg-white p-6 rounded-xl shadow-lg col-span-full">
-            <h3 className="text-lg font-semibold mb-4 flex justify-between items-center text-gray-700">
-                <span>🏘️ So Sánh Hiệu Suất Cho Thuê Theo Tòa Nhà</span>
-            </h3>
-
-            <div className="flex items-center mb-4 text-gray-700 flex-wrap">
-                <label htmlFor="month-selector" className="text-sm font-medium text-gray-700 mr-3 mb-2 sm:mb-0">
-                    Xem dữ liệu của:
-                </label>
-                <select
-                    id="month-selector"
-                    value={selectedMonth}
-                    onChange={handleMonthChange}
-                    className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                >
-                    {availableMonths.map(month => (
-                        <option key={month} value={month}>{month}</option>
-                    ))}
-                </select>
-                <span className="text-xs text-gray-500 font-normal ml-auto mt-2 sm:mt-0">API: /api/v1/property/performance-by-building-list?month={selectedMonth}</span>
-            </div>
-
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tòa Nhà</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng Phòng</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phòng Trống</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tỷ lệ Lấp đầy</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doanh thu </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {data.map((item) => (
-                            <tr key={item.buildingId} className={item.occupancyRate.startsWith('9') ? 'bg-green-50/50 hover:bg-green-100' : 'hover:bg-gray-50'}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.buildingName}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.totalRooms}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-yellow-600">{item.vacantRooms}</td>
-                                <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${item.occupancyRate.startsWith('9') ? 'text-green-600' : 'text-orange-500'}`}>
-                                    {item.occupancyRate}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-700">{item.currentMonthRevenue}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-};
-
-
 // === 7. COMPONENT TRANG CHÍNH (Đã Cập nhật cấu trúc) ===
 const OwnerDashboardPage: React.FC = () => {
+    const router = useRouter();
     const [data, setData] = useState<OwnerDashboardData | null>(null);
     const [modalType, setModalType] = useState<'overdue' | 'pending' | 'abnormal' | 'contract' | null>(null);
-    const navigate = useNavigate();
 
     useEffect(() => {
         // Tải dữ liệu
@@ -767,7 +380,7 @@ const OwnerDashboardPage: React.FC = () => {
                     value={`${data.pendingIncidents} Sự cố`}
                     apiEndpoint="/api/v1/ticket/owner/summary"
                     color="red"
-                    onClick={() => navigate('/owner/ticket')}
+                    onClick={() => router.push('/owner/ticket')}
                     isClickable={true}
                 />
 
@@ -811,14 +424,6 @@ const OwnerDashboardPage: React.FC = () => {
                     totalRooms={data.totalRooms}
                 />
                 <RevenueByBuildingPieChart
-                    data={data.buildingPerformanceData}
-                />
-            </div>
-
-
-            {/* Hàng 3: Bảng Hiệu suất */}
-            <div className="grid grid-cols-1 gap-6 mb-8">
-                <BuildingPerformanceTable
                     data={data.buildingPerformanceData}
                 />
             </div>

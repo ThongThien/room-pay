@@ -19,7 +19,7 @@ public class MonthlyReadingService : IMonthlyReadingService
     private readonly IS3Service _s3Service;
     private readonly ILogger<MonthlyReadingService> _logger;
     private readonly IInvoiceHttpClient _invoiceHttpClient;
-    // ⭐ Dependency MỚI: Dùng Service để lấy chu kỳ đọc
+    //  Dependency MỚI: Dùng Service để lấy chu kỳ đọc
     private readonly IReadingCycleService _cycleService;
 
     public MonthlyReadingService(
@@ -28,7 +28,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         ILogger<MonthlyReadingService> logger,
         IUserService userService,
         IInvoiceHttpClient invoiceHttpClient,
-        // ⭐ Thêm Dependency cho ReadingCycleService
+        //  Thêm Dependency cho ReadingCycleService
         IReadingCycleService cycleService,
         IPropertyService propertyService)
     {
@@ -37,8 +37,8 @@ public class MonthlyReadingService : IMonthlyReadingService
         _logger = logger;
         _userService = userService;
         _invoiceHttpClient = invoiceHttpClient;
-        _cycleService = cycleService; // ⭐ Gán
-        _propertyService = propertyService; // ⭐ Gán
+        _cycleService = cycleService; //  Gán
+        _propertyService = propertyService; //  Gán
     }
 
     public async Task<List<MonthlyReadingResponseDto>> GetAllAsync()
@@ -58,7 +58,7 @@ public class MonthlyReadingService : IMonthlyReadingService
     public async Task<MonthlyReadingResponseDto?> GetByCycleIdAsync(int cycleId)
     {
         var reading = await _context.MonthlyReadings
-            .Include(r => r.ReadingCycle) // ⭐ BỔ SUNG INCLUDE
+            .Include(r => r.ReadingCycle) //  BỔ SUNG INCLUDE
             .FirstOrDefaultAsync(r => r.CycleId == cycleId);
 
         return reading == null ? null : MapToResponseDto(reading);
@@ -168,7 +168,7 @@ public class MonthlyReadingService : IMonthlyReadingService
             try
             {
                 // BƯỚC 1: Gọi User Service để lấy danh sách Tenant IDs thuộc Owner này
-                // ⭐ ĐÃ SỬA: Phải dùng tên hàm GetTenantIdsByOwnerIdAsync nếu đây là hàm bạn muốn dùng ⭐
+                //  ĐÃ SỬA: Phải dùng tên hàm GetTenantIdsByOwnerIdAsync nếu đây là hàm bạn muốn dùng 
                 var tenantUserIds = await _userService.GetTenantIdsByOwnerAsync(userId); 
                 
                 if (!tenantUserIds.Any())
@@ -237,7 +237,7 @@ public class MonthlyReadingService : IMonthlyReadingService
             .ToDictionary(d => d.ContractId!.Value, d => d);
             _logger.LogInformation("Property Service: Đã lấy thành công {Count} chi tiết Property.", propertyDetailsMap.Count);
 
-            // ⭐ LOG MỚI: KIỂM TRA MAP KEY ⭐
+            //  LOG MỚI: KIỂM TRA MAP KEY 
             if (propertyDetailsMap.Any())
             {
                 var firstKey = propertyDetailsMap.Keys.First();
@@ -281,7 +281,7 @@ public class MonthlyReadingService : IMonthlyReadingService
 
             // 4.2. Property Details (Làm giàu)
             if (reading.TenantContractId.HasValue &&
-                        propertyDetailsMap.TryGetValue(reading.TenantContractId.Value, out var details)) // ⭐ TÌM KIẾM BẰNG CONTRACT ID ⭐
+                        propertyDetailsMap.TryGetValue(reading.TenantContractId.Value, out var details)) //  TÌM KIẾM BẰNG CONTRACT ID 
                     {
                         dto.HouseName = details.HouseName;
                         dto.RoomName = details.RoomName;
@@ -393,7 +393,7 @@ public class MonthlyReadingService : IMonthlyReadingService
                 var cycleMonth = reading.ReadingCycle?.CycleMonth ?? 0;
                 var cycleYear = reading.ReadingCycle?.CycleYear ?? 0;
                 
-                // ⭐ TRUYỀN CONTRACT ID KHI TẠO INVOICE (Chỉ khi nó có giá trị) ⭐
+                //  TRUYỀN CONTRACT ID KHI TẠO INVOICE (Chỉ khi nó có giá trị) 
                 var contractIdForInvoice = reading.TenantContractId; // Sử dụng ID vừa được gán (hoặc ID cũ)
 
                 _ = Task.Run(async () =>
@@ -408,7 +408,7 @@ public class MonthlyReadingService : IMonthlyReadingService
                             cycleYear,
                             electricUsage,
                             waterUsage,
-                            contractIdForInvoice // ⭐ TRUYỀN Contract ID ⭐
+                            contractIdForInvoice //  TRUYỀN Contract ID 
                         );
                     }
                     catch (Exception ex)

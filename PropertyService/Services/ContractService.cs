@@ -155,7 +155,7 @@ public class ContractService : IContractService
 
     public async Task<IEnumerable<ContractDto>> GetContractsByTenantIdAsync(Guid tenantId)
     {
-        // ⭐ DEBUG 3: KIỂM TRA REPOSITORY INJECTION ⭐
+        // DEBUG 3: KIỂM TRA REPOSITORY INJECTION 
         // Đặt Breakpoint ở đây và kiểm tra xem _contractRepo có bị NULL không.
         if (_contractRepo == null)
         {
@@ -187,7 +187,7 @@ public class ContractService : IContractService
             })
             .ToListAsync();
 
-        // ⭐ DEBUG 4: KIỂM TRA KẾT QUẢ TRUY VẤN ⭐
+        //  DEBUG 4: KIỂM TRA KẾT QUẢ TRUY VẤN 
         _logger.LogInformation("Successfully retrieved {Count} contracts for tenant {TenantId}", 
                             contractsWithDetails.Count, tenantId);
 

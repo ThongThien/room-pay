@@ -19,7 +19,7 @@ public class PropertyQueryService : IPropertyQueryService
         _logger = logger;
     }
     
-    // ⭐ ĐÃ SỬA: Đảm bảo Include() để tránh NullReferenceException
+    //  ĐÃ SỬA: Đảm bảo Include() để tránh NullReferenceException
     public async Task<List<PropertyDetailsDto>> GetDetailsByContractIdsAsync(
         List<int> contractIds)
     {
@@ -35,13 +35,13 @@ public class PropertyQueryService : IPropertyQueryService
         
         var results = await _context.TenantContracts
             
-            // ⭐ KHẮC PHỤC LỖI NRE: Bắt buộc Include các mối quan hệ trước khi Select
+            //  KHẮC PHỤC LỖI NRE: Bắt buộc Include các mối quan hệ trước khi Select
             .Include(c => c.Room)
                 .ThenInclude(r => r.House)
                 
             .Where(c => uniqueContractIds.Contains(c.Id)) // Lọc theo danh sách Contract ID
             
-            // ⭐ SỬ DỤNG PROJECTION VÀ NULL CONDITIONAL OPERATOR (?.) ĐỂ ÁNH XẠ AN TOÀN
+            //  SỬ DỤNG PROJECTION VÀ NULL CONDITIONAL OPERATOR (?.) ĐỂ ÁNH XẠ AN TOÀN
             // c.Room/c.Room.House có thể là NULL nếu DB không nhất quán.
             .Select(c => new PropertyDetailsDto
             {
@@ -54,7 +54,7 @@ public class PropertyQueryService : IPropertyQueryService
             })
             .ToListAsync();
 
-        // ⭐ LOG ĐIỂM QUAN TRỌNG: Kiểm tra kết quả truy vấn DB ⭐
+        //  LOG ĐIỂM QUAN TRỌNG: Kiểm tra kết quả truy vấn DB 
         if (results.Count != uniqueContractIds.Count)
         {
             _logger.LogWarning("⚠️ Found {FoundCount} details out of {RequestedCount} requested contracts. Missing details for some IDs (Do liên kết Room/House bị thiếu).", 

@@ -293,7 +293,7 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Get batch user information by IDs (Service-to-service)
     /// </summary>
-    [HttpPost("batch-info")] // ⭐ ROUTE CẦN THIẾT
+    [HttpPost("batch-info")] //  ROUTE CẦN THIẾT
     [AllowAnonymous]
     [ProducesResponseType(typeof(List<object>), 200)] 
     public async Task<IActionResult> GetUsersBatch([FromBody] List<string> userIds)

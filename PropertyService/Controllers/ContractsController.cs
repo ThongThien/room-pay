@@ -77,7 +77,7 @@ namespace PropertyService.Controllers
         {
             try
             {
-                // ⭐ DEBUG 1: KIỂM TRA USER ID ⭐
+                //  DEBUG 1: KIỂM TRA USER ID 
                 // Đặt Breakpoint ở đây và kiểm tra giá trị của tenantId. 
                 // Nó phải là một GUID hợp lệ.
                 Guid tenantId = GetUserIdGuid(); 
@@ -89,7 +89,7 @@ namespace PropertyService.Controllers
                     return Unauthorized();
                 }
 
-                // ⭐ DEBUG 2: KIỂM TRA SERVICE INJECTION ⭐
+                //  DEBUG 2: KIỂM TRA SERVICE INJECTION 
                 // Đặt Breakpoint ở đây và kiểm tra xem _contractService có bị NULL không.
                 if (_contractService == null)
                 {

@@ -36,7 +36,7 @@ public class InvoicesController : ControllerBase
         // _publisher = publisher;
     }
 
-// ⭐ HÀM BỔ SUNG USER NAME (Giữ lại logic này trong Controller)
+//  HÀM BỔ SUNG USER NAME (Giữ lại logic này trong Controller)
     private async Task<List<InvoiceResponse>> EnrichResponseWithUserNameAsync(IEnumerable<InvoiceResponse> invoices)
     {
         var response = invoices.ToList();
@@ -96,13 +96,13 @@ public class InvoicesController : ControllerBase
             // User là Owner: Lấy hóa đơn của tất cả Tenant
             var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
             
-            // ⭐ GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
+            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
             invoices = await _invoiceService.GetAllInvoicesByOwnerAsync(userId, tenantUserIds);
         }
         else
         {
             // User là Tenant: Lấy hóa đơn của chính họ
-            // ⭐ GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
+            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
             invoices = await _invoiceService.GetAllInvoicesByUserAsync(userId);
         }
 
@@ -139,13 +139,13 @@ public class InvoicesController : ControllerBase
                 return Unauthorized(new { error = "Invalid or missing authentication" });
             }
             
-            // ⭐ GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
+            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
             invoiceResponse = await _invoiceService.GetInvoiceByIdAsync(id);
         }
         else
         {
             // JWT auth
-            // ⭐ GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
+            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
             invoiceResponse = await _invoiceService.GetInvoiceByIdAsync(id, userId);
         }
         
@@ -183,12 +183,12 @@ public class InvoicesController : ControllerBase
         if (userInfo?.OwnerId == null)
         {
             var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
-            // ⭐ GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
+            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
             invoices = await _invoiceService.GetInvoicesByStatusForOwnerAsync(userId, tenantUserIds, status);
         }
         else
         {
-            // ⭐ GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
+            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
             invoices = await _invoiceService.GetInvoicesByStatusAsync(userId, status);
         }
 
@@ -234,7 +234,7 @@ public class InvoicesController : ControllerBase
         }
 
         // ----------------------------------------------------------------------
-        // ⭐ BƯỚC QUAN TRỌNG: Truy vấn TenantContractId đang Active
+        //  BƯỚC QUAN TRỌNG: Truy vấn TenantContractId đang Active
         // ----------------------------------------------------------------------
         var propertyService = HttpContext.RequestServices.GetRequiredService<Features.Property.IPropertyService>();
         int? tenantContractId = await propertyService.GetActiveContractIdByUserIdAsync(userId); 
@@ -250,7 +250,7 @@ public class InvoicesController : ControllerBase
             UserId = userId,
             InvoiceDate = request.InvoiceDate,
             DueDate = request.DueDate,
-            // ⭐ GÁN CONTRACT ID ACTIVE VÀO INVOICE MODEL (Liên kết vĩnh viễn)
+            //  GÁN CONTRACT ID ACTIVE VÀO INVOICE MODEL (Liên kết vĩnh viễn)
             TenantContractId = tenantContractId, 
         };
 

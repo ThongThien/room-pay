@@ -16,21 +16,21 @@ public class PropertyController : ControllerBase
     private readonly IConfiguration _configuration; 
     private readonly ILogger<PropertyController> _logger; 
     
-    // ⭐ ĐÃ THÊM: Khai báo Service cần thiết
+    //  ĐÃ THÊM: Khai báo Service cần thiết
     private readonly IContractService _contractService; 
 
-    // ⭐ ĐÃ SỬA: Inject IContractService vào Constructor
+    //  ĐÃ SỬA: Inject IContractService vào Constructor
     public PropertyController(
         IPropertyQueryService queryService, 
         IConfiguration configuration, 
         ILogger<PropertyController> logger,
-        IContractService contractService // ⭐ Inject Contract Service
+        IContractService contractService //  Inject Contract Service
     )
     {
         _queryService = queryService;
         _configuration = configuration;
         _logger = logger;
-        _contractService = contractService; // ⭐ Gán giá trị
+        _contractService = contractService; //  Gán giá trị
     }
 
     // Endpoint mới để tra cứu chi tiết Property bằng Contract ID (Đã có)
@@ -52,7 +52,7 @@ public class PropertyController : ControllerBase
         return Ok(results);
     }
 
-    // ⭐ HÀM MỚI: Get Active Contract ID for Service-to-Service
+    //  HÀM MỚI: Get Active Contract ID for Service-to-Service
     // URL: GET api/property/active-id/{userId}
     [HttpGet("active-id/{userId}")]
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
@@ -60,7 +60,7 @@ public class PropertyController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<int?>> GetActiveContractIdForService(string userId)
     {
-        // ⭐ LƯU Ý BẢO MẬT: Bạn nên thêm cơ chế kiểm tra API Key/Header Service-to-Service tại đây.
+        //  LƯU Ý BẢO MẬT: Bạn nên thêm cơ chế kiểm tra API Key/Header Service-to-Service tại đây.
         
         if (!Guid.TryParse(userId, out var tenantId)) 
         {

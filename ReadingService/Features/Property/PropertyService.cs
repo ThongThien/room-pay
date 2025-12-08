@@ -33,11 +33,11 @@ public class PropertyService : IPropertyService
         }
     }
 
-    public async Task<List<PropertyDetailsDto>> GetDetailsByContractIdsAsync(List<int> contractIds) // ⭐ ĐÃ SỬA
+    public async Task<List<PropertyDetailsDto>> GetDetailsByContractIdsAsync(List<int> contractIds) //  ĐÃ SỬA
     {
-        var apiUrl = "api/property/details-by-contracts"; // ⭐ Endpoint đã làm việc
+        var apiUrl = "api/property/details-by-contracts"; //  Endpoint đã làm việc
 
-        if (contractIds == null || !contractIds.Any()) // ⭐ ĐÃ SỬA
+        if (contractIds == null || !contractIds.Any()) //  ĐÃ SỬA
         {
             _logger.LogWarning("PropertyService Client: Input list is null or empty. Skipping API call.");
             return new List<PropertyDetailsDto>();
@@ -46,7 +46,7 @@ public class PropertyService : IPropertyService
         try
         {
             // 1. Dùng List<int> làm Body
-            var response = await _httpClient.PostAsJsonAsync(apiUrl, contractIds); // ⭐ Dùng contractIds
+            var response = await _httpClient.PostAsJsonAsync(apiUrl, contractIds); //  Dùng contractIds
 
             if (!response.IsSuccessStatusCode)
             {

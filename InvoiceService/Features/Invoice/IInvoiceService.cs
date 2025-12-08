@@ -23,7 +23,7 @@ public interface IInvoiceService
     Task<IEnumerable<InvoiceResponse>> GetInvoicesByStatusAsync(string userId, string status);
     Task<IEnumerable<InvoiceResponse>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status);
    
-    // ⭐ NEW FUNCTIONS (Ensure DTOs are resolved with selected using)
+    //  NEW FUNCTIONS (Ensure DTOs are resolved with selected using)
     Task<UnpaidInvoicesResponseDto> GetUnpaidInvoicesByTenantIdAsync(Guid tenantId);
     Task<TotalPaidLastMonthDto> GetTotalPaidAmountLastMonthAsync(Guid tenantId);
 }

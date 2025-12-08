@@ -1,5 +1,3 @@
-// InvoiceService/Features/Invoice/InvoiceServiceImpl.cs
-
 using InvoiceService.Data;
 using InvoiceService.Models;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +5,7 @@ using InvoiceService.Features.Invoice.DTOs.Invoice;
 using InvoiceService.Models.Enums;
 using InvoiceService.Repositories.Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection; // Cần cho [ActivatorUtilitiesConstructor]
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -104,7 +102,7 @@ public class InvoiceServiceImpl : IInvoiceService
         {
             var dto = MapToResponse(invoice);
             
-            // ⭐ LOGIC ĐÚNG VÀ GỌN GÀNG (Thay thế toàn bộ khối IF bị lỗi của bạn):
+            //  LOGIC ĐÚNG VÀ GỌN GÀNG (Thay thế toàn bộ khối IF bị lỗi của bạn):
             // 1. Kiểm tra nếu Contract ID có giá trị (HasValue)
             // 2. VÀ tìm thấy Contract ID đó trong Dictionary (TryGetValue)
             if (invoice.TenantContractId.HasValue && 
@@ -156,7 +154,6 @@ public class InvoiceServiceImpl : IInvoiceService
     {
         // 1. Lấy Hóa đơn từ DB
         var invoices = await _invoiceRepo.Query()
->>>>>>> origin/main
             .Include(i => i.Items)
             .Where(i => i.UserId == userId)
             .OrderByDescending(i => i.CreatedAt)
@@ -185,7 +182,7 @@ public class InvoiceServiceImpl : IInvoiceService
             
         if (invoice == null) return null;
         
-        // ⭐ Call data enrichment function and return result
+        //  Call data enrichment function and return result
         return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
     }
 
@@ -198,7 +195,7 @@ public class InvoiceServiceImpl : IInvoiceService
             
         if (invoice == null) return null;
 
-        // ⭐ Gọi hàm làm giàu dữ liệu và trả về kết quả
+        //  Gọi hàm làm giàu dữ liệu và trả về kết quả
         return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
     }
 
@@ -311,7 +308,7 @@ public class InvoiceServiceImpl : IInvoiceService
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
         
-        // 2. ⭐ Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
+        // 2.  Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
         return await EnrichInvoicesWithPropertyDetails(invoices);
     }
 
@@ -324,7 +321,7 @@ public class InvoiceServiceImpl : IInvoiceService
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
         
-        // 2. ⭐ Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
+        // 2.  Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
         return await EnrichInvoicesWithPropertyDetails(invoices);
     }
     // InvoiceService/Features/Invoice/InvoiceServiceImpl.cs

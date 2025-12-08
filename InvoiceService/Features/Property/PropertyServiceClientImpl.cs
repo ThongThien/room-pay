@@ -62,11 +62,11 @@ public class PropertyServiceClientImpl : IPropertyService
         {
             var apiUrl = "api/property/details-by-contracts"; 
             
-            // ⭐ ĐÃ SỬA: Chuyển đổi List<ContractIdsRequestDto> thành List<int>
+            // ĐÃ SỬA: Chuyển đổi List<ContractIdsRequestDto> thành List<int>
             var onlyIds = contractIds.Select(d => d.ContractId).ToList();
             
             // Serialize LIST<INT> (chứ không phải List DTO)
-            var jsonContent = JsonSerializer.Serialize(onlyIds); // ⭐ SỬ DỤNG onlyIds
+            var jsonContent = JsonSerializer.Serialize(onlyIds); //  SỬ DỤNG onlyIds
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
             _logger.LogInformation("➡️ PropertyService Client: Requesting property details for {Count} contracts.", onlyIds.Count);
@@ -96,7 +96,7 @@ public class PropertyServiceClientImpl : IPropertyService
             return new List<PropertyDetailsDto>();
         }
     }
-    // ⭐ HÀM MỚI: Triển khai GetActiveContractIdByUserIdAsync
+    //  HÀM MỚI: Triển khai GetActiveContractIdByUserIdAsync
     public async Task<int?> GetActiveContractIdByUserIdAsync(string userId)
     {
         // Giả định: Property Service có endpoint này

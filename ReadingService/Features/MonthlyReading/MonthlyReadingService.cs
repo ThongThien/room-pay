@@ -139,7 +139,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 ERROR retrieving all missing readings for Tenant {TenantId}", tenantId);
+            _logger.LogError(ex, " ERROR retrieving all missing readings for Tenant {TenantId}", tenantId);
             return new MissingReadingsResponseDto(); 
         }
     }
@@ -187,7 +187,7 @@ public class MonthlyReadingService : IMonthlyReadingService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "🔥 Lỗi khi gọi UserService lấy danh sách Tenant IDs cho Owner.");
+                _logger.LogError(ex, " Lỗi khi gọi UserService lấy danh sách Tenant IDs cho Owner.");
                 return Enumerable.Empty<MonthlyReadingResponseDto>();
             }
         }
@@ -242,12 +242,12 @@ public class MonthlyReadingService : IMonthlyReadingService
             {
                 var firstKey = propertyDetailsMap.Keys.First();
                 var firstDetail = propertyDetailsMap[firstKey];
-                _logger.LogWarning("🔥 Property Map Check: First Key (CycleId)={Key}, HouseName={House}", firstKey, firstDetail.HouseName);
+                _logger.LogWarning(" Property Map Check: First Key (CycleId)={Key}, HouseName={House}", firstKey, firstDetail.HouseName);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 Lỗi gọi PropertyService để lấy chi tiết Property.");
+            _logger.LogError(ex, " Lỗi gọi PropertyService để lấy chi tiết Property.");
         }
         
         // 3.3. Lấy thông tin Tên Người Thuê (UserService)
@@ -260,7 +260,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 Lỗi gọi UserService để lấy thông tin chi tiết Tenant.");
+            _logger.LogError(ex, " Lỗi gọi UserService để lấy thông tin chi tiết Tenant.");
         }
 
         // --- 4. MAP VÀ TRẢ VỀ ---
@@ -335,7 +335,7 @@ public class MonthlyReadingService : IMonthlyReadingService
                     if (activeContractId.HasValue)
                     {
                         reading.TenantContractId = activeContractId.Value;
-                        _logger.LogInformation("✅ Đã gán TenantContractId: {ContractId}", activeContractId.Value);
+                        _logger.LogInformation(" Đã gán TenantContractId: {ContractId}", activeContractId.Value);
                     }
                     else
                     {
@@ -344,7 +344,7 @@ public class MonthlyReadingService : IMonthlyReadingService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "🔥 Lỗi khi gọi PropertyService lấy Active Contract ID cho User {UserId}.", userId);
+                    _logger.LogError(ex, " Lỗi khi gọi PropertyService lấy Active Contract ID cho User {UserId}.", userId);
                     // reading.TenantContractId vẫn là null
                 }
             }
@@ -422,7 +422,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 ERROR in SubmitAsync()");
+            _logger.LogError(ex, " ERROR in SubmitAsync()");
             throw;
         }
     }

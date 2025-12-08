@@ -48,7 +48,7 @@ public class PropertyController : ControllerBase
         
         var results = await _queryService.GetDetailsByContractIdsAsync(contractIds);
         
-        _logger.LogWarning("🔥 Final Output Check: Returning {Count} Property details based on Contracts.", results.Count);
+        _logger.LogWarning(" Final Output Check: Returning {Count} Property details based on Contracts.", results.Count);
         return Ok(results);
     }
 

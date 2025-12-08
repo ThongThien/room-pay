@@ -31,7 +31,7 @@ public class PropertyQueryService : IPropertyQueryService
 
         var uniqueContractIds = contractIds.Distinct().ToList();
         
-        _logger.LogInformation("➡️ Query Service: Received request for {Count} unique Contract IDs.", uniqueContractIds.Count);
+        _logger.LogInformation(" Query Service: Received request for {Count} unique Contract IDs.", uniqueContractIds.Count);
         
         var results = await _context.TenantContracts
             
@@ -62,7 +62,7 @@ public class PropertyQueryService : IPropertyQueryService
         }
         else
         {
-            _logger.LogInformation("✅ DB Query Success: Retrieved details for all {Count} contracts.", results.Count);
+            _logger.LogInformation(" DB Query Success: Retrieved details for all {Count} contracts.", results.Count);
         }
         
         return results;

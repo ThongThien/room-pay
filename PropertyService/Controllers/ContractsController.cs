@@ -39,7 +39,7 @@ namespace PropertyService.Controllers
         public async Task<IActionResult> GetContracts()
         {
             Guid ownerId = GetUserIdGuid();
-            // ✅ OwnerId được lấy, sau đó truyền vào Service để lọc
+            //  OwnerId được lấy, sau đó truyền vào Service để lọc
             var contracts = await _contractService.GetAllByOwnerIdAsync(ownerId); 
             return Ok(new { success = true, data = contracts });
         }

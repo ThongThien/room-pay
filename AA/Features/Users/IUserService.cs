@@ -15,5 +15,7 @@ namespace AA.Features.Users
         Task<UserResponseDto> CreateUserAsync(CreateUserDto createUserDto, string ownerId);
         Task<UserResponseDto> UpdateUserAsync(string userId, UpdateUserDto updateUserDto, string ownerId);
         Task<UserResponseDto> DeleteUserAsync(string userId, string ownerId);
+
+        Task<List<ApplicationUser>> GetUsersByIdsBatchAsync(List<string> userIds);
     }
 }

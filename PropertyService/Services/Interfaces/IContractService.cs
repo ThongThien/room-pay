@@ -2,6 +2,7 @@ using PropertyService.DTOs.Contracts;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
+using PropertyService.DTOs;
 
 namespace PropertyService.Services.Interfaces 
 {
@@ -19,5 +20,8 @@ namespace PropertyService.Services.Interfaces
         Task<IEnumerable<ContractDto>> GetContractsByTenantIdAsync(Guid tenantId);
         Task<ContractDto?> GetActiveContractByTenantIdAsync(Guid tenantId);
         Task<IEnumerable<ContractDto>> GetExpiringContractsAsync(Guid ownerId, int daysThreshold = 30);
+        Task<PropertyDetailsDto?> GetPropertyDetailsByContractIdAsync(int contractId);
+
+        Task<IEnumerable<PropertyDetailsDto>> GetPropertyDetailsByContractIdsAsync(IEnumerable<int> contractIds);
     }
 }

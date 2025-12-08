@@ -392,5 +392,14 @@ namespace AA.Features.Users
                 };
             }
         }
+        public async Task<List<ApplicationUser>> GetUsersByIdsBatchAsync(List<string> userIds)
+{
+        // Logic truy vấn DB ở đây, thay vì trong Controller
+        var users = await _userManager.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToListAsync();
+        return users;
     }
+    }
+    
 }

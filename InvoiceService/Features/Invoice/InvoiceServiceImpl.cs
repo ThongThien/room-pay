@@ -12,6 +12,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using InvoiceService.Features.Property.DTOs;
+using InvoiceService.Features.Property;
+using InvoiceService.Features.Invoice.DTOs;
 
 namespace InvoiceService.Features.Invoice;
 
@@ -21,6 +24,8 @@ public class InvoiceServiceImpl : IInvoiceService
     private readonly IInvoiceRepository _invoiceRepo;
     private readonly ILogger<InvoiceServiceImpl> _logger;
     private readonly Pricing.IPricingService _pricingService;
+
+    private readonly IPropertyService _propertyService;
     // private readonly ApplicationDbContext _context;
     
     // [ActivatorUtilitiesConstructor] chỉ cần thiết nếu có nhiều constructors,
@@ -29,49 +34,172 @@ public class InvoiceServiceImpl : IInvoiceService
     public InvoiceServiceImpl(
         IInvoiceRepository invoiceRepo, 
         ILogger<InvoiceServiceImpl> logger,
-        Pricing.IPricingService pricingService
+        Pricing.IPricingService pricingService,
+        IPropertyService propertyService
     )
     {
         _invoiceRepo = invoiceRepo;
         _logger = logger;
         _pricingService = pricingService;
+        _propertyService = propertyService;
     }
 
-    // --- CÁC HÀM CRUD CŨ (ĐÃ SỬA DỤNG REPOSITORY) ---
-
-    public async Task<IEnumerable<Models.Invoice>> GetAllInvoicesByUserAsync(string userId)
+    private async Task<List<InvoiceResponse>> EnrichInvoicesWithPropertyDetails(IEnumerable<Models.Invoice> invoices)
     {
-        //  Thay thế _context.Invoices bằng _invoiceRepo.Query()
-        return await _invoiceRepo.Query()
+        // Check for null/empty input
+        if (invoices == null || !invoices.Any())
+        {
+            return new List<InvoiceResponse>();
+        }
+
+        // --- 1. Collect unique TenantContractId (Fix CS0117 error and type conversion) ---
+        
+        // Filter valid IDs (not null) and convert to List<ContractIdsRequestDto>
+        var contractIdsRequest = invoices
+            // Check for null (since it's int?)
+            .Where(i => i.TenantContractId.HasValue) 
+            // Create DTO request. Ensure ContractIdsRequestDto.ContractId is int type
+            .Select(i => new ContractIdsRequestDto 
+            {
+                ContractId = i.TenantContractId!.Value // Get int value from int?
+            })
+            .DistinctBy(d => d.ContractId)
+            .ToList();
+        
+        // Initialize mapping dictionary with INT/LONG key
+        var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>(); // Changed from string to int
+        
+        if (contractIdsRequest.Any())
+        {
+            try
+            {
+                // --- 2. Call Property Service Client with Contract IDs ---
+                
+                // Đảm bảo GetDetailsByContractIdsAsync nhận List<ContractIdsRequestDto> kiểu số
+                var detailsList = await _propertyService.GetDetailsByContractIdsAsync(contractIdsRequest); 
+                
+                // --- 3. Tạo Dictionary để ánh xạ nhanh chóng bằng TenantContractId ---
+                if (detailsList != null)
+                {
+                    propertyDetailsMap = detailsList
+                        // 1. Chỉ lấy những DTO có ContractId
+                        .Where(d => d.ContractId.HasValue) 
+                        // 2. Nhóm theo Key là giá trị int
+                        .GroupBy(d => d.ContractId!.Value) 
+                        // 3. Tạo Dictionary với Key là int (g.Key)
+                        .ToDictionary(g => g.Key, g => g.First()); 
+                }
+            }
+            catch (Exception ex)
+            {
+                // Logging lỗi
+                _logger.LogError(ex, "Lỗi khi gọi PropertyService để làm giàu dữ liệu bằng TenantContractId.");
+            }
+        }
+        
+        // --- 4. Ánh xạ (Map) Model và Property Details vào InvoiceResponse DTO ---
+        var responseList = new List<InvoiceResponse>();
+        
+        foreach (var invoice in invoices)
+        {
+            var dto = MapToResponse(invoice);
+            
+            // ⭐ LOGIC ĐÚNG VÀ GỌN GÀNG (Thay thế toàn bộ khối IF bị lỗi của bạn):
+            // 1. Kiểm tra nếu Contract ID có giá trị (HasValue)
+            // 2. VÀ tìm thấy Contract ID đó trong Dictionary (TryGetValue)
+            if (invoice.TenantContractId.HasValue && 
+                propertyDetailsMap.TryGetValue(invoice.TenantContractId.Value, out var details)) 
+            {
+                // Biến 'details' bây giờ có sẵn (từ điều kiện IF) và có thể sử dụng
+                dto.HouseName = details.HouseName;
+                dto.RoomName = details.RoomName;
+                dto.Floor = details.Floor;
+            }
+            
+            responseList.Add(dto);
+        }
+
+        return responseList;
+    }
+    //===============================================
+    // ⚙️ PRIVATE HELPER: Ánh xạ từ Model sang Response DTO cơ bản
+    // =========================================================
+    
+    // Cần hàm này để chuyển Models.Invoice sang InvoiceResponse DTO (không bao gồm UserName/Property)
+    private InvoiceResponse MapToResponse(Models.Invoice invoice)
+    {
+        return new InvoiceResponse
+        {
+            Id = invoice.Id,
+            UserId = invoice.UserId,
+            UserName = string.Empty, 
+            TenantContractId = invoice.TenantContractId,
+            InvoiceDate = invoice.InvoiceDate,
+            DueDate = invoice.DueDate,
+            TotalAmount = invoice.TotalAmount,
+            Status = invoice.Status,
+            PaidDate = invoice.PaidDate,
+            CreatedAt = invoice.CreatedAt,
+            UpdatedAt = invoice.UpdatedAt,
+            Items = invoice.Items.Select(item => new InvoiceItemResponse
+            {
+                Id = item.Id,
+                Description = item.Description,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+                Amount = item.Amount,
+                ProductCode = item.ProductCode
+            }).ToList()
+        };
+    }
+    public async Task<IEnumerable<InvoiceResponse>> GetAllInvoicesByUserAsync(string userId)
+    {
+        // 1. Lấy Hóa đơn từ DB
+        var invoices = await _invoiceRepo.Query()
+>>>>>>> origin/main
             .Include(i => i.Items)
             .Where(i => i.UserId == userId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+            
+        return await EnrichInvoicesWithPropertyDetails(invoices);
     }
 
-    public async Task<IEnumerable<Models.Invoice>> GetAllInvoicesByOwnerAsync(string ownerId, List<string> tenantUserIds)
+    public async Task<IEnumerable<InvoiceResponse>> GetAllInvoicesByOwnerAsync(string ownerId, List<string> tenantUserIds)
     {
-        return await _invoiceRepo.Query()
+        // 1. Lấy Hóa đơn từ DB
+        var invoices = await _invoiceRepo.Query()
             .Include(i => i.Items)
             .Where(i => tenantUserIds.Contains(i.UserId))
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+            
+        return await EnrichInvoicesWithPropertyDetails(invoices);
     }
 
-    public async Task<Models.Invoice?> GetInvoiceByIdAsync(int id, string userId)
+    public async Task<InvoiceResponse?> GetInvoiceByIdAsync(int id, string userId)
     {
-        //  Thay thế
-        return await _invoiceRepo.Query()
+        var invoice = await _invoiceRepo.Query()
             .Include(i => i.Items)
             .FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
+            
+        if (invoice == null) return null;
+        
+        // ⭐ Call data enrichment function and return result
+        return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
     }
 
-    public async Task<Models.Invoice?> GetInvoiceByIdAsync(int id)
+    // Fix GetInvoiceByIdAsync function (service-to-service)
+    public async Task<InvoiceResponse?> GetInvoiceByIdAsync(int id)
     {
-        //  Thay thế (Service-to-service call)
-        return await _invoiceRepo.Query()
+        var invoice = await _invoiceRepo.Query()
             .Include(i => i.Items)
             .FirstOrDefaultAsync(i => i.Id == id);
+            
+        if (invoice == null) return null;
+
+        // ⭐ Gọi hàm làm giàu dữ liệu và trả về kết quả
+        return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
     }
 
     public async Task<Models.Invoice> CreateInvoiceAsync(Models.Invoice invoice)
@@ -174,22 +302,30 @@ public class InvoiceServiceImpl : IInvoiceService
         return invoice;
     }
 
-    public async Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusAsync(string userId, string status)
+    public async Task<IEnumerable<InvoiceResponse>> GetInvoicesByStatusAsync(string userId, string status)
     {
-        return await _invoiceRepo.Query()
+        // 1. Truy vấn DB lấy Models.Invoice (giữ nguyên)
+        var invoices = await _invoiceRepo.Query()
             .Include(i => i.Items)
             .Where(i => i.UserId == userId && i.Status == status)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+        
+        // 2. ⭐ Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
+        return await EnrichInvoicesWithPropertyDetails(invoices);
     }
 
-    public async Task<IEnumerable<Models.Invoice>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status)
+    public async Task<IEnumerable<InvoiceResponse>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status)
     {
-        return await _invoiceRepo.Query()
+        // 1. Truy vấn DB lấy Models.Invoice (giữ nguyên)
+        var invoices = await _invoiceRepo.Query()
             .Include(i => i.Items)
             .Where(i => tenantUserIds.Contains(i.UserId) && i.Status == status)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+        
+        // 2. ⭐ Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
+        return await EnrichInvoicesWithPropertyDetails(invoices);
     }
     // InvoiceService/Features/Invoice/InvoiceServiceImpl.cs
     public async Task<UnpaidInvoicesResponseDto> GetUnpaidInvoicesByTenantIdAsync(Guid tenantId)

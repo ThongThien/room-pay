@@ -11,7 +11,7 @@ using PropertyService.Models.Enums;
 using PropertyService.Repositories;
 using PropertyService.Services.Clients;
 using PropertyService.Services.Interfaces;
-
+using Microsoft.Extensions.Logging;
 namespace PropertyService.Services;
 
 public class ContractService : IContractService
@@ -21,19 +21,22 @@ public class ContractService : IContractService
     private readonly IHouseService _houseService;
     private readonly IUserServiceClient _userService;
     private readonly IMapper _mapper;
+    private readonly ILogger<ContractService> _logger;
 
     public ContractService(
         IGenericRepository<TenantContracts> contractRepo,
         IRoomService roomService,
         IHouseService houseService,
         IUserServiceClient userService,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<ContractService> logger)
     {
         _contractRepo = contractRepo;
         _roomService = roomService;
         _houseService = houseService;
         _userService = userService;
         _mapper = mapper;
+        _logger = logger;
     }
     public async Task<ContractDto> CreateAsync(CreateContractDto dto, Guid ownerId)
     {
@@ -152,15 +155,22 @@ public class ContractService : IContractService
 
     public async Task<IEnumerable<ContractDto>> GetContractsByTenantIdAsync(Guid tenantId)
     {
+        // ⭐ DEBUG 3: KIỂM TRA REPOSITORY INJECTION ⭐
+        // Đặt Breakpoint ở đây và kiểm tra xem _contractRepo có bị NULL không.
+        if (_contractRepo == null)
+        {
+            _logger.LogError("FATAL ERROR: _contractRepo is NULL (Dependency Injection Failure).");
+            // Throw lỗi để Controller bắt và trả về 500
+            throw new InvalidOperationException("Contract Repository is not initialized.");
+        }
+        
         string tenantIdString = tenantId.ToString();
 
-        // 1. Sử dụng Projection (Select) để chỉ lấy các trường cần thiết 
-        // và thực hiện JOIN thông qua navigation properties (giả định Models có navigation properties)
+        // Use simple query to eliminate Null Reference error from JOIN
         var contractsWithDetails = await _contractRepo.Query()
             .Where(c => c.TenantId == tenantIdString)
             
-            //  THỰC HIỆN JOIN VỚI ROOMS VÀ HOUSES BẰNG PROJECTION
-            // (Giả định Contract Model có Room navigation property, và Room Model có House navigation property)
+            // Query only direct fields from Contract table
             .Select(c => new ContractDto
             {
                 Id = c.Id,
@@ -173,14 +183,14 @@ public class ContractService : IContractService
                 FileUrl = c.FileUrl,
                 CreatedAt = c.CreatedAt,
                 
-                //  LẤY DỮ LIỆU TỪ ROOM VÀ HOUSE
-                // Giả định: Room có trường Name (cho RoomNumber) hoặc kết hợp Name/Floor
-                HouseName = c.Room.House.Name, 
-                RoomNumber = c.Room.Name // Hoặc c.Room.Floor.ToString() + " - " + c.Room.Name
+                // Ensure not to access c.Room or c.Room.House here
             })
             .ToListAsync();
 
-        // 2. Không cần Mapper vì đã sử dụng Projection trực tiếp ra ContractDto
+        // ⭐ DEBUG 4: KIỂM TRA KẾT QUẢ TRUY VẤN ⭐
+        _logger.LogInformation("Successfully retrieved {Count} contracts for tenant {TenantId}", 
+                            contractsWithDetails.Count, tenantId);
+
         return contractsWithDetails;
     }
     // Triển khai phương thức cũ (Map CreateContract -> CreateContractDto -> CreateAsync)
@@ -301,5 +311,47 @@ public class ContractService : IContractService
             HouseName = c.Room?.House?.Name ?? string.Empty,
             RoomNumber = c.Room?.Name ?? string.Empty
         }).ToList();
+    }
+
+    public async Task<PropertyDetailsDto?> GetPropertyDetailsByContractIdAsync(int contractId)
+    {
+        // Giả định _contractRepo.Query() trả về IQueryable<TenantContracts>
+        var result = await _contractRepo.Query()
+            .Where(c => c.Id == contractId)
+            .Include(c => c.Room)
+                .ThenInclude(r => r.House)
+            .Select(c => new PropertyDetailsDto
+            {
+                ContractId = c.Id,
+                HouseName = c.Room.House.Name,
+                RoomName = c.Room.Name, // Giả định c.Room.Name là RoomNumber
+                Floor = c.Room.Floor // Giả định Room có thuộc tính Floor (int)
+            })
+            .FirstOrDefaultAsync();
+
+        return result;
+    }
+
+    public async Task<IEnumerable<PropertyDetailsDto>> GetPropertyDetailsByContractIdsAsync(IEnumerable<int> contractIds)
+    {
+        if (contractIds == null || !contractIds.Any())
+        {
+            return Enumerable.Empty<PropertyDetailsDto>();
+        }
+
+        var results = await _contractRepo.Query()
+            .Where(c => contractIds.Contains(c.Id))
+            .Include(c => c.Room)
+                .ThenInclude(r => r.House)
+            .Select(c => new PropertyDetailsDto
+            {
+                ContractId = c.Id,
+                HouseName = c.Room.House.Name,
+                RoomName = c.Room.Name, 
+                Floor = c.Room.Floor 
+            })
+            .ToListAsync();
+
+        return results;
     }
 }

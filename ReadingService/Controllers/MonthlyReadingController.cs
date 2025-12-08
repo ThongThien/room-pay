@@ -6,6 +6,7 @@ using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle;
 using ReadingService.Data;
 using ReadingService.Models;
+using System.Net;
 namespace ReadingService.Controllers;
 
 [ApiController]
@@ -149,31 +150,57 @@ public class MonthlyReadingController : ControllerBase
         }
     }
 
-    // Endpoint: GET api/MonthlyReading (FIXED: Lấy tất cả bản ghi)
+    /// <summary>
+    /// Lấy TẤT CẢ MonthlyReadings của user (Tenant: lấy của mình; Owner: lấy của tất cả Tenant được quản lý)
+    /// Endpoint: GET api/MonthlyReading
+    /// </summary>
     [Authorize]
     [HttpGet] 
     public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                     ?? User.FindFirstValue("sub") 
-                     ?? User.FindFirstValue("userId");
+        // 1. TRÍCH XUẤT CLAIMS TỪ JWT TOKEN
         
-        if (string.IsNullOrEmpty(userId))
+        // Lấy User ID (sẽ là Tenant ID hoặc Owner ID tùy vai trò)
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                    ?? User.FindFirstValue("sub") 
+                    ?? User.FindFirstValue("userId");
+        
+        // Lấy Role (Quan trọng nhất cho Service để biết cách lọc)
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        
+        // Lấy OwnerId (Claim này có thể có nếu Role là Tenant, nhưng không bắt buộc cho logic Owner)
+        var ownerIdClaim = User.FindFirstValue("ownerId"); 
+        
+        // 2. KIỂM TRA TÍNH HỢP LỆ
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
         {
-            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng" });
+            // Ghi log lỗi nếu không tìm thấy thông tin cần thiết
+            _logger.LogWarning("Truy cập không hợp lệ: Không tìm thấy UserId hoặc Role.");
+            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng hoặc vai trò trong token." });
         }
 
         try
         {
-            //  GỌI HÀM ĐÃ SỬA để lấy TẤT CẢ bản ghi
-            var readings = await _monthlyReadingService.GetAllReadingsByUserIdAsync(userId);
+            // 3. CALL SERVICE TO HANDLE FILTERING AND DATA ENRICHMENT LOGIC
+            // Service will automatically: 
+            // a) Use Role and UserId to determine query scope (Individual Tenant vs Owner management)
+            // b) Call User Service and Property Service to get Tenant names, House, Room.
+            var readings = await _monthlyReadingService.GetAllReadingsByRoleAsync(
+                userId, 
+                role, 
+                ownerIdClaim 
+            );
             
+            // Log success message
+            _logger.LogInformation("UserId {UserId} ({Role}) successfully retrieved {Count} MonthlyReadings.", userId, role, readings.Count());
+
             return Ok(readings);
         }
         catch (Exception ex)
         {
+            // Ghi log lỗi và trả về 500 Internal Server Error
             _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings của user {UserId}", userId);
-            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings", error = ex.Message });
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings từ Service", error = ex.Message });
         }
     }
 

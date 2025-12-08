@@ -70,9 +70,6 @@ namespace PropertyService.Controllers
             }
         }
 
-        /// <summary>
-        /// Get all contracts for the current tenant
-        /// </summary>
         [HttpGet("my-contracts")] 
         [ProducesResponseType(typeof(IEnumerable<ContractDto>), (int)HttpStatusCode.OK)]
         [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
@@ -80,13 +77,24 @@ namespace PropertyService.Controllers
         {
             try
             {
-                // 1. Lấy Tenant ID từ Access Token
+                // ⭐ DEBUG 1: KIỂM TRA USER ID ⭐
+                // Đặt Breakpoint ở đây và kiểm tra giá trị của tenantId. 
+                // Nó phải là một GUID hợp lệ.
                 Guid tenantId = GetUserIdGuid(); 
+                _logger.LogInformation("Attempting to fetch contracts for Tenant ID: {TenantId}", tenantId);
                 
                 if (tenantId == Guid.Empty)
                 {
-                    // Trường hợp token không hợp lệ hoặc thiếu User ID
+                    _logger.LogWarning("Unauthorized access: Tenant ID is empty.");
                     return Unauthorized();
+                }
+
+                // ⭐ DEBUG 2: KIỂM TRA SERVICE INJECTION ⭐
+                // Đặt Breakpoint ở đây và kiểm tra xem _contractService có bị NULL không.
+                if (_contractService == null)
+                {
+                    _logger.LogError("FATAL ERROR: _contractService is NULL (Dependency Injection Failure).");
+                    return StatusCode(500, new { success = false, message = "Internal service dependency error." });
                 }
 
                 // 2. Gọi Service để lấy hợp đồng dựa trên Tenant ID
@@ -97,7 +105,8 @@ namespace PropertyService.Controllers
             catch (Exception ex)
             {
                 // Log lỗi chi tiết nếu có
-                _logger.LogError(ex, "Error fetching contracts for tenant {TenantId}", GetUserIdGuid());
+                _logger.LogError(ex, "Error fetching contracts for tenant {TenantId}. Full stack trace logged.", GetUserIdGuid());
+                // Lỗi 500 nếu Service Layer bị crash (ví dụ: Null Repo/Context)
                 return StatusCode(500, new { success = false, message = "Internal server error." });
             }
         }

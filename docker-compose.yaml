@@ -29,9 +29,12 @@ services:
       JwtSettings__ExpiresInMinutes: ${JWT_EXPIRATION_MINUTES}
       AuthService__BaseUrl: http://aa-service:8080
       AuthService__ApiKey: ${SERVICE_API_KEY}
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: 5672
     restart: unless-stopped
     depends_on:
       - aa
+      - rabbitmq
     networks:
       - app-network
 

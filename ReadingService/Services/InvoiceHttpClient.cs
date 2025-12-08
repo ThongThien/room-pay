@@ -25,7 +25,8 @@ public class InvoiceHttpClient : IInvoiceHttpClient
         int cycleMonth,
         int cycleYear,
         int electricUsage, 
-        int waterUsage)
+        int waterUsage,
+        int? contractId = null)
     {
         try
         {
@@ -50,7 +51,8 @@ public class InvoiceHttpClient : IInvoiceHttpClient
                 WaterUsage = waterUsage,
                 CycleId = cycleId,
                 CycleMonth = cycleMonth,
-                CycleYear = cycleYear
+                CycleYear = cycleYear,
+                ContractId = contractId
             };
 
             var json = JsonSerializer.Serialize(createInvoiceRequest, new JsonSerializerOptions
@@ -98,5 +100,6 @@ public class InvoiceHttpClient : IInvoiceHttpClient
         public int CycleId { get; set; }
         public int CycleMonth { get; set; }
         public int CycleYear { get; set; }
+        public int? ContractId { get; set; }
     }
 }

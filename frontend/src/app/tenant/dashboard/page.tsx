@@ -59,8 +59,8 @@ const TenantDashboardPage: React.FC = () => {
                     houseName: apiData.contract?.houseName || "Đang cập nhật",
                     roomNumber: apiData.contract?.roomNumber || "---",
                     contractStatus: apiData.contract?.contractStatus || "Chưa có HĐ",
-                    contractEndDate: apiData.contract?.contractEndDate 
-                        ? new Date(apiData.contract.contractEndDate).toLocaleDateString('vi-VN') 
+                    contractEndDate: apiData.contract?.contractEndDate
+                        ? new Date(apiData.contract.contractEndDate).toLocaleDateString('vi-VN')
                         : "---",
                     isExpiringSoon: apiData.contract?.isExpiringSoon || false,
 

@@ -1,26 +1,42 @@
-using ReadingService.Data;
-using Microsoft.EntityFrameworkCore;
+using ReadingService.Data; // System/Vendor Usings
 using ReadingService.Services;
 using ReadingService.Features.MonthlyReading;
 using ReadingService.Features.ReadingCycle;
-using Amazon.S3;
-using Amazon.Runtime;
-using Amazon;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using ReadingService.Features.User;
+using ReadingService.Features.Property;
 using ReadingService.Repositories.Interfaces;
 using ReadingService.Repositories.Implementations;
 using Quartz;
 using ReadingService.Jobs;
 
+using Microsoft.EntityFrameworkCore; // Microsoft Usings
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+
+using Amazon.S3; // Third-party Usings
+using Amazon.Runtime;
+using Amazon;
+
+using System.Text;
+using System; // System Usings (thường đặt trên cùng, nhưng tôi đặt lại để nhóm các usings)
+// --- Khởi tạo Builder ---
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS Configuration
-var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
-if (allowedOrigins == null || allowedOrigins.Length == 0)
-    throw new Exception("CORS origin not configured. Please set 'Cors:AllowedOrigins' in appsettings.json.");
+// ====================================================================
+//                             1. ĐĂNG KÝ DỊCH VỤ (builder.Services.Add...)
+// ====================================================================
+
+// Cấu hình Database Context
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
+
+// Cấu hình CORS
+string[] allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string[]>() ?? Array.Empty<string>();
 
 builder.Services.AddCors(options =>
 {
@@ -33,12 +49,28 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
+// Cấu hình AWS S3 Service
+var awsAccessKey = builder.Configuration["AWS:AccessKey"];
+var awsSecretKey = builder.Configuration["AWS:SecretKey"];
+var awsRegion = builder.Configuration["AWS:Region"];
 
-// Add JWT Authentication
+if (!string.IsNullOrEmpty(awsAccessKey) && !string.IsNullOrEmpty(awsSecretKey))
+{
+    // Sử dụng credentials từ appsettings
+    var credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
+    var config = new AmazonS3Config
+    {
+        RegionEndpoint = RegionEndpoint.GetBySystemName(awsRegion)
+    };
+    builder.Services.AddSingleton<IAmazonS3>(new AmazonS3Client(credentials, config));
+}
+else
+{
+    // Fallback: sử dụng profile hoặc IAM role
+    builder.Services.AddAWSService<IAmazonS3>();
+}
+
+// Cấu hình Authentication (JWT)
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
 
@@ -63,76 +95,31 @@ if (!string.IsNullOrEmpty(secretKey))
         };
     });
 }
+builder.Services.AddAuthorization(); // Add Authorization
 
-builder.Services.AddAuthorization();
-
-// Add AWS S3 Service with credentials from configuration
-var awsAccessKey = builder.Configuration["AWS:AccessKey"];
-var awsSecretKey = builder.Configuration["AWS:SecretKey"];
-var awsRegion = builder.Configuration["AWS:Region"];
-
-if (!string.IsNullOrEmpty(awsAccessKey) && !string.IsNullOrEmpty(awsSecretKey))
-{
-    // Sử dụng credentials từ appsettings
-    var credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
-    var config = new AmazonS3Config
-    {
-        RegionEndpoint = RegionEndpoint.GetBySystemName(awsRegion)
-    };
-    builder.Services.AddSingleton<IAmazonS3>(new AmazonS3Client(credentials, config));
-}
-else
-{
-    // Fallback: sử dụng profile hoặc IAM role
-    builder.Services.AddAWSService<IAmazonS3>();
-}
-
-builder.Services.AddScoped<IS3Service, S3Service>();
-
-// Add HttpClient for InvoiceService
-builder.Services.AddHttpClient<IInvoiceHttpClient, InvoiceHttpClient>();
-
-// Add HttpClient for AA service
-builder.Services.AddHttpClient("AA", client => 
-{ 
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:AAService"] ?? "http://localhost:5286"); 
-});
-
-// Add MonthlyReading Service
-builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
-
-// Add ReadingCycle Service
-builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
-
-// Add Controllers
-builder.Services.AddControllers();
-
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
+// Register Repositories (I...Repository)
 builder.Services.AddScoped<IReadingCycleRepository, ReadingCycleRepository>();
 builder.Services.AddScoped<IMonthlyReadingRepository, MonthlyReadingRepository>();
 
-// Add Quartz for scheduling
-builder.Services.AddQuartz(q =>
-{
-    var jobKey = new JobKey("AutoCreateReadingCycleJob");
-    q.AddJob<AutoCreateReadingCycleJob>(opts => opts.WithIdentity(jobKey));
+// Register Services & HttpClients (I...Service)
+builder.Services.AddScoped<IS3Service, S3Service>();
+builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
+builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
-    q.AddTrigger(opts => opts
-        .ForJob(jobKey)
-        .WithIdentity("AutoCreateReadingCycleTrigger")
-        .WithCronSchedule("0 0 20 * * ?") // At 20th of every month at 00:00
-    );
-});
+// Register HttpClients (I...HttpClient)
+builder.Services.AddHttpClient<IInvoiceHttpClient, InvoiceHttpClient>();
+builder.Services.AddHttpClient<IPropertyService, PropertyService>();
 
-builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
+// Configure Controllers, Swagger/OpenAPI (Usually placed at the end of Services section)
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Tự động tạo database và apply migrations
+// Tự động tạo database và apply migrations (Tốt nhất nên chạy ngay sau app.Build())
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -149,14 +136,17 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configure the HTTP request pipeline.
+// Cấu hình HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-app.UseCors("AllowFE");
+
 app.UseHttpsRedirection();
+app.UseRouting(); // Tùy chọn, nhưng nên có trước CORS, Auth/Authz
+
+app.UseCors("AllowFE"); // CORS phải đứng trước UseAuthentication/UseAuthorization
 
 app.UseAuthentication();
 app.UseAuthorization();

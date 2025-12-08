@@ -22,3 +22,22 @@ export const createUserAPI = async (fullName: string, email: string) => {
     };
   }
 };
+
+export const getCurrentUser = async () => {
+  try {
+    const res = await fetch(`${API_URLS.AA}/users/me`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch user');
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Lỗi lấy thông tin user:", error);
+    return null;
+  }
+};

@@ -95,7 +95,7 @@ function mapStatusToVietnamese(status: string | number | null | undefined): stri
 /* ============================================
     MAIN COMPONENT
 =============================================== */
-export default function TenantDashboard() {
+export default function SubmitMeter() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [cycle, setCycle] = useState<ReadingCycle | null>(null);
     const [loadingCycle, setLoadingCycle] = useState(true);
@@ -403,12 +403,10 @@ function ReadingCard({
                     {isLoading ? (
                         "Đang xử lý ảnh..."
                     ) : imageUrl ? (
-                        <Image
-                            src={imageUrl}
-                            alt="Ảnh đồng hồ chỉ số"
-                            fill
-                            className="object-contain rounded-lg"
-                        />
+                        <Image src={imageUrl} alt="Ảnh đồng hồ chỉ số"
+                            width={400}
+                            height={300}
+                            className="object-contain w-full h-full rounded-lg" />
                     ) : (
                         "Chọn ảnh"
                     )}

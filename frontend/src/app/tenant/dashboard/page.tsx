@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { 
-    getTenantDashboardData, 
-    formatVND 
+import {
+    getTenantDashboardData,
+    formatVND
 } from '@/services/tenantDashboardService';
 
 interface TenantViewData {
@@ -56,8 +56,8 @@ const TenantDashboardPage: React.FC = () => {
                     houseName: apiData.contract?.houseName || "Đang cập nhật",
                     roomNumber: apiData.contract?.roomNumber || "---",
                     contractStatus: apiData.contract?.contractStatus || "Chưa có HĐ",
-                    contractEndDate: apiData.contract?.contractEndDate 
-                        ? new Date(apiData.contract.contractEndDate).toLocaleDateString('vi-VN') 
+                    contractEndDate: apiData.contract?.contractEndDate
+                        ? new Date(apiData.contract.contractEndDate).toLocaleDateString('vi-VN')
                         : "---",
                     isExpiringSoon: apiData.contract?.isExpiringSoon || false,
 

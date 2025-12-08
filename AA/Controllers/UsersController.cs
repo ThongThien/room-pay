@@ -258,5 +258,28 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Get batch user information by IDs (Service-to-service)
+    /// </summary>
+    [HttpPost("batch-info")] // ⭐ ROUTE CẦN THIẾT
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(List<object>), 200)] 
+    public async Task<IActionResult> GetUsersBatch([FromBody] List<string> userIds)
+    {
+        // ... (logic xác thực API key) ...
+        
+        // Lấy thông tin chi tiết của các users dựa trên userIds
+        var users = await _userManager.Users
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new
+            {
+                id = u.Id,
+                fullName = u.FullName,
+                email = u.Email,
+                ownerId = u.OwnerId
+            })
+            .ToListAsync();
 
+        return Ok(users);
+    }
 }

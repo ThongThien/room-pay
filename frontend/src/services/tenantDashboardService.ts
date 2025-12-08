@@ -38,7 +38,7 @@ export interface TenantDashboardData {
     invoices: UnpaidInvoicesResponse;
     readings: MissingReadingsResponse;
     // Fake data cho Incident
-    openIncidents: number; 
+    openIncidents: number;
 }
 
 // Helper Format Tiền
@@ -55,10 +55,10 @@ export const getTenantDashboardData = async (): Promise<TenantDashboardData> => 
         const [contractRes, invoiceRes, readingRes] = await Promise.all([
             // URL 1: Property Service
             fetch(`${API_URLS.PROPERTY}/tenant/contracts/active-info`, { headers }),
-            
+
             // URL 2: Invoice Service
             fetch(`${API_URLS.INVOICE}/tenant/invoices/unpaid-invoices`, { headers }),
-            
+
             // URL 3: Reading Service
             fetch(`${API_URLS.READING}/ReadingCycle/me/missing-readings`, { headers }),
         ]);
@@ -68,7 +68,7 @@ export const getTenantDashboardData = async (): Promise<TenantDashboardData> => 
         if (contractRes.ok) {
             const json = await contractRes.json();
             // Nếu hết hạn trả về data: null
-            contractData = json.data; 
+            contractData = json.data;
         } else {
             console.warn("Contract API Error:", contractRes.status);
         }

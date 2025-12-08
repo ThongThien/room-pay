@@ -51,5 +51,15 @@ namespace InvoiceService.Repositories.Implementations
         {
             return _context.Invoices.FirstOrDefaultAsync(i => i.Id == id);
         }
+
+        // public async Task<Invoice?> GetOverdueInvoiceDetailsAsync(int id)
+        // {
+        //     // Logic truy vấn DBear: Tìm hóa đơn theo ID và kiểm tra điều kiện quá hạn
+        //     return await Query()
+        //         .Where(i => i.Id == id && 
+        //                     i.Status != InvoiceStatus.Paid && // Chưa thanh toán
+        //                     i.DueDate < DateTime.UtcNow)     // Đã quá hạn
+        //         .FirstOrDefaultAsync();
+        // }
     }
 }

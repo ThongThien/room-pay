@@ -8,7 +8,6 @@ using PropertyService.Services.Interfaces;
 using PropertyService.Repositories;
 using PropertyService.Services.Clients;
 using PropertyService.Models;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Database
@@ -81,7 +80,7 @@ builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IGenericRepository<House>, GenericRepository<House>>();
 builder.Services.AddScoped<IGenericRepository<Room>, GenericRepository<Room>>();
-
+builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
 // Trong PropertyService/Program.cs (hoặc Startup.cs)
 
 builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>

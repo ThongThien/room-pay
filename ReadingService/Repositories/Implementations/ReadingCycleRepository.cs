@@ -1,6 +1,6 @@
 // ReadingService/Repositories/Implementations/ReadingCycleRepository.cs
 
-using ReadingService.Data; // Giả định ApplicationDbContext nằm ở đây
+using ReadingService.Data; // Assuming ApplicationDbContext is located here
 using ReadingService.Models;
 using ReadingService.Repositories.Interfaces;
 using System.Linq;

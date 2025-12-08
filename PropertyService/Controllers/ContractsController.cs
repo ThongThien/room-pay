@@ -186,7 +186,7 @@ namespace PropertyService.Controllers
                     return StatusCode(403, new { success = false, message = "Access denied: Room is not owned by you." });
                 }
 
-                // ⭐ Dùng CreateAsync
+                //  Dùng CreateAsync
                 var contractDto = await _contractService.CreateAsync(request, ownerId); 
                 
                 return CreatedAtAction(nameof(GetContract), new { id = contractDto.Id }, new { success = true, data = contractDto });
@@ -241,7 +241,7 @@ namespace PropertyService.Controllers
                     }
                 }
                 
-                // ⭐ Dùng UpdateAsync
+                //  Dùng UpdateAsync
                 var updatedContract = await _contractService.UpdateAsync(id, request, ownerId);
                 
                 if (updatedContract == null)
@@ -285,7 +285,7 @@ namespace PropertyService.Controllers
                     return StatusCode(403, new { success = false, message = "Access denied: You do not own this contract." }); 
                 }
 
-                // ⭐ Dùng DeleteAsync
+                //  Dùng DeleteAsync
                 var result = await _contractService.DeleteAsync(id, ownerId);
                 
                 if (!result)

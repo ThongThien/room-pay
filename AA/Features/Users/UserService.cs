@@ -55,7 +55,7 @@ namespace AA.Features.Users
                     };
                 }
 
-                // Kiểm tra Owner có role Owner không
+                // Check if Owner has Owner role
                 var ownerRoles = await _userManager.GetRolesAsync(owner);
                 if (!ownerRoles.Contains("Owner"))
                 {
@@ -66,7 +66,7 @@ namespace AA.Features.Users
                     };
                 }
 
-                // Kiểm tra email đã tồn tại chưa
+                // Check if email already exists
                 var existingUser = await _userManager.FindByEmailAsync(createUserDto.Email);
                 if (existingUser != null)
                 {
@@ -77,19 +77,19 @@ namespace AA.Features.Users
                     };
                 }
 
-                // Role mặc định là Tenant
+                // Default role is Tenant
                 const string defaultRole = "Tenant";
 
-                // Tạo password ngẫu nhiên
+                // Generate random password
                 var generatedPassword = GenerateRandomPassword();
 
-                // Tạo user mới
+                // Create new user
                 var newUser = new ApplicationUser
                 {
                     UserName = createUserDto.Email,
                     Email = createUserDto.Email,
                     FullName = createUserDto.FullName,
-                    OwnerId = ownerId, // Gán OwnerId là userId của owner tạo
+                    OwnerId = ownerId, // Set OwnerId to the creating owner's userId
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -104,7 +104,7 @@ namespace AA.Features.Users
                     };
                 }
 
-                // Gán role mặc định Tenant cho user
+                // Assign default Tenant role to user
                 await _userManager.AddToRoleAsync(newUser, defaultRole);
 
                 var roles = await _userManager.GetRolesAsync(newUser);
@@ -144,21 +144,21 @@ namespace AA.Features.Users
             const string allChars = lowercase + uppercase + digits + special;
 
             var random = new Random();
-            var password = new char[12]; // Password dài 12 ký tự
+            var password = new char[12]; // Password length of 12 characters
 
-            // Đảm bảo có ít nhất 1 ký tự mỗi loại
+            // Ensure at least one character of each type
             password[0] = lowercase[random.Next(lowercase.Length)];
             password[1] = uppercase[random.Next(uppercase.Length)];
             password[2] = digits[random.Next(digits.Length)];
             password[3] = special[random.Next(special.Length)];
 
-            // Fill các ký tự còn lại
+            // Fill remaining characters
             for (int i = 4; i < password.Length; i++)
             {
                 password[i] = allChars[random.Next(allChars.Length)];
             }
 
-            // Shuffle password để random hơn
+            // Shuffle password for better randomness
             for (int i = password.Length - 1; i > 0; i--)
             {
                 int j = random.Next(i + 1);

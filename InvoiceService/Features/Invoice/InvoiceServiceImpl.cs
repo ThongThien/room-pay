@@ -17,7 +17,7 @@ namespace InvoiceService.Features.Invoice;
 
 public class InvoiceServiceImpl : IInvoiceService
 {
-    // ⭐ Đã thay thế ApplicationDbContext bằng IInvoiceRepository
+    //  Đã thay thế ApplicationDbContext bằng IInvoiceRepository
     private readonly IInvoiceRepository _invoiceRepo;
     private readonly ILogger<InvoiceServiceImpl> _logger;
     private readonly Pricing.IPricingService _pricingService;
@@ -41,7 +41,7 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task<IEnumerable<Models.Invoice>> GetAllInvoicesByUserAsync(string userId)
     {
-        // ⭐ Thay thế _context.Invoices bằng _invoiceRepo.Query()
+        //  Thay thế _context.Invoices bằng _invoiceRepo.Query()
         return await _invoiceRepo.Query()
             .Include(i => i.Items)
             .Where(i => i.UserId == userId)
@@ -60,7 +60,7 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task<Models.Invoice?> GetInvoiceByIdAsync(int id, string userId)
     {
-        // ⭐ Thay thế
+        //  Thay thế
         return await _invoiceRepo.Query()
             .Include(i => i.Items)
             .FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
@@ -68,7 +68,7 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task<Models.Invoice?> GetInvoiceByIdAsync(int id)
     {
-        // ⭐ Thay thế (Service-to-service call)
+        //  Thay thế (Service-to-service call)
         return await _invoiceRepo.Query()
             .Include(i => i.Items)
             .FirstOrDefaultAsync(i => i.Id == id);
@@ -79,7 +79,7 @@ public class InvoiceServiceImpl : IInvoiceService
         invoice.CreatedAt = DateTime.UtcNow;
         invoice.TotalAmount = invoice.Items.Sum(item => item.Amount);
         
-        // ⭐ Sử dụng Repository để thêm và lưu
+        //  Sử dụng Repository để thêm và lưu
         await _invoiceRepo.AddAsync(invoice);
         
         _logger.LogInformation("Created invoice {InvoiceId} for user {UserId}", 
@@ -102,10 +102,10 @@ public class InvoiceServiceImpl : IInvoiceService
         existingInvoice.Status = invoice.Status;
         existingInvoice.UpdatedAt = DateTime.UtcNow;
         
-        // Cần phương thức để xóa/cập nhật Items (Giả sử bạn có hàm Update trong Repo)
-        // Lưu ý: Nếu Repo không có sẵn logic xóa items, cần dùng DbContext hoặc sửa Repo
-        // ⭐ Giả định Repository có thể xử lý việc cập nhật
-        existingInvoice.Items.Clear(); // Xóa cũ
+        // Need method to delete/update Items (Assuming you have Update function in Repo)
+        // Note: If Repo doesn't have built-in logic to delete items, need to use DbContext or modify Repo
+        // Assuming Repository can handle updating
+        existingInvoice.Items.Clear(); // Clear old items
         foreach (var item in invoice.Items)
         {
             existingInvoice.Items.Add(item); // Thêm mới
@@ -129,7 +129,7 @@ public class InvoiceServiceImpl : IInvoiceService
         if (invoice == null)
             return false;
 
-        // ⭐ Sử dụng Repository để xóa
+        // Sử dụng Repository để xóa
         await _invoiceRepo.DeleteAsync(invoice);
         
         _logger.LogInformation("Deleted invoice {InvoiceId} for user {UserId}", 
@@ -199,7 +199,7 @@ public class InvoiceServiceImpl : IInvoiceService
             string tenantIdString = tenantId.ToString();
             DateOnly today = DateOnly.FromDateTime(DateTime.Today); 
             
-            // ⭐ SỬA LỌC TRẠNG THÁI: Chỉ tìm kiếm UNPAID (theo Enum mới)
+            //  SỬA LỌC TRẠNG THÁI: Chỉ tìm kiếm UNPAID (theo Enum mới)
             string unpaidStatus = InvoiceStatus.Unpaid.ToString(); 
 
             // 1. Định nghĩa truy vấn cơ sở
@@ -208,13 +208,13 @@ public class InvoiceServiceImpl : IInvoiceService
                 // Chỉ lọc theo trạng thái Unpaid (như trong DB)
                 .Where(i => i.Status == unpaidStatus); 
 
-            // 2. Tính tổng số tiền chưa thanh toán (Server-side)
+            // 2. Calculate total unpaid amount (Server-side)
             decimal totalAmount = await unpaidInvoicesQuery.SumAsync(i => i.TotalAmount);
             
-            // 3. Lấy chi tiết và ánh xạ (Client-side để tránh lỗi EF Core)
+            // 3. Get details and map (Client-side to avoid EF Core errors)
             var unpaidInvoices = unpaidInvoicesQuery
                 .OrderBy(i => i.DueDate)
-                .AsEnumerable() // BẮT BUỘC: Ép EF Core tải dữ liệu trước khi dùng Enum.Parse và DateOnly.FromDateTime
+                .AsEnumerable() // REQUIRED: Force EF Core to load data before using Enum.Parse and DateOnly.FromDateTime
                 .Select(i => new UnpaidInvoiceDetailDto
                 {
                     InvoiceId = i.Id,
@@ -226,7 +226,7 @@ public class InvoiceServiceImpl : IInvoiceService
                     
                     DueDate = DateOnly.FromDateTime(i.DueDate), 
                     
-                    // ⭐ LOGIC OVERDUE: Tính toán dựa trên DueDate và ngày hiện tại
+                    //  LOGIC OVERDUE: Tính toán dựa trên DueDate và ngày hiện tại
                     IsOverdue = DateOnly.FromDateTime(i.DueDate) < today, 
                     
                     // Trạng thái luôn là Unpaid khi truy vấn

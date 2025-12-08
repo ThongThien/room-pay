@@ -11,6 +11,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using ReadingService.Repositories.Interfaces;
 using ReadingService.Repositories.Implementations;
+using Quartz;
+using ReadingService.Jobs;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -90,6 +92,12 @@ builder.Services.AddScoped<IS3Service, S3Service>();
 // Add HttpClient for InvoiceService
 builder.Services.AddHttpClient<IInvoiceHttpClient, InvoiceHttpClient>();
 
+// Add HttpClient for AA service
+builder.Services.AddHttpClient("AA", client => 
+{ 
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:AAService"] ?? "http://localhost:5286"); 
+});
+
 // Add MonthlyReading Service
 builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
 
@@ -106,6 +114,21 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IReadingCycleRepository, ReadingCycleRepository>();
 builder.Services.AddScoped<IMonthlyReadingRepository, MonthlyReadingRepository>();
+
+// Add Quartz for scheduling
+builder.Services.AddQuartz(q =>
+{
+    var jobKey = new JobKey("AutoCreateReadingCycleJob");
+    q.AddJob<AutoCreateReadingCycleJob>(opts => opts.WithIdentity(jobKey));
+
+    q.AddTrigger(opts => opts
+        .ForJob(jobKey)
+        .WithIdentity("AutoCreateReadingCycleTrigger")
+        .WithCronSchedule("0 0 20 * * ?") // At 20th of every month at 00:00
+    );
+});
+
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 var app = builder.Build();
 

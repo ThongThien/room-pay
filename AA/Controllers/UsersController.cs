@@ -138,6 +138,38 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Get all tenants (users with OwnerId not null) (Service-to-service)
+    /// </summary>
+    [HttpGet("tenants")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAllTenants()
+    {
+        // Validate service API key
+        var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+        var configuredApiKey = _configuration["ServiceApiKey"];
+        
+        if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+        {
+            _logger.LogWarning("Invalid or missing API key for GetAllTenants");
+            return Unauthorized(new { error = "Invalid or missing authentication" });
+        }
+
+        // Get all users where OwnerId is not null (tenants)
+        var tenants = await _userManager.Users
+            .Where(u => u.OwnerId != null)
+            .Select(u => new
+            {
+                id = u.Id,
+                fullName = u.FullName,
+                email = u.Email,
+                ownerId = u.OwnerId
+            })
+            .ToListAsync();
+
+        return Ok(tenants);
+    }
+
+    /// <summary>
     /// Tạo người dùng mới (chỉ Owner)
     /// </summary>
     [HttpPost]

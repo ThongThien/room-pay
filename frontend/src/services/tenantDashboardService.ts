@@ -1,4 +1,6 @@
 import { API_URLS, getAuthHeaders } from "@/utils/config";
+import { InvoiceItem } from "@/types/invoice";
+import { getInvoiceDetail } from "@/services/invoiceService";
 
 export interface ActiveContractData {
     houseName: string;
@@ -15,6 +17,7 @@ export interface UnpaidInvoiceItem {
     dueDate: string;
     isOverdue: boolean;
     status: number;
+    items: InvoiceItem[]; // Thêm chi tiết các khoản
 }
 
 export interface UnpaidInvoicesResponse {
@@ -79,6 +82,27 @@ export const getTenantDashboardData = async (): Promise<TenantDashboardData> => 
             const json = await invoiceRes.json();
             if (json.success && json.data) {
                 invoiceData = json.data;
+
+                // Fetch chi tiết items cho mỗi unpaid invoice
+                const invoicesWithDetails = await Promise.all(
+                    invoiceData.unpaidInvoices.map(async (invoice) => {
+                        try {
+                            const detail = await getInvoiceDetail(invoice.invoiceId);
+                            return {
+                                ...invoice,
+                                items: detail?.items || []
+                            };
+                        } catch (error) {
+                            console.warn(`Failed to fetch details for invoice ${invoice.invoiceId}:`, error);
+                            return {
+                                ...invoice,
+                                items: []
+                            };
+                        }
+                    })
+                );
+
+                invoiceData.unpaidInvoices = invoicesWithDetails;
             }
         } else {
             console.warn("Invoice API Error:", invoiceRes.status);

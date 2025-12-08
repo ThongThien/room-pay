@@ -77,7 +77,7 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy MonthlyReading của user theo CycleId
+    /// Get user's MonthlyReading by CycleId
     /// </summary>
     [Authorize]
     [HttpGet("by-cycle/{cycleId}")]
@@ -111,7 +111,7 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy thông tin MonthlyReading theo ID
+    /// Get MonthlyReading information by ID
     /// </summary>
     [Authorize]
     [HttpGet("{id}")]
@@ -127,7 +127,7 @@ public class MonthlyReadingController : ControllerBase
         return Ok(response);
     }
     /// <summary>
-    /// Xóa MonthlyReading
+    /// Delete MonthlyReading
     /// </summary>
     [Authorize(Roles = "Owner")]
     [HttpDelete("{id}")]
@@ -165,7 +165,7 @@ public class MonthlyReadingController : ControllerBase
 
         try
         {
-            // ⭐ GỌI HÀM ĐÃ SỬA để lấy TẤT CẢ bản ghi
+            //  GỌI HÀM ĐÃ SỬA để lấy TẤT CẢ bản ghi
             var readings = await _monthlyReadingService.GetAllReadingsByUserIdAsync(userId);
             
             return Ok(readings);
@@ -178,7 +178,7 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// API trả về hoá đơn có chỉ số điện bất thường (tiêu thụ điện > threshold)
+    /// API returns invoices with abnormal electric readings (electric consumption > threshold)
     /// </summary>
     [Authorize(Roles = "Owner")]
     [HttpGet("abnormal-electric")]
@@ -198,7 +198,7 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// API trả về hoá đơn có chỉ số nước bất thường (tiêu thụ nước > threshold)
+    /// API returns invoices with abnormal water readings (water consumption > threshold)
     /// </summary>
     [Authorize(Roles = "Owner")]
     [HttpGet("abnormal-water")]
@@ -218,13 +218,13 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// Proxy S3 image: trả về ảnh từ S3 (dùng cho frontend)
+    /// Proxy S3 image: return image from S3 (used for frontend)
     /// </summary>
     [AllowAnonymous]
     [HttpGet("image-proxy")]
     public async Task<IActionResult> GetS3Image([FromQuery] string key)
     {
-        // Đọc config AWS từ appsettings
+        // Read AWS config from appsettings
         var awsSection = _config.GetSection("AWS");
         var awsAccessKey = awsSection["AccessKey"];
         var awsSecretKey = awsSection["SecretKey"];

@@ -71,7 +71,7 @@ public class ContractService : IContractService
         return _mapper.Map<ContractDto>(contract);
     }
     
-    // ⭐ GET ALL CONTRACTS BY OWNER ID
+    //  GET ALL CONTRACTS BY OWNER ID
     public async Task<IEnumerable<ContractDto>> GetAllByOwnerIdAsync(Guid ownerId)
     {
         var houses = await _houseService.GetHousesOwnedByAsync(ownerId); 
@@ -85,7 +85,7 @@ public class ContractService : IContractService
         return _mapper.Map<IEnumerable<ContractDto>>(contracts);
     }
     
-    // ⭐ GET BY ID (Dùng cho Controller check quyền)
+    //  GET BY ID (Dùng cho Controller check quyền)
     public async Task<ContractDto?> GetByIdAsync(int contractId, Guid ownerId)
     {
         // Controller đã kiểm tra quyền sở hữu, ta chỉ cần lấy Contract
@@ -99,7 +99,7 @@ public class ContractService : IContractService
         return _mapper.Map<ContractDto>(contract);
     }
     
-    // ⭐ UPDATE CONTRACT
+    //  UPDATE CONTRACT
     public async Task<ContractDto?> UpdateAsync(int id, UpdateContractDto dto, Guid ownerId)
     {
         var contract = await _contractRepo.GetByIdAsync(id);
@@ -117,7 +117,7 @@ public class ContractService : IContractService
         return _mapper.Map<ContractDto>(contract);
     }
     
-    // ⭐ DELETE CONTRACT
+    //  DELETE CONTRACT
     public async Task<bool> DeleteAsync(int id, Guid ownerId)
     {
         var contract = await _contractRepo.GetByIdAsync(id);
@@ -131,7 +131,7 @@ public class ContractService : IContractService
     }
 
     // =================================================================
-    // ⭐ TRIỂN KHAI PHƯƠNG THỨC CŨ (ĐỂ KHỚP VỚI IContractService của bạn)
+    //  TRIỂN KHAI PHƯƠNG THỨC CŨ (ĐỂ KHỚP VỚI IContractService của bạn)
     // =================================================================
 
     // Triển khai phương thức cũ cho ContractController.GetContract(int id)
@@ -159,7 +159,7 @@ public class ContractService : IContractService
         var contractsWithDetails = await _contractRepo.Query()
             .Where(c => c.TenantId == tenantIdString)
             
-            // ⭐ THỰC HIỆN JOIN VỚI ROOMS VÀ HOUSES BẰNG PROJECTION
+            //  THỰC HIỆN JOIN VỚI ROOMS VÀ HOUSES BẰNG PROJECTION
             // (Giả định Contract Model có Room navigation property, và Room Model có House navigation property)
             .Select(c => new ContractDto
             {
@@ -173,7 +173,7 @@ public class ContractService : IContractService
                 FileUrl = c.FileUrl,
                 CreatedAt = c.CreatedAt,
                 
-                // ⭐ LẤY DỮ LIỆU TỪ ROOM VÀ HOUSE
+                //  LẤY DỮ LIỆU TỪ ROOM VÀ HOUSE
                 // Giả định: Room có trường Name (cho RoomNumber) hoặc kết hợp Name/Floor
                 HouseName = c.Room.House.Name, 
                 RoomNumber = c.Room.Name // Hoặc c.Room.Floor.ToString() + " - " + c.Room.Name
@@ -203,10 +203,10 @@ public class ContractService : IContractService
 
 
     // =================================================================
-    // ⭐ LOGIC KIỂM TRA QUYỀN SỞ HỮU
+    //  LOGIC KIỂM TRA QUYỀN SỞ HỮU
     // =================================================================
     
-    // ⭐ KIỂM TRA QUYỀN SỞ HỮU ROOM
+    //  KIỂM TRA QUYỀN SỞ HỮU ROOM
     public async Task<bool> IsRoomOwnedByAsync(int roomId, Guid ownerId)
     {
         var houseId = await _roomService.GetHouseIdByRoomIdAsync(roomId);
@@ -216,7 +216,7 @@ public class ContractService : IContractService
         return await _houseService.IsOwnedByAsync(houseId.Value, ownerId);
     }
 
-    // ⭐ KIỂM TRA QUYỀN SỞ HỮU CONTRACT
+    //  KIỂM TRA QUYỀN SỞ HỮU CONTRACT
     public async Task<bool> IsContractOwnedByAsync(int contractId, Guid ownerId)
     {
         var contract = await _contractRepo.Query()
@@ -236,12 +236,12 @@ public class ContractService : IContractService
         
         var activeContract = await _contractRepo.Query()
             .Where(c => c.TenantId == tenantIdString)
-            // ⭐ LỌC HỢP ĐỒNG ĐANG HOẠT ĐỘNG
+            //  LỌC HỢP ĐỒNG ĐANG HOẠT ĐỘNG
             // Giả định ContractStatus.ACTIVE là trạng thái hợp lệ.
             .Where(c => c.Status == ContractStatus.Active && 
                         (c.EndDate == null || c.EndDate >= today))
             
-            // ⭐ PROJECTION VÀ JOIN (Đã làm ở bước trước)
+            //  PROJECTION AND JOIN (Done in previous step)
             .Select(c => new ContractDto
             {
                 Id = c.Id,

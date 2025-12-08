@@ -21,7 +21,7 @@ public class RoomService : IRoomService
         _mapper = mapper;
     }
 
-    // ⭐ CREATE ROOM
+    //  CREATE ROOM
     public async Task<RoomDto> CreateAsync(int houseId, CreateRoomDto dto)
     {
         // Check house tồn tại
@@ -42,7 +42,7 @@ public class RoomService : IRoomService
         return _mapper.Map<RoomDto>(room);
     }
 
-    // ⭐ GET ALL ROOM BY HOUSE
+    //  GET ALL ROOM BY HOUSE
     public async Task<IEnumerable<RoomDto>> GetAllAsync(int houseId)
     {
         var rooms = await _roomRepo
@@ -51,7 +51,7 @@ public class RoomService : IRoomService
         return _mapper.Map<IEnumerable<RoomDto>>(rooms);
     }
 
-    // ⭐ GET ROOM BY ID
+    //  GET ROOM BY ID
     public async Task<RoomDto?> GetByIdAsync(int houseId, int roomId)
     {
         var room = await _roomRepo.Query()
@@ -64,7 +64,7 @@ public class RoomService : IRoomService
         return _mapper.Map<RoomDto>(room);
     }
 
-    // ⭐ UPDATE ROOM
+    //  UPDATE ROOM
     public async Task UpdateAsync(int houseId, int roomId, UpdateRoomDto dto)
     {
         var room = await _roomRepo.Query()
@@ -80,7 +80,7 @@ public class RoomService : IRoomService
         await _roomRepo.UpdateAsync(room);
     }
 
-    // ⭐ DELETE ROOM
+    //  DELETE ROOM
     public async Task DeleteAsync(int houseId, int roomId)
     {
         var room = await _roomRepo.Query()
@@ -93,10 +93,10 @@ public class RoomService : IRoomService
     }
     public async Task<int?> GetHouseIdByRoomIdAsync(int roomId)
     {
-        // Query chỉ lấy HouseId của Room tương ứng
+        // Query only gets HouseId of the corresponding Room
         var houseId = await _roomRepo.Query()
             .Where(r => r.Id == roomId)
-            .Select(r => (int?)r.HouseId) // Ép kiểu sang int? để có thể trả về null
+            .Select(r => (int?)r.HouseId) // Cast to int? to allow null return
             .FirstOrDefaultAsync();
 
         return houseId;

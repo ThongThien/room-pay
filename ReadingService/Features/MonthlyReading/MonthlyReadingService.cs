@@ -15,7 +15,7 @@ public class MonthlyReadingService : IMonthlyReadingService
     private readonly IS3Service _s3Service;
     private readonly ILogger<MonthlyReadingService> _logger;
     private readonly IInvoiceHttpClient _invoiceHttpClient;
-    // ⭐ Dependency MỚI: Dùng Service để lấy chu kỳ đọc
+    //  Dependency MỚI: Dùng Service để lấy chu kỳ đọc
     private readonly IReadingCycleService _cycleService;
 
     public MonthlyReadingService(
@@ -23,14 +23,14 @@ public class MonthlyReadingService : IMonthlyReadingService
         IS3Service s3Service,
         ILogger<MonthlyReadingService> logger,
         IInvoiceHttpClient invoiceHttpClient,
-        // ⭐ Thêm Dependency cho ReadingCycleService
+        //  Thêm Dependency cho ReadingCycleService
         IReadingCycleService cycleService)
     {
         _context = context;
         _s3Service = s3Service;
         _logger = logger;
         _invoiceHttpClient = invoiceHttpClient;
-        _cycleService = cycleService; // ⭐ Gán
+        _cycleService = cycleService; //  Gán
     }
 
     public async Task<List<MonthlyReadingResponseDto>> GetAllAsync()
@@ -55,7 +55,7 @@ public class MonthlyReadingService : IMonthlyReadingService
 
     public async Task<MonthlyReadingResponseDto?> GetLatestSubmittedByUserIdAsync(string userId)
     {
-        // Lấy reading gần nhất đã được submit của user
+        // Get the latest submitted reading of the user
         var reading = await _context.MonthlyReadings
             .Include(mr => mr.ReadingCycle)
             .Where(mr => mr.ReadingCycle!.UserId == userId && (mr.Status == ReadingStatus.Confirmed))
@@ -65,7 +65,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         return reading == null ? null : MapToResponseDto(reading);
     }
     
-    // 💡 HÀM MỚI: GetMissingReadingsAsync
+    // 💡 NEW FUNCTION: GetMissingReadingsAsync
     public async Task<MissingReadingsResponseDto> GetMissingReadingsAsync(Guid tenantId)
     {
         DateTime now = DateTime.Now;
@@ -73,7 +73,7 @@ public class MonthlyReadingService : IMonthlyReadingService
 
         try
         {
-            // 1. Xác định TẤT CẢ chu kỳ đã kết thúc và thuộc về user
+            // 1. Identify ALL finished cycles belonging to the user
             var finishedCycles = _context.ReadingCycles
                 .Where(c => 
                     c.UserId == tenantIdString && 
@@ -81,35 +81,35 @@ public class MonthlyReadingService : IMonthlyReadingService
                     (c.CycleYear == now.Year && c.CycleMonth < now.Month))
                 );
 
-            // 2. LEFT JOIN với MonthlyReadings để tìm chu kỳ bị thiếu
+            // 2. LEFT JOIN with MonthlyReadings to find missing cycles
             var missingCyclesQuery = finishedCycles
                 .GroupJoin(
-                    _context.MonthlyReadings, // Bảng bên phải (MonthlyReading)
-                    c => c.Id,                // Khóa chính (CycleId)
-                    mr => mr.CycleId,         // Khóa ngoại (CycleId)
-                    (c, mrs) => new { Cycle = c, Readings = mrs } // Kết quả Join
+                    _context.MonthlyReadings, // Right table (MonthlyReading)
+                    c => c.Id,                // Primary key (CycleId)
+                    mr => mr.CycleId,         // Foreign key (CycleId)
+                    (c, mrs) => new { Cycle = c, Readings = mrs } // Join result
                 )
-                .SelectMany( // SelectMany để xử lý trường hợp không có MonthlyReading (Left Join)
+                .SelectMany( // SelectMany to handle cases with no MonthlyReading (Left Join)
                     x => x.Readings.DefaultIfEmpty(), 
                     (x, mr) => new { x.Cycle, Reading = mr }
                 )
-                // 3. Lọc ra các bản ghi được coi là BỊ THIẾU (Missing)
+                // 3. Filter records considered MISSING
                 .Where(x => 
-                    // Điều kiện thiếu 1: CHƯA CÓ MonthlyReading nào được tạo cho chu kỳ này
+                    // Missing condition 1: NO MonthlyReading created for this cycle
                     x.Reading == null || 
                     
-                    // Điều kiện thiếu 2: Hoặc MonthlyReading có tồn tại, nhưng KHÔNG HỢP LỆ
+                    // Missing condition 2: Or MonthlyReading exists but is INVALID
                     (x.Reading != null && 
                     (
-                        x.Reading.Status == ReadingStatus.Pending || // Trạng thái Pending
-                        x.Reading.ElectricNew <= 0 ||                // Thiếu chỉ số điện mới
-                        x.Reading.WaterNew <= 0 ||                   // Thiếu chỉ số nước mới
-                        string.IsNullOrEmpty(x.Reading.ElectricPhotoUrl) || // Thiếu ảnh điện
-                        string.IsNullOrEmpty(x.Reading.WaterPhotoUrl)       // Thiếu ảnh nước
+                        x.Reading.Status == ReadingStatus.Pending || // Pending status
+                        x.Reading.ElectricNew <= 0 ||                // Missing new electric reading
+                        x.Reading.WaterNew <= 0 ||                   // Missing new water reading
+                        string.IsNullOrEmpty(x.Reading.ElectricPhotoUrl) || // Missing electric photo
+                        string.IsNullOrEmpty(x.Reading.WaterPhotoUrl)       // Missing water photo
                     )
                     )
                 )
-                // 4. Group lại để tránh trùng lặp (vì có thể có nhiều bản ghi thiếu cho cùng 1 cycle, mặc dù không nên)
+                // 4. Group to avoid duplicates (though there shouldn't be multiple missing records for same cycle)
                 .Select(x => x.Cycle)
                 .Distinct()
                 .OrderByDescending(c => c.CycleYear)
@@ -134,19 +134,19 @@ public class MonthlyReadingService : IMonthlyReadingService
     }
     public async Task<IEnumerable<MonthlyReadingResponseDto>> GetAllReadingsByUserIdAsync(string userId)
     {
-        // 1. Lấy tất cả Cycle IDs của user
+        // 1. Get all Cycle IDs for the user
         var cycleIds = await _context.ReadingCycles
             .Where(c => c.UserId == userId)
             .Select(c => c.Id)
             .ToListAsync();
 
-        // 2. Lấy TẤT CẢ MonthlyReadings tương ứng (Sử dụng ToListAsync)
+        // 2. Get ALL corresponding MonthlyReadings (Using ToListAsync)
         var readings = await _context.MonthlyReadings
             .Where(r => cycleIds.Contains(r.CycleId))
-            .OrderByDescending(r => r.CreatedAt) // Sắp xếp theo thời gian nộp
+            .OrderByDescending(r => r.CreatedAt) // Sort by submission time
             .ToListAsync();
 
-        // Map và trả về
+        // Map and return
         return readings.Select(MapToResponseDto);
     }
 
@@ -154,9 +154,9 @@ public class MonthlyReadingService : IMonthlyReadingService
     {
         try
         {
-        // Tìm MonthlyReading theo CycleId
+        // Find MonthlyReading by CycleId
         var reading = await _context.MonthlyReadings
-            .Include(r => r.ReadingCycle) // Include để lấy UserId
+            .Include(r => r.ReadingCycle) // Include to get UserId
             .FirstOrDefaultAsync(r => r.CycleId == cycleId);
 
         if (reading == null)
@@ -166,13 +166,13 @@ public class MonthlyReadingService : IMonthlyReadingService
 
         var userId = reading.ReadingCycle?.UserId ?? "unknown";
         
-        // Log để debug
+        // Log for debugging
         _logger.LogInformation($"SubmitAsync - CycleId: {cycleId}, UserId: {userId}, ElectricOld (from DB): {reading.ElectricOld}, ElectricNew (from user): {dto.ElectricNew}, WaterOld (from DB): {reading.WaterOld}, WaterNew (from user): {dto.WaterNew}");
 
-        // Upload ảnh điện lên S3
+        // Upload electric photo to S3
         if (dto.ElectricPhoto != null)
         {
-            // Xóa ảnh cũ nếu có
+            // Delete old photo if exists
             if (!string.IsNullOrEmpty(reading.ElectricPhotoUrl))
             {
                 await _s3Service.DeleteFileAsync(reading.ElectricPhotoUrl);
@@ -180,10 +180,10 @@ public class MonthlyReadingService : IMonthlyReadingService
             reading.ElectricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, $"{userId}/electric-meter-photos");
         }
 
-        // Upload ảnh nước lên S3
+        // Upload water photo to S3
         if (dto.WaterPhoto != null)
         {
-            // Xóa ảnh cũ nếu có
+            // Delete old photo if exists
             if (!string.IsNullOrEmpty(reading.WaterPhotoUrl))
             {
                 await _s3Service.DeleteFileAsync(reading.WaterPhotoUrl);
@@ -191,11 +191,11 @@ public class MonthlyReadingService : IMonthlyReadingService
             reading.WaterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, $"{userId}/water-meter-photos");
         }
 
-        // Cập nhật thông tin - chỉ số cũ đã được set tự động khi tạo ReadingCycle
-        // ElectricOld và WaterOld không cần cập nhật, đã có sẵn từ lần nộp trước
+        // Update information - old readings were automatically set when creating ReadingCycle
+        // ElectricOld and WaterOld don't need updating, already available from previous submission
         reading.ElectricNew = dto.ElectricNew;
         reading.WaterNew = dto.WaterNew;
-        reading.Status = ReadingStatus.Confirmed; // Cập nhật trạng thái thành Confirmed
+        reading.Status = ReadingStatus.Confirmed; // Update status to Confirmed
         reading.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -245,7 +245,7 @@ public class MonthlyReadingService : IMonthlyReadingService
             return false;
         }
 
-        // Xóa ảnh trên S3 nếu có
+        // Delete photos from S3 if they exist
         if (!string.IsNullOrEmpty(reading.ElectricPhotoUrl))
         {
             await _s3Service.DeleteFileAsync(reading.ElectricPhotoUrl);

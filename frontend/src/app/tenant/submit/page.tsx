@@ -6,19 +6,6 @@ import { useState, useEffect } from "react";
 /* ------------------------------
     INTERFACES GIỮ NGUYÊN
 ------------------------------ */
-interface InvoiceItem {
-    name: string;
-    qty: number;
-    price: number;
-    amount: number;
-}
-interface Invoice {
-    id: number;
-    month: string;
-    status: string;
-    items: InvoiceItem[];
-    total: number;
-}
 interface ReadingCardProps {
     title: string;
     icon: string;
@@ -29,14 +16,6 @@ interface ReadingCardProps {
     imageUrl: string;
     isLoading?: boolean;
     onUpload: (file: File) => void;
-}
-
-interface ApiInvoiceItem {
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    amount: number;
-    productCode?: string;
 }
 
 interface ReadingValue {
@@ -98,7 +77,6 @@ function mapStatusToVietnamese(status: string | number | null | undefined): stri
 export default function SubmitMeter() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [cycle, setCycle] = useState<ReadingCycle | null>(null);
-    const [loadingCycle, setLoadingCycle] = useState(true);
     const [uploadingElec, setUploadingElec] = useState(false);
     const [uploadingWater, setUploadingWater] = useState(false);
     const [electricFile, setElectricFile] = useState<File | null>(null);
@@ -114,7 +92,6 @@ export default function SubmitMeter() {
 
     // Theo dõi trạng thái hóa đơn để quyết định disable nút
     const [invoiceStatus, setInvoiceStatus] = useState<'pending' | 'created' | 'paid'>('pending');
-    const [invoice, setInvoice] = useState<Invoice | null>(null);
 
     /* ------------------------------
         1️⃣ LOAD CYCLE (chỉ 1 lần)
@@ -129,7 +106,6 @@ export default function SubmitMeter() {
                 )[0];
                 setCycle(latest);
             }
-            setLoadingCycle(false);
         }
         fetchCycle();
     }, []);
@@ -285,19 +261,6 @@ export default function SubmitMeter() {
         if (res.ok) {
             setInvoiceStatus('created');
         }
-
-        setInvoice({
-            id: inv.id,
-            month: `${cycle.cycleMonth}/${cycle.cycleYear}`,
-            status: inv.status,
-            total: Number(inv.totalAmount ?? 0),
-            items: inv.items?.map((i: ApiInvoiceItem) => ({
-                name: i.description ?? "",
-                qty: Number(i.quantity ?? 0),
-                price: Number(i.unitPrice ?? 0),
-                amount: Number(i.amount ?? ((i.quantity ?? 0) * (i.unitPrice ?? 0))),
-            })) ?? []
-        });
     }
 
     const isConfirmedReading = mapStatusToVietnamese(electric.status) === "Đã xác nhận" && mapStatusToVietnamese(water.status) === "Đã xác nhận";

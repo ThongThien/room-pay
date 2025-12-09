@@ -5,30 +5,47 @@ import { Invoice } from "@/types/invoice";
 import { API_URLS, getAuthHeaders } from "@/utils/config";
 
 // 2. Sử dụng API_URLS.INVOICE thay vì process.env
-const BASE_URL = `${API_URLS.INVOICE}/Invoices`;
+const BASE_URL = `${API_URLS.INVOICE}/invoices`;
 
-export const getMyInvoices = async (): Promise<Invoice[]> => {
+export const getMyInvoices = async (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    year?: number;
+    month?: number;
+}): Promise<Invoice[]> => {
     try {
-        const res = await fetch(BASE_URL, {
+        const queryParams = new URLSearchParams();
+        
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.year) queryParams.append('year', params.year.toString());
+        if (params?.month) queryParams.append('month', params.month.toString());
+
+        const url = queryParams.toString() ? `${BASE_URL}?${queryParams.toString()}` : BASE_URL;
+        
+        const res = await fetch(url, {
             method: 'GET',
-            headers: getAuthHeaders(), // 3. Sử dụng helper từ config
+            headers: getAuthHeaders(),
         });
 
         if (!res.ok) {
             if (res.status === 401) {
-                // Xử lý hết hạn token
                 window.location.href = '/public/login';
                 return [];
             }
-            // Log status text để debug dễ hơn
             console.error(`Error ${res.status}: ${res.statusText}`);
             throw new Error("Không thể tải danh sách hóa đơn");
         }
 
-        return await res.json();
+        const invoices = await res.json();
+        return invoices.map((invoice: Invoice) => ({
+            ...invoice,
+            items: []
+        }));
     } catch (error) {
         console.error("Lỗi fetch invoice:", error);
-        // Trả về mảng rỗng thay vì throw để UI không bị crash trắng trang
         return [];
     }
 };

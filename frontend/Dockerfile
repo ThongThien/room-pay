@@ -19,14 +19,15 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all project files
 COPY . .
 
+
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_AA_API_URL=http://aa-service:8080/api
-ENV NEXT_PUBLIC_INVOICE_API_URL=http://invoice-service:8080/api
-ENV NEXT_PUBLIC_PROPERTY_API_URL=http://property-service:8080/api
-ENV NEXT_PUBLIC_PAYMENT_API_URL=http://payment-service:8080/api
-ENV NEXT_PUBLIC_READING_API_URL=http://reading-service:8080/api
-ENV NEXT_PUBLIC_IMAGE_SCAN_API_URL=http://image-scan-service:5000/api
+ENV NEXT_PUBLIC_AA_API_URL=http://47.129.169.174:5286/api
+ENV NEXT_PUBLIC_INVOICE_API_URL=http://47.129.169.174:5150/api
+ENV NEXT_PUBLIC_PROPERTY_API_URL=http://47.129.169.174:5018/api
+ENV NEXT_PUBLIC_PAYMENT_API_URL=http://47.129.169.174:5241/api
+ENV NEXT_PUBLIC_READING_API_URL=http://47.129.169.174:5176/api
+ENV NEXT_PUBLIC_IMAGE_SCAN_API_URL=http://47.129.169.174:5000/api
 
 # Build the application
 RUN npm run build

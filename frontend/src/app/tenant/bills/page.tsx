@@ -48,6 +48,12 @@ export default function TenantBillsPage() {
         return true;
     });
 
+    // Pagination logic
+    const totalPages = Math.ceil(filteredInvoices.length / invoicesPerPage);
+    const startIndex = (currentPage - 1) * invoicesPerPage;
+    const endIndex = startIndex + invoicesPerPage;
+    const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
+
     const handleFilterChange = (newFilter: "ALL" | "UNPAID" | "OVERDUE" | "PAID") => {
         setFilter(newFilter);
         setCurrentPage(1); // Reset về trang 1 khi thay đổi filter

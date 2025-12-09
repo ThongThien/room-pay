@@ -62,7 +62,7 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
           </button>
         </div>
 
-        {/* Content*/}
+        {/* Content thông tin chung */}
         <div className="bg-gray-50 p-4 rounded-lg mb-6 text-sm text-gray-700 space-y-2 border border-gray-100">
           <div className="flex justify-between">
             <span className="text-gray-500">Mã HĐ:</span>
@@ -86,7 +86,7 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
                 Đã thanh toán
               </span>
             ) : (
-               <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded text-xs border border-red-100">
+                <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded text-xs border border-red-100">
                 Chưa thanh toán
               </span>
             )}
@@ -104,19 +104,32 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b text-gray-600 font-semibold">
                 <tr>
-                  <th className="p-3 text-left w-2/3">Khoản mục</th>
-                  <th className="p-3 text-right">Số tiền</th>
+                  <th className="p-3 text-left w-2/3">Khoản mục & Tính toán</th>
+                  <th className="p-3 text-right">Thành tiền</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {items.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-3 text-gray-700">
-                      {item.description}
-                      {item.productCode === 'ELECTRIC'}
-                      {item.productCode === 'WATER'}
+                      <div className="flex flex-col">
+                          {/* Tên khoản mục */}
+                          <span className="font-medium text-gray-900">{item.description}</span>
+
+                          {/* Chi tiết tính toán: SL x Đơn Giá  */}
+                          {/* Chỉ hiện nếu có số lượng và đơn giá */}
+                          {item.quantity > 0 && item.unitPrice > 0 && (
+                              <span className="text-xs text-gray-500 mt-1">
+                                  {item.quantity} {item.productCode === 'ELECTRIC' ? 'kWh' : item.productCode === 'WATER' ? 'm³' : ''}
+                                  &nbsp;x&nbsp;
+                                  {formatCurrency(item.unitPrice)}
+                              </span>
+                          )}
+                      </div>
                     </td>
-                    <td className="p-3 text-right font-medium text-gray-900">
+                    
+                    {/* Cột thành tiền */}
+                    <td className="p-3 text-right font-bold text-gray-900 align-top pt-3">
                       {formatCurrency(item.amount)}
                     </td>
                   </tr>
@@ -134,7 +147,7 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
           </span>
         </div>
 
-        {/* Nút hành động (Chỉ hiện nếu chưa thanh toán) */}
+        {/* Nút hành động */}
         {!isPaid ? (
           <button 
             onClick={() => router.push(`/tenant/payment/${invoice.id}`)}

@@ -198,7 +198,7 @@ const TenantDashboardPage: React.FC = () => {
                                             <span className={`font-semibold ${invoice.isOverdue ? 'text-red-500' : 'text-gray-700'}`}>
                                                 {invoice.month}
                                             </span>
-                                            <span className={`text-xs ${invoice.isOverdue ? 'text-red-400' : 'text-orange-400'}`}>
+                                            <span className={`text-sm font-bold ${invoice.isOverdue ? 'text-red-400' : 'text-orange-400'}`}>
                                                 {invoice.amount} {invoice.isOverdue ? '(QUÁ HẠN)' : `(Hạn: ${invoice.dueDate})`}
                                             </span>
                                         </div>
@@ -276,7 +276,7 @@ const TenantDashboardPage: React.FC = () => {
                         </div>
                     )}
 
-                    <Link href="/tenant/submit" className="block w-full text-center bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition font-bold">
+                    <Link href="/tenant/readinghistory" className="block w-full text-center bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition font-bold">
                         Đi tới trang nộp chỉ số
                     </Link>
                 </div>

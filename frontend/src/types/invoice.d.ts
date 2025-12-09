@@ -11,6 +11,8 @@ export interface Invoice {
     id: number;
     userId: string;
     userName?: string;
+    houseName?: string;
+    roomName?: string;
     invoiceDate: string;
     dueDate: string;
     totalAmount: number;

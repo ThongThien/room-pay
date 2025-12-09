@@ -7,6 +7,7 @@ on:
     paths:
       - 'PropertyService/**'
       - '.github/workflows/property-cicd.yaml'
+  workflow_dispatch:
 
 env:
   AWS_REGION: ap-southeast-1 # Change to your AWS region

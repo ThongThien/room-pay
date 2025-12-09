@@ -7,7 +7,8 @@ on:
     paths:
       - 'ImageScanService/**'
       - '.github/workflows/image-scan-cicd.yaml'
-
+  workflow_dispatch:
+    
 env:
   AWS_REGION: ap-southeast-1 # Change to your AWS region
   ECR_REPOSITORY: intern2025 # Change to your ECR repository name

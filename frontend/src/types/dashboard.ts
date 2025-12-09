@@ -130,13 +130,13 @@ export interface OccupancyChartProps {
     vacant: number;
 }
 
-export interface DataTableProps {
+export interface DataTableProps<T = Record<string, unknown>> {
     title: string;
     columns: Array<{
         key: string;
         header: string;
-        render?: (value: any, row: any) => React.ReactNode;
+        render?: (value: unknown, row: T) => React.ReactNode;
     }>;
-    data: any[];
-    onRowClick?: (row: any) => void;
+    data: T[];
+    onRowClick?: (row: T) => void;
 }

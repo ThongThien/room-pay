@@ -1,6 +1,9 @@
 "use client";
 
 import { Invoice } from "@/types/invoice";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { getInvoiceDetail } from "@/services/invoiceService";
 
 interface InvoiceDetailModalProps {
   invoice: Invoice;
@@ -8,6 +11,30 @@ interface InvoiceDetailModalProps {
 }
 
 export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailModalProps) {
+  const router = useRouter();
+  const [items, setItems] = useState(invoice.items || []);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  // Lazy load items khi modal mở và chưa có items
+  useEffect(() => {
+    if ((!invoice.items || invoice.items.length === 0) && items.length === 0 && !loadingItems) {
+      const loadItems = async () => {
+        setLoadingItems(true);
+        try {
+          const fullInvoice = await getInvoiceDetail(invoice.id);
+          if (fullInvoice && fullInvoice.items) {
+            setItems(fullInvoice.items);
+          }
+        } catch (error) {
+          console.error("Failed to load invoice items:", error);
+        } finally {
+          setLoadingItems(false);
+        }
+      };
+      loadItems();
+    }
+  }, [invoice.id, invoice.items, items.length, loadingItems]);
+
   // Tiền
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
@@ -68,28 +95,35 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
 
         {/* Bảng chi tiết các khoản mục */}
         <div className="border rounded-lg overflow-hidden mb-6 flex-1 overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b text-gray-600 font-semibold">
-              <tr>
-                <th className="p-3 text-left w-2/3">Khoản mục</th>
-                <th className="p-3 text-right">Số tiền</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {invoice.items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-3 text-gray-700">
-                    {item.description}
-                    {item.productCode === 'ELECTRIC'}
-                    {item.productCode === 'WATER'}
-                  </td>
-                  <td className="p-3 text-right font-medium text-gray-900">
-                    {formatCurrency(item.amount)}
-                  </td>
+          {loadingItems ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <span className="ml-2 text-sm text-gray-500">Đang tải chi tiết...</span>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b text-gray-600 font-semibold">
+                <tr>
+                  <th className="p-3 text-left w-2/3">Khoản mục</th>
+                  <th className="p-3 text-right">Số tiền</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-3 text-gray-700">
+                      {item.description}
+                      {item.productCode === 'ELECTRIC'}
+                      {item.productCode === 'WATER'}
+                    </td>
+                    <td className="p-3 text-right font-medium text-gray-900">
+                      {formatCurrency(item.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Tổng cộng */}
@@ -102,7 +136,10 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
 
         {/* Nút hành động (Chỉ hiện nếu chưa thanh toán) */}
         {!isPaid ? (
-          <button className="w-full py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 shadow-md transition-all active:scale-95 text-sm uppercase tracking-wide">
+          <button 
+            onClick={() => router.push(`/tenant/payment/${invoice.id}`)}
+            className="w-full py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 shadow-md transition-all active:scale-95 text-sm uppercase tracking-wide"
+          >
             Thanh toán ngay
           </button>
         ) : (

@@ -61,5 +61,14 @@ namespace InvoiceService.Repositories.Implementations
         //                     i.DueDate < DateTime.UtcNow)     // Đã quá hạn
         //         .FirstOrDefaultAsync();
         // }
+
+        public async Task<List<Invoice>> GetInvoicesByOwnerIdAsync(string ownerId)
+        {
+            // For now, return all invoices - in a real implementation, 
+            // you would need to join with property service to filter by owner
+            // Since we don't have direct relationship, we'll return all invoices
+            // and filter in the service layer
+            return await _context.Invoices.ToListAsync();
+        }
     }
 }

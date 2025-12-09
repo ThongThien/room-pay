@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import { getMyInvoices, markInvoiceAsPaid } from "@/services/invoiceService";
 import { Invoice } from "@/types/invoice";
 import InvoiceDetailModal from "@/components/invoice/InvoiceDetailModal";
+
+// Interface cho API parameters
+interface InvoiceApiParams {
+    page: number;
+    pageSize: number;
+    status?: string;
+    year?: number;
+    month?: number;
+}
 // --- DANH SÁCH NHÀ CHỈ CÒN A, B, C ---
 const MOCK_HOUSES_FOR_UI = [
     { id: 0, name: "Tất cả các Nhà/Tòa" }, // Tùy chọn mặc định
@@ -11,16 +20,14 @@ const MOCK_HOUSES_FOR_UI = [
     { id: 2, name: "B" },
     { id: 3, name: "C" },
 ];
-
-// Hàm lấy tên nhà 
-const getHouseName = (houseId: number | string) => {
-    const id = typeof houseId === 'string' ? parseInt(houseId) : houseId;
-    return MOCK_HOUSES_FOR_UI.find(h => h.id === id)?.name || "Tất cả các Nhà/Tòa";
-};
 export default function OwnerInvoicesPage() {
     // STATE QUẢN LÝ DỮ LIỆU VÀ FILTER 
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalInvoices, setTotalInvoices] = useState(0);
+    const pageSize = 20; // Số items per page
 
     // Filter Status: Trạng thái (Tất cả / Chưa thu / Đã thu)
     const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "PAID">("ALL");
@@ -44,8 +51,36 @@ export default function OwnerInvoicesPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const data = await getMyInvoices();
+                setLoading(true);
+                
+                // Chuẩn bị parameters cho API
+                const params: InvoiceApiParams = {
+                    page: currentPage,
+                    pageSize: pageSize,
+                };
+
+                // Thêm status filter
+                if (statusFilter !== "ALL") {
+                    params.status = statusFilter === "PENDING" ? "Unpaid" : "Paid";
+                }
+
+                // Thêm date filters
+                if (selectedYear) {
+                    params.year = selectedYear;
+                }
+                if (selectedMonth !== "ALL") {
+                    params.month = selectedMonth;
+                }
+
+                const data = await getMyInvoices(params);
                 setInvoices(data);
+                
+                // Giả sử API trả về total count trong response header hoặc tính toán
+                // Ở đây tạm thời set total pages dựa trên data length
+                // Trong thực tế, API nên trả về totalCount
+                setTotalPages(Math.ceil(data.length / pageSize) || 1);
+                setTotalInvoices(data.length);
+                
             } catch (error) {
                 console.error("Lỗi tải hóa đơn:", error);
             } finally {
@@ -53,7 +88,7 @@ export default function OwnerInvoicesPage() {
             }
         };
         fetchData();
-    }, []);
+    }, [currentPage, statusFilter, selectedMonth, selectedYear]);
 
     const handleMarkAsPaid = async (id: number, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -134,19 +169,28 @@ export default function OwnerInvoicesPage() {
                 {/* Bộ lọc Trạng thái */}
                 <div className="flex bg-gray-100 p-1 rounded-md">
                     <button
-                        onClick={() => setStatusFilter("ALL")}
+                        onClick={() => {
+                            setStatusFilter("ALL");
+                            setCurrentPage(1);
+                        }}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "ALL" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                     >
                         Tất cả
                     </button>
                     <button
-                        onClick={() => setStatusFilter("PENDING")}
+                        onClick={() => {
+                            setStatusFilter("PENDING");
+                            setCurrentPage(1);
+                        }}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "PENDING" ? "bg-white text-red-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                     >
                         Chưa thu
                     </button>
                     <button
-                        onClick={() => setStatusFilter("PAID")}
+                        onClick={() => {
+                            setStatusFilter("PAID");
+                            setCurrentPage(1);
+                        }}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "PAID" ? "bg-white text-green-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                     >
                         Đã thu
@@ -166,7 +210,10 @@ export default function OwnerInvoicesPage() {
                     </select>
                     <select
                         value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                        onChange={(e) => {
+                            setSelectedMonth(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
+                            setCurrentPage(1);
+                        }}
                         className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
                         <option value="ALL">Cả năm</option>
@@ -177,7 +224,10 @@ export default function OwnerInvoicesPage() {
 
                     <select
                         value={selectedYear}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        onChange={(e) => {
+                            setSelectedYear(Number(e.target.value));
+                            setCurrentPage(1);
+                        }}
                         className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
                         <option value={2024}>2024</option>
@@ -268,6 +318,53 @@ export default function OwnerInvoicesPage() {
                     invoice={selectedInvoice}
                     onClose={() => setSelectedInvoice(null)}
                 />
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between bg-white px-4 py-3 border-t border-gray-200">
+                    <div className="flex items-center text-sm text-gray-700">
+                        <span>Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalInvoices)} của {totalInvoices} hóa đơn</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1 || loading}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Trước
+                        </button>
+                        
+                        {/* Page Numbers */}
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                            if (pageNum > totalPages) return null;
+                            
+                            return (
+                                <button
+                                    key={pageNum}
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    disabled={loading}
+                                    className={`px-3 py-1 text-sm border rounded-md ${
+                                        currentPage === pageNum
+                                            ? 'bg-blue-600 text-white border-blue-600'
+                                            : 'border-gray-300 hover:bg-gray-50'
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+                        
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages || loading}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Sau
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

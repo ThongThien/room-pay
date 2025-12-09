@@ -24,6 +24,7 @@ public class InvoiceServiceImpl : IInvoiceService
     private readonly Pricing.IPricingService _pricingService;
 
     private readonly IPropertyService _propertyService;
+    private readonly Services.IUserServiceClient _userServiceClient;
     // private readonly ApplicationDbContext _context;
     
     // [ActivatorUtilitiesConstructor] chỉ cần thiết nếu có nhiều constructors,
@@ -33,13 +34,15 @@ public class InvoiceServiceImpl : IInvoiceService
         IInvoiceRepository invoiceRepo, 
         ILogger<InvoiceServiceImpl> logger,
         Pricing.IPricingService pricingService,
-        IPropertyService propertyService
+        IPropertyService propertyService,
+        Services.IUserServiceClient userServiceClient
     )
     {
         _invoiceRepo = invoiceRepo;
         _logger = logger;
         _pricingService = pricingService;
         _propertyService = propertyService;
+        _userServiceClient = userServiceClient;
     }
 
     private async Task<List<InvoiceResponse>> EnrichInvoicesWithPropertyDetails(IEnumerable<Models.Invoice> invoices)
@@ -119,6 +122,38 @@ public class InvoiceServiceImpl : IInvoiceService
 
         return responseList;
     }
+
+    // Helper method to enrich invoices with user names
+    private async Task<List<InvoiceResponse>> EnrichInvoicesWithUserNamesAsync(IEnumerable<InvoiceResponse> invoices)
+    {
+        var response = invoices.ToList();
+
+        // Collect unique User IDs
+        var userIds = response.Where(r => !string.IsNullOrEmpty(r.UserId)).Select(r => r.UserId).Distinct().ToList();
+
+        // Call User Service for each user
+        foreach (var invoiceResponse in response)
+        {
+            if (!string.IsNullOrEmpty(invoiceResponse.UserId))
+            {
+                try
+                {
+                    var userInfo = await _userServiceClient.GetUserInfoAsync(invoiceResponse.UserId);
+                    if (userInfo != null)
+                    {
+                        invoiceResponse.UserName = userInfo.FullName;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get user info for {UserId}", invoiceResponse.UserId);
+                }
+            }
+        }
+
+        return response;
+    }
+
     //===============================================
     // ⚙️ PRIVATE HELPER: Ánh xạ từ Model sang Response DTO cơ bản
     // =========================================================
@@ -174,6 +209,72 @@ public class InvoiceServiceImpl : IInvoiceService
         return await EnrichInvoicesWithPropertyDetails(invoices);
     }
 
+    public async Task<IEnumerable<InvoiceResponse>> GetAllInvoicesByOwnerAsync(string ownerId, List<string> tenantUserIds, int page, int pageSize, string? status, int? year, int? month)
+    {
+        // 1. Tạo query cơ bản
+        var query = _invoiceRepo.Query()
+            .Include(i => i.Items)
+            .Where(i => tenantUserIds.Contains(i.UserId));
+
+        // 2. Áp dụng filters
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(i => i.Status == status);
+        }
+
+        if (year.HasValue)
+        {
+            query = query.Where(i => i.InvoiceDate.Year == year.Value);
+        }
+
+        if (month.HasValue)
+        {
+            query = query.Where(i => i.InvoiceDate.Month == month.Value);
+        }
+
+        // 3. Áp dụng pagination
+        var invoices = await query
+            .OrderByDescending(i => i.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+            
+        return await EnrichInvoicesWithPropertyDetails(invoices);
+    }
+
+    public async Task<IEnumerable<InvoiceResponse>> GetInvoicesByTenantAsync(string tenantId, int page, int pageSize, string? status, int? year, int? month)
+    {
+        // 1. Tạo query cơ bản
+        var query = _invoiceRepo.Query()
+            .Include(i => i.Items)
+            .Where(i => i.UserId == tenantId);
+
+        // 2. Áp dụng filters
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(i => i.Status == status);
+        }
+
+        if (year.HasValue)
+        {
+            query = query.Where(i => i.InvoiceDate.Year == year.Value);
+        }
+
+        if (month.HasValue)
+        {
+            query = query.Where(i => i.InvoiceDate.Month == month.Value);
+        }
+
+        // 3. Áp dụng pagination
+        var invoices = await query
+            .OrderByDescending(i => i.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+            
+        return await EnrichInvoicesWithPropertyDetails(invoices);
+    }
+
     public async Task<InvoiceResponse?> GetInvoiceByIdAsync(int id, string userId)
     {
         var invoice = await _invoiceRepo.Query()
@@ -196,6 +297,18 @@ public class InvoiceServiceImpl : IInvoiceService
         if (invoice == null) return null;
 
         //  Gọi hàm làm giàu dữ liệu và trả về kết quả
+        return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
+    }
+
+    public async Task<InvoiceResponse?> GetInvoiceByIdForOwnerAsync(int id, string ownerId, List<string> tenantUserIds)
+    {
+        var invoice = await _invoiceRepo.Query()
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == id && tenantUserIds.Contains(i.UserId));
+            
+        if (invoice == null) return null;
+        
+        //  Call data enrichment function and return result
         return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
     }
 
@@ -386,5 +499,57 @@ public class InvoiceServiceImpl : IInvoiceService
             TotalAmount = 0m, 
             MonthYear = "N/A" 
         });
+    }
+
+    public async Task<IEnumerable<PendingInvoiceDto>> GetPendingInvoicesThisMonthAsync(string ownerId)
+    {
+        try
+        {
+            var currentMonth = DateTime.Now.Month;
+            var currentYear = DateTime.Now.Year;
+
+            // Get all invoices (TODO: filter by owner properly)
+            var allInvoices = await _invoiceRepo.Query()
+                .Include(i => i.Items)
+                .ToListAsync();
+
+            // Filter pending invoices this month
+            var pendingInvoices = allInvoices
+                .Where(i => i.Status == "Unpaid" &&
+                           i.CreatedAt.Month == currentMonth &&
+                           i.CreatedAt.Year == currentYear)
+                .ToList();
+
+            // Enrich with property details
+            var enrichedInvoices = await EnrichInvoicesWithPropertyDetails(pendingInvoices);
+
+            // Enrich with user names
+            var enrichedWithUsers = await EnrichInvoicesWithUserNamesAsync(enrichedInvoices);
+
+            // Convert to PendingInvoiceDto
+            var result = new List<PendingInvoiceDto>();
+            foreach (var invoice in enrichedWithUsers)
+            {
+                result.Add(new PendingInvoiceDto
+                {
+                    Id = invoice.Id,
+                    TenantName = invoice.UserName ?? "Unknown",
+                    RoomName = $"{invoice.HouseName ?? "Unknown"} - {invoice.RoomName ?? "Unknown"}",
+                    Amount = invoice.TotalAmount,
+                    InvoiceDate = invoice.CreatedAt,
+                    DueDate = invoice.DueDate,
+                    Status = invoice.Status
+                });
+            }
+
+            _logger.LogInformation("Found {Count} pending invoices for owner {OwnerId} this month", result.Count, ownerId);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error getting pending invoices for owner {OwnerId}: {Error}", ownerId, ex.Message);
+            return new List<PendingInvoiceDto>();
+        }
     }
 }

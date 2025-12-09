@@ -18,6 +18,7 @@ namespace InvoiceService.Repositories.Interfaces
         
         // Bạn có thể thêm GetByIdAsync (tùy chọn)
         Task<Invoice?> GetByIdAsync(int id);
+        Task<List<Invoice>> GetInvoicesByOwnerIdAsync(string ownerId);
         // Task<Invoice?> GetOverdueInvoiceDetailsAsync(int id); // Lấy chi tiết hóa đơn quá hạn
     }
 }

@@ -31,7 +31,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, apiEndpoint
     }
 
     const baseClasses = `bg-white p-4 rounded-xl shadow-lg border-l-4 ${borderColor} flex flex-col justify-between transition-all duration-300`;
-    const clickableClasses = isClickable ? 'cursor-pointer hover:shadow-xl hover:scale-[1.02]' : '';
+    const clickableClasses = isClickable ? 'cursor-pointer hover:shadow-xl' : '';
 
     return (
         <div
@@ -41,9 +41,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, apiEndpoint
             <div className="text-sm font-medium text-gray-700 mb-2 leading-tight">{title}</div>
             <div className={`text-2xl font-extrabold my-1 ${textColor}`}>{value}</div>
             {isClickable && <div className="text-xs font-semibold text-blue-500 mt-1">Click để xem chi tiết</div>}
-            <div className="text-xs text-gray-700 mt-2">
-                <span className={`font-mono ${apiBgColor} p-0.5 rounded text-wrap break-all text-xs text-gray-600`}>API: {apiEndpoint}</span>
-            </div>
         </div>
     );
 };

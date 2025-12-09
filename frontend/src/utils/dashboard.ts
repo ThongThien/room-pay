@@ -19,7 +19,19 @@ export const calculateOverdueDays = (dueDateStr: string): number => {
 
 // Hàm format tiền tệ VNĐ
 export const formatCurrency = (amount: number): string => {
-    return `${amount.toLocaleString('vi-VN')} ₫`;
+    return `${amount.toLocaleString('vi-VN')} đ`;
+};
+
+// Hàm format tiền tệ theo đơn vị Triệu VNĐ
+export const formatCurrencyInMillions = (amount: number | string): string => {
+    // Nếu amount là string, parse thành number
+    const numAmount = typeof amount === 'string' ? parseFloat(amount.replace(/[\s₫,]/g, '')) : amount;
+
+    // Chia cho 1 triệu và làm tròn đến 3 chữ số thập phân
+    const millionAmount = numAmount / 1000000;
+
+    // Format với dấu phẩy và thêm đơn vị
+    return `${millionAmount.toLocaleString('vi-VN')} triệu đồng`;
 };
 
 // Hàm map API response sang format frontend
@@ -27,7 +39,7 @@ export const mapOverdueInvoiceAPIResponse = (apiData: OverdueInvoiceAPIResponse[
     return apiData.map(invoice => ({
         id: invoice.id.toString(),
         tenantName: invoice.userName,
-        roomNumber: "N/A", // API không trả về roomNumber, có thể cần update API hoặc lấy từ userId
+        roomNumber: "N/A",
         amount: formatCurrency(invoice.totalAmount),
         dueDate: new Date(invoice.dueDate).toLocaleDateString('vi-VN'),
         overdueDays: calculateOverdueDays(invoice.dueDate),

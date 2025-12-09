@@ -36,7 +36,7 @@ export const usePayment = (invoiceId: string) => {
                 }
 
                 // Fetch invoice
-                const data = await getInvoiceDetail(parseInt(invoiceId));
+                const data: Invoice | null = await getInvoiceDetail(parseInt(invoiceId));
 
                 if (!data) {
                     setState(prev => ({ ...prev, error: PAYMENT_MESSAGES.INVOICE_NOT_FOUND }));

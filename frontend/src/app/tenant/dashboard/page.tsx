@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import { 
     getTenantDashboardData, 
     formatVND,
-    UnpaidInvoiceItem
+    UnpaidInvoiceItem,
+    loadInvoiceDetails
 } from '@/services/tenantDashboardService';
 
 interface TenantViewData {
@@ -46,7 +47,44 @@ const TenantDashboardPage: React.FC = () => {
     const [data, setData] = useState<TenantViewData | null>(null);
     const [loading, setLoading] = useState(true);
     const [expandedInvoice, setExpandedInvoice] = useState<number | null>(null);
+    const [loadingInvoiceDetails, setLoadingInvoiceDetails] = useState<Set<number>>(new Set());
     const router = useRouter();
+
+    // Function để load chi tiết invoice khi click
+    const handleExpandInvoice = async (invoiceId: number) => {
+        const isExpanding = expandedInvoice !== invoiceId;
+        
+        if (isExpanding) {
+            // Kiểm tra xem đã load details chưa
+            const invoice = data?.unpaidInvoices.find(inv => inv.invoiceId === invoiceId);
+            if (invoice && (!invoice.items || invoice.items.length === 0)) {
+                // Chưa load details, load ngay bây giờ
+                setLoadingInvoiceDetails(prev => new Set(prev).add(invoiceId));
+                try {
+                    const items = await loadInvoiceDetails(invoiceId);
+                    setData(prevData => {
+                        if (!prevData) return prevData;
+                        return {
+                            ...prevData,
+                            unpaidInvoices: prevData.unpaidInvoices.map(inv =>
+                                inv.invoiceId === invoiceId ? { ...inv, items } : inv
+                            )
+                        };
+                    });
+                } catch (error) {
+                    console.error('Failed to load invoice details:', error);
+                } finally {
+                    setLoadingInvoiceDetails(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(invoiceId);
+                        return newSet;
+                    });
+                }
+            }
+        }
+        
+        setExpandedInvoice(isExpanding ? invoiceId : null);
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -166,7 +204,7 @@ const TenantDashboardPage: React.FC = () => {
                                         </div>
                                         <div className="flex gap-2">
                                             <button
-                                                onClick={() => setExpandedInvoice(expandedInvoice === invoice.invoiceId ? null : invoice.invoiceId)}
+                                                onClick={() => handleExpandInvoice(invoice.invoiceId)}
                                                 className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
                                             >
                                                 {expandedInvoice === invoice.invoiceId ? 'Ẩn' : 'Chi tiết'}
@@ -181,19 +219,30 @@ const TenantDashboardPage: React.FC = () => {
                                     </div>
                                     
                                     {/* Chi tiết các khoản */}
-                                    {expandedInvoice === invoice.invoiceId && invoice.items.length > 0 && (
+                                    {expandedInvoice === invoice.invoiceId && (
                                         <div className="p-3 bg-white border-t">
-                                            <h4 className="text-sm font-semibold mb-2 text-gray-700">Chi tiết các khoản:</h4>
-                                            <div className="space-y-1">
-                                                {invoice.items.map((item, index) => (
-                                                    <div key={index} className="flex justify-between text-xs text-gray-600 py-1">
-                                                        <span className="flex-1">{item.description}</span>
-                                                        <span className="text-right w-16">{item.quantity}</span>
-                                                        <span className="text-right w-20">{formatVND(item.unitPrice)}</span>
-                                                        <span className="text-right w-20 font-semibold">{formatVND(item.amount)}</span>
+                                            {loadingInvoiceDetails.has(invoice.invoiceId) ? (
+                                                <div className="flex items-center justify-center py-4">
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                                                    <span className="ml-2 text-sm text-gray-500">Đang tải chi tiết...</span>
+                                                </div>
+                                            ) : (invoice.items && invoice.items.length > 0) ? (
+                                                <>
+                                                    <h4 className="text-sm font-semibold mb-2 text-gray-700">Chi tiết các khoản:</h4>
+                                                    <div className="space-y-1">
+                                                        {invoice.items?.map((item, index) => (
+                                                            <div key={index} className="flex justify-between text-xs text-gray-600 py-1">
+                                                                <span className="flex-1">{item.description}</span>
+                                                                <span className="text-right w-16">{item.quantity}</span>
+                                                                <span className="text-right w-20">{formatVND(item.unitPrice)}</span>
+                                                                <span className="text-right w-20 font-semibold">{formatVND(item.amount)}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </>
+                                            ) : (
+                                                <div className="text-sm text-gray-500 py-2">Không có chi tiết khoản nào.</div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -69,7 +69,7 @@ export default function OwnerInvoicesPage() {
 
                 // Thêm status filter
                 if (statusFilter !== "ALL") {
-                    params.status = statusFilter === "PENDING" ? "Unpaid" : "Paid";
+                    params.status = statusFilter;
                 }
 
                 // Thêm date filters

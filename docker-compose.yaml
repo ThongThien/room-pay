@@ -29,12 +29,9 @@ services:
       JwtSettings__ExpiresInMinutes: ${JWT_EXPIRATION_MINUTES}
       AuthService__BaseUrl: http://aa-service:8080
       AuthService__ApiKey: ${SERVICE_API_KEY}
-      RabbitMQ__HostName: rabbitmq
-      RabbitMQ__Port: 5672
     restart: unless-stopped
     depends_on:
       - aa
-      - rabbitmq
     networks:
       - app-network
 
@@ -145,6 +142,34 @@ services:
       - image-scan-service
     networks:
       - app-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"   
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - default
+      
+  notification-service:
+    build:
+      context: ./NotificationService
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "5003:8080" 
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - SMTP_HOST=mailhog
+    depends_on:
+      - rabbitmq
+      - mailhog
+    networks:
+      - default
 
 networks:
   app-network:

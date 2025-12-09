@@ -542,33 +542,4 @@ public class InvoicesController : ControllerBase
     //     return response;
     // }
 
-
-
-    // [HttpPost("{invoiceId}/remind")]
-    // public async Task<IActionResult> RemindPayment(Guid invoiceId) // Dùng async
-    // {
-    //     // 1. Lấy dữ liệu nghiệp vụ từ MySQL/DBear bằng hàm mới
-    //     var invoice = await _invoiceRepository.GetOverdueInvoiceDetailsAsync(invoiceId);
-        
-    //     if (invoice == null)
-    //     {
-    //         // Trả về nếu không tìm thấy, hoặc nếu hóa đơn đã được thanh toán/chưa quá hạn
-    //         return NotFound("Invoice not found or payment not yet overdue.");
-    //     }
-        
-    //     // 2. Tạo Event Object
-    //     var eventData = new InvoiceOverdueEvent
-    //     {
-    //         InvoiceId = invoice.Id,
-    //         // Sử dụng ID Tenant từ model Invoice
-    //         RecipientUserId = invoice.TenantId.ToString(), // Chuyển Guid/int sang string
-    //         Amount = invoice.TotalAmount,
-    //         DueDate = invoice.DueDate
-    //     };
-
-    //     // 3. Publish Event
-    //     _publisher.PublishInvoiceOverdue(eventData);
-
-    //     return Ok(new { Message = $"Nhắc thanh toán cho hóa đơn {invoiceId} đã được gửi." });
-    // }
 }

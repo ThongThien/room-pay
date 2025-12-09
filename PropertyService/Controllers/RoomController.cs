@@ -157,8 +157,8 @@ public class RoomController : ControllerBase
         var ownershipError = await CheckHouseOwnership(houseId, ownerId);
         if (ownershipError != null) return ownershipError;
 
-        // Dòng này (GetByIdAsync) sẽ ném exception nếu Room không tồn tại trong House đó
-        // Tuy nhiên, việc kiểm tra ở Controller giúp trả về 404 thân thiện hơn
+        // This line (GetByIdAsync) will throw exception if Room doesn't exist in that House
+        // However, checking in Controller provides a more user-friendly 404 response
         var roomCheck = await _roomService.GetByIdAsync(houseId, id); 
         if (roomCheck == null)
         {

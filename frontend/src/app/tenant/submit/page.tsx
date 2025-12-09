@@ -64,7 +64,7 @@ function authHeaders() {
     };
 }
 
-// ✅ Hàm chuyển đổi trạng thái (Hỗ trợ cả số như 1 và chuỗi)
+//  Hàm chuyển đổi trạng thái (Hỗ trợ cả số như 1 và chuỗi)
 function mapStatusToVietnamese(status: string | number | null | undefined): string {
     if (status === null || status === undefined || status === "") {
         return "Đang tải...";
@@ -324,7 +324,7 @@ export default function SubmitMeter() {
                             {/* Thêm dòng thông báo nếu đã xác nhận hoặc hóa đơn đã tạo */}
                             {(isConfirmedReading || invoiceStatus === 'created') && (
                                 <p className="mt-3 text-sm text-green-700 font-medium">
-                                    ✅ Đã xác nhận chỉ số thành công. Hóa đơn đã được tạo.
+                                     Đã xác nhận chỉ số thành công. Hóa đơn đã được tạo.
                                 </p>
                             )}
                         </div>

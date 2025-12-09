@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import {
-    getTenantDashboardData,
-    formatVND
+import { 
+    getTenantDashboardData, 
+    formatVND,
+    UnpaidInvoiceItem
 } from '@/services/tenantDashboardService';
 
 interface TenantViewData {
@@ -23,6 +24,7 @@ interface TenantViewData {
         amount: string;
         dueDate: string;
         isOverdue: boolean;
+        items: UnpaidInvoiceItem['items'];
     }[];
 
     openIncidents: number;
@@ -43,6 +45,7 @@ const TenantDashboardPage: React.FC = () => {
     // State lưu dữ liệu hiển thị
     const [data, setData] = useState<TenantViewData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [expandedInvoice, setExpandedInvoice] = useState<number | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -68,7 +71,8 @@ const TenantDashboardPage: React.FC = () => {
                         month: inv.month,
                         amount: formatVND(inv.amount),
                         dueDate: new Date(inv.dueDate).toLocaleDateString('vi-VN'),
-                        isOverdue: inv.isOverdue
+                        isOverdue: inv.isOverdue,
+                        items: inv.items
                     })),
 
                     // Incident Info
@@ -150,21 +154,48 @@ const TenantDashboardPage: React.FC = () => {
                     <div className="space-y-3">
                         {data.unpaidInvoices.length > 0 ? (
                             data.unpaidInvoices.map((invoice) => (
-                                <div key={invoice.invoiceId} className="flex justify-between items-center text-sm py-2 border-b border-gray-100 last:border-b-0">
-                                    <div className="flex flex-col">
-                                        <span className={`font-semibold ${invoice.isOverdue ? 'text-red-500' : 'text-gray-700'}`}>
-                                            {invoice.month}
-                                        </span>
-                                        <span className={`text-xs ${invoice.isOverdue ? 'text-red-400' : 'text-orange-400'}`}>
-                                            {invoice.amount} {invoice.isOverdue ? '(QUÁ HẠN)' : `(Hạn: ${invoice.dueDate})`}
-                                        </span>
+                                <div key={invoice.invoiceId} className="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div className="flex justify-between items-center text-sm p-3 bg-gray-50">
+                                        <div className="flex flex-col flex-1">
+                                            <span className={`font-semibold ${invoice.isOverdue ? 'text-red-500' : 'text-gray-700'}`}>
+                                                {invoice.month}
+                                            </span>
+                                            <span className={`text-xs ${invoice.isOverdue ? 'text-red-400' : 'text-orange-400'}`}>
+                                                {invoice.amount} {invoice.isOverdue ? '(QUÁ HẠN)' : `(Hạn: ${invoice.dueDate})`}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setExpandedInvoice(expandedInvoice === invoice.invoiceId ? null : invoice.invoiceId)}
+                                                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                                            >
+                                                {expandedInvoice === invoice.invoiceId ? 'Ẩn' : 'Chi tiết'}
+                                            </button>
+                                            <button
+                                                onClick={() => router.push(`/tenant/payment/${invoice.invoiceId}`)}
+                                                className={`px-3 py-1 rounded-lg font-bold text-xs text-white transition ${invoice.isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+                                            >
+                                                Thanh toán
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button
-                                        onClick={() => router.push(`/tenant/payment/${invoice.invoiceId}`)}
-                                        className={`px-3 py-1 rounded-lg font-bold text-xs text-white transition ${invoice.isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
-                                    >
-                                        Thanh toán ngay
-                                    </button>
+                                    
+                                    {/* Chi tiết các khoản */}
+                                    {expandedInvoice === invoice.invoiceId && invoice.items.length > 0 && (
+                                        <div className="p-3 bg-white border-t">
+                                            <h4 className="text-sm font-semibold mb-2 text-gray-700">Chi tiết các khoản:</h4>
+                                            <div className="space-y-1">
+                                                {invoice.items.map((item, index) => (
+                                                    <div key={index} className="flex justify-between text-xs text-gray-600 py-1">
+                                                        <span className="flex-1">{item.description}</span>
+                                                        <span className="text-right w-16">{item.quantity}</span>
+                                                        <span className="text-right w-20">{formatVND(item.unitPrice)}</span>
+                                                        <span className="text-right w-20 font-semibold">{formatVND(item.amount)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         ) : (

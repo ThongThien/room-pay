@@ -10,7 +10,7 @@ namespace InvoiceService.Features.Invoice;
 
 public interface IInvoiceService
 {
-// Các hàm cũ
+// Old functions
     Task<IEnumerable<InvoiceResponse>> GetAllInvoicesByUserAsync(string userId);
     Task<IEnumerable<InvoiceResponse>> GetAllInvoicesByOwnerAsync(string ownerId, List<string> tenantUserIds);
     Task<InvoiceResponse?> GetInvoiceByIdAsync(int id, string userId);
@@ -23,7 +23,7 @@ public interface IInvoiceService
     Task<IEnumerable<InvoiceResponse>> GetInvoicesByStatusAsync(string userId, string status);
     Task<IEnumerable<InvoiceResponse>> GetInvoicesByStatusForOwnerAsync(string ownerId, List<string> tenantUserIds, string status);
    
-    // ⭐ CÁC HÀM MỚI (Cần đảm bảo DTOs này được giải quyết bằng using đã chọn)
+    //  NEW FUNCTIONS (Ensure DTOs are resolved with selected using)
     Task<UnpaidInvoicesResponseDto> GetUnpaidInvoicesByTenantIdAsync(Guid tenantId);
     Task<TotalPaidLastMonthDto> GetTotalPaidAmountLastMonthAsync(Guid tenantId);
 }

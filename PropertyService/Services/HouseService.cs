@@ -23,7 +23,7 @@ public class HouseService : IHouseService
         _mapper = mapper;
     }
 
-    // ⭐ CREATE HOUSE
+    //  CREATE HOUSE
     public async Task<HouseDto> CreateAsync(CreateHouseDto dto, Guid ownerId)
     {
         var house = new House
@@ -37,7 +37,7 @@ public class HouseService : IHouseService
         return _mapper.Map<HouseDto>(house);
     }
 
-    // ⭐ GET ALL HOUSES BY OWNER ID
+    //  GET ALL HOUSES BY OWNER ID
     public async Task<IEnumerable<HouseDto>> GetAllAsync(Guid ownerId)
     {
         var houses = await _repo.FindAsync(h => h.OwnerId == ownerId);
@@ -45,15 +45,15 @@ public class HouseService : IHouseService
         return _mapper.Map<IEnumerable<HouseDto>>(houses);
     }
 
-    // ⭐ GET HOUSE BY ID
+    //  GET HOUSE BY ID
     public async Task<HouseDto?> GetByIdAsync(int id)
     {
-        // Lưu ý: Controller cần kiểm tra quyền sở hữu sau khi gọi hàm này
+        // Note: Controller needs to check ownership after calling this function
         var house = await _repo.GetByIdAsync(id); 
         return _mapper.Map<HouseDto>(house);
     }
 
-    // ⭐ UPDATE HOUSE
+    //  UPDATE HOUSE
     public async Task UpdateAsync(int id, UpdateHouseDto dto)
     {
         // Giả định Controller đã kiểm tra quyền sở hữu trước khi gọi hàm này
@@ -67,7 +67,7 @@ public class HouseService : IHouseService
         await _repo.UpdateAsync(house);
     }
 
-    // ⭐ DELETE HOUSE
+    //  DELETE HOUSE
     public async Task DeleteAsync(int id)
     {
         // Giả định Controller đã kiểm tra quyền sở hữu trước khi gọi hàm này
@@ -78,7 +78,7 @@ public class HouseService : IHouseService
         await _repo.DeleteAsync(house);
     }
 
-    // ⭐ KIỂM TRA QUYỀN SỞ HỮU (Dùng cho Controller)
+    //  KIỂM TRA QUYỀN SỞ HỮU (Dùng cho Controller)
     public async Task<bool> IsOwnedByAsync(int houseId, Guid ownerId)
     {
         // Kiểm tra xem có bất kỳ nhà nào khớp với cả ID nhà VÀ Owner ID hay không

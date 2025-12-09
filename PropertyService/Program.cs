@@ -85,7 +85,7 @@ builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
 
 builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
 {
-    // ⭐ SỬA LỖI: Đổi key từ "AAService" thành "AA" ⭐
+    //  SỬA LỖI: Đổi key từ "AAService" thành "AA" 
     var aaServiceUrl = builder.Configuration["ServiceUrls:AA"]; // <--- ĐÃ SỬA THÀNH "AA"
     
     if (string.IsNullOrEmpty(aaServiceUrl))

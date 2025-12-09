@@ -33,11 +33,11 @@ public class PropertyService : IPropertyService
         }
     }
 
-    public async Task<List<PropertyDetailsDto>> GetDetailsByContractIdsAsync(List<int> contractIds) // ⭐ ĐÃ SỬA
+    public async Task<List<PropertyDetailsDto>> GetDetailsByContractIdsAsync(List<int> contractIds) //  ĐÃ SỬA
     {
-        var apiUrl = "api/property/details-by-contracts"; // ⭐ Endpoint đã làm việc
+        var apiUrl = "api/property/details-by-contracts"; //  Endpoint đã làm việc
 
-        if (contractIds == null || !contractIds.Any()) // ⭐ ĐÃ SỬA
+        if (contractIds == null || !contractIds.Any()) //  ĐÃ SỬA
         {
             _logger.LogWarning("PropertyService Client: Input list is null or empty. Skipping API call.");
             return new List<PropertyDetailsDto>();
@@ -46,13 +46,13 @@ public class PropertyService : IPropertyService
         try
         {
             // 1. Dùng List<int> làm Body
-            var response = await _httpClient.PostAsJsonAsync(apiUrl, contractIds); // ⭐ Dùng contractIds
+            var response = await _httpClient.PostAsJsonAsync(apiUrl, contractIds); //  Dùng contractIds
 
             if (!response.IsSuccessStatusCode)
             {
                 // ... (Logic xử lý lỗi giữ nguyên)
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("🔥 Property Service failed with status {Status}. Content: {Error}", 
+                _logger.LogError(" Property Service failed with status {Status}. Content: {Error}", 
                     response.StatusCode, errorContent);
                 return new List<PropertyDetailsDto>();
             }
@@ -68,7 +68,7 @@ public class PropertyService : IPropertyService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 Error calling PropertyService batch endpoint.");
+            _logger.LogError(ex, " Error calling PropertyService batch endpoint.");
             return new List<PropertyDetailsDto>();
         }
     }
@@ -85,20 +85,20 @@ public class PropertyService : IPropertyService
         
         try
         {
-            _logger.LogInformation("➡️ PropertyService Client: Requesting Active Contract ID for User: {UserId}", userId);
+            _logger.LogInformation(" PropertyService Client: Requesting Active Contract ID for User: {UserId}", userId);
             
             var response = await _httpClient.GetAsync(apiUrl);
 
             if (response.StatusCode == HttpStatusCode.NoContent) // HTTP 204 No Content
             {
-                _logger.LogInformation("✅ No active contract found for User: {UserId}", userId);
+                _logger.LogInformation(" No active contract found for User: {UserId}", userId);
                 return null;
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("🔥 Property Service failed to get active ID. Status {Status}. Content: {Error}", 
+                _logger.LogError(" Property Service failed to get active ID. Status {Status}. Content: {Error}", 
                     response.StatusCode, errorContent);
                 return null;
             }
@@ -109,16 +109,16 @@ public class PropertyService : IPropertyService
             // Cần trim và loại bỏ dấu ngoặc kép (nếu có)
             if (int.TryParse(content.Trim().Replace("\"", ""), out int contractId))
             {
-                _logger.LogInformation("✅ Active Contract ID found: {ContractId}", contractId);
+                _logger.LogInformation(" Active Contract ID found: {ContractId}", contractId);
                 return contractId;
             }
             
-            _logger.LogError("🛑 Failed to parse contract ID from content: {Content}", content);
+            _logger.LogError("Failed to parse contract ID from content: {Content}", content);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 Error calling PropertyService for active contract ID.");
+            _logger.LogError(ex, "Error calling PropertyService for active contract ID.");
             return null;
         }
     }

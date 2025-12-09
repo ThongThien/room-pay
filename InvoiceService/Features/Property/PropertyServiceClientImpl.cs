@@ -62,21 +62,21 @@ public class PropertyServiceClientImpl : IPropertyService
         {
             var apiUrl = "api/property/details-by-contracts"; 
             
-            // ⭐ ĐÃ SỬA: Chuyển đổi List<ContractIdsRequestDto> thành List<int>
+            // ĐÃ SỬA: Chuyển đổi List<ContractIdsRequestDto> thành List<int>
             var onlyIds = contractIds.Select(d => d.ContractId).ToList();
             
             // Serialize LIST<INT> (chứ không phải List DTO)
-            var jsonContent = JsonSerializer.Serialize(onlyIds); // ⭐ SỬ DỤNG onlyIds
+            var jsonContent = JsonSerializer.Serialize(onlyIds); //  SỬ DỤNG onlyIds
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-            _logger.LogInformation("➡️ PropertyService Client: Requesting property details for {Count} contracts.", onlyIds.Count);
+            _logger.LogInformation(" PropertyService Client: Requesting property details for {Count} contracts.", onlyIds.Count);
 
             var response = await _httpClient.PostAsync(apiUrl, content);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("🔥 Property Service failed to get details. Status {Status}. Content: {Error}", 
+                _logger.LogError(" Property Service failed to get details. Status {Status}. Content: {Error}", 
                     response.StatusCode, errorContent);
                 return new List<PropertyDetailsDto>();
             }
@@ -86,17 +86,17 @@ public class PropertyServiceClientImpl : IPropertyService
             // Deserialize kết quả
             var result = JsonSerializer.Deserialize<List<PropertyDetailsDto>>(responseContent, _jsonSerializerOptions);
             
-            _logger.LogInformation("✅ PropertyService Client: Successfully received {Count} property details.", result?.Count ?? 0);
+            _logger.LogInformation(" PropertyService Client: Successfully received {Count} property details.", result?.Count ?? 0);
             
             return result ?? new List<PropertyDetailsDto>();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 Error calling PropertyService for batch property details.");
+            _logger.LogError(ex, " Error calling PropertyService for batch property details.");
             return new List<PropertyDetailsDto>();
         }
     }
-    // ⭐ HÀM MỚI: Triển khai GetActiveContractIdByUserIdAsync
+    //  HÀM MỚI: Triển khai GetActiveContractIdByUserIdAsync
     public async Task<int?> GetActiveContractIdByUserIdAsync(string userId)
     {
         // Giả định: Property Service có endpoint này
@@ -110,14 +110,14 @@ public class PropertyServiceClientImpl : IPropertyService
 
         try
         {
-            _logger.LogInformation("➡️ PropertyService Client: Requesting active contract ID for User: {UserId}", userId);
+            _logger.LogInformation(" PropertyService Client: Requesting active contract ID for User: {UserId}", userId);
 
             var response = await _httpClient.GetAsync(apiUrl);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("🔥 Property Service failed to get active contract for {UserId}. Status {Status}. Content: {Error}", 
+                _logger.LogError(" Property Service failed to get active contract for {UserId}. Status {Status}. Content: {Error}", 
                     userId, response.StatusCode, errorContent);
                 // Trả về null nếu có lỗi hoặc không tìm thấy
                 return null;
@@ -133,19 +133,19 @@ public class PropertyServiceClientImpl : IPropertyService
             }
             if (int.TryParse(content.Trim().Replace("\"", ""), out int contractIdInt))
                 {
-                    _logger.LogInformation("✅ PropertyService Client: Found active Contract ID: {ContractId} for user {UserId}", contractIdInt, userId);
+                    _logger.LogInformation(" PropertyService Client: Found active Contract ID: {ContractId} for user {UserId}", contractIdInt, userId);
                     return contractIdInt; // Trả về kiểu int
                 }
                 else
                 {
                     // Xử lý trường hợp không thể chuyển đổi (dữ liệu rác)
-                    _logger.LogError("🔥 PropertyService Client: Failed to parse Contract ID '{Content}' to integer for user {UserId}.", content, userId);
+                    _logger.LogError(" PropertyService Client: Failed to parse Contract ID '{Content}' to integer for user {UserId}.", content, userId);
                     return null;
                 }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🔥 Error calling PropertyService to get active contract for {UserId}.", userId);
+            _logger.LogError(ex, " Error calling PropertyService to get active contract for {UserId}.", userId);
             return null;
         }
     }

@@ -6,6 +6,8 @@ using ReadingService.Features.User;
 using ReadingService.Features.Property;
 using ReadingService.Repositories.Interfaces;
 using ReadingService.Repositories.Implementations;
+using Quartz;
+using ReadingService.Jobs;
 
 using Microsoft.EntityFrameworkCore; // Microsoft Usings
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -93,31 +95,37 @@ if (!string.IsNullOrEmpty(secretKey))
         };
     });
 }
-builder.Services.AddAuthorization(); // Thêm Authorization
+builder.Services.AddAuthorization(); // Add Authorization
 
-// Đăng ký Repositories (I...Repository)
+// Register Repositories (I...Repository)
 builder.Services.AddScoped<IReadingCycleRepository, ReadingCycleRepository>();
 builder.Services.AddScoped<IMonthlyReadingRepository, MonthlyReadingRepository>();
 
-// Đăng ký Services & HttpClients (I...Service)
+// Register Services & HttpClients (I...Service)
 builder.Services.AddScoped<IS3Service, S3Service>();
 builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
 builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
-builder.Services.AddScoped<IUserService, UserService>();
 
-// Đăng ký HttpClients (I...HttpClient)
+// Register IUserService with configured HttpClient
+builder.Services.AddHttpClient<IUserService, UserService>(client => 
+{ 
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:AAService"]); 
+});
+
+// Register HttpClients (I...HttpClient)
 builder.Services.AddHttpClient<IInvoiceHttpClient, InvoiceHttpClient>();
 builder.Services.AddHttpClient<IPropertyService, PropertyService>();
 
+// Register HttpClient for AA service
+builder.Services.AddHttpClient("AA", client => 
+{ 
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:AAService"]); 
+});
 
-// Cấu hình Controllers, Swagger/OpenAPI (Thường đặt cuối phần Services)
+// Configure Controllers, Swagger/OpenAPI (Usually placed at the end of Services section)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// ====================================================================
-//                             2. CẤU HÌNH PIPELINE (app.Use...)
-// ====================================================================
 
 var app = builder.Build();
 
@@ -146,9 +154,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseRouting(); // Tùy chọn, nhưng nên có trước CORS, Auth/Authz
+app.UseRouting();
 
-app.UseCors("AllowFE"); // CORS phải đứng trước UseAuthentication/UseAuthorization
+app.UseCors("AllowFE");
 
 app.UseAuthentication();
 app.UseAuthorization();

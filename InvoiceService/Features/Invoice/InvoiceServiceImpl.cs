@@ -1,5 +1,3 @@
-// InvoiceService/Features/Invoice/InvoiceServiceImpl.cs
-
 using InvoiceService.Data;
 using InvoiceService.Models;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +5,7 @@ using InvoiceService.Features.Invoice.DTOs.Invoice;
 using InvoiceService.Models.Enums;
 using InvoiceService.Repositories.Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection; // Cần cho [ActivatorUtilitiesConstructor]
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,7 +18,7 @@ namespace InvoiceService.Features.Invoice;
 
 public class InvoiceServiceImpl : IInvoiceService
 {
-    // ⭐ Đã thay thế ApplicationDbContext bằng IInvoiceRepository
+    //  Đã thay thế ApplicationDbContext bằng IInvoiceRepository
     private readonly IInvoiceRepository _invoiceRepo;
     private readonly ILogger<InvoiceServiceImpl> _logger;
     private readonly Pricing.IPricingService _pricingService;
@@ -46,34 +44,34 @@ public class InvoiceServiceImpl : IInvoiceService
 
     private async Task<List<InvoiceResponse>> EnrichInvoicesWithPropertyDetails(IEnumerable<Models.Invoice> invoices)
     {
-        // Kiểm tra đầu vào null/empty
+        // Check for null/empty input
         if (invoices == null || !invoices.Any())
         {
             return new List<InvoiceResponse>();
         }
 
-        // --- 1. Thu thập các TenantContractId duy nhất (Sửa lỗi CS0117 và chuyển đổi kiểu) ---
+        // --- 1. Collect unique TenantContractId (Fix CS0117 error and type conversion) ---
         
-        // Lọc các ID hợp lệ (không null) và chuyển thành List<ContractIdsRequestDto>
+        // Filter valid IDs (not null) and convert to List<ContractIdsRequestDto>
         var contractIdsRequest = invoices
-            // Kiểm tra null (vì là int?)
+            // Check for null (since it's int?)
             .Where(i => i.TenantContractId.HasValue) 
-            // Tạo DTO request. Đảm bảo ContractIdsRequestDto.ContractId là kiểu int
+            // Create DTO request. Ensure ContractIdsRequestDto.ContractId is int type
             .Select(i => new ContractIdsRequestDto 
             {
-                ContractId = i.TenantContractId!.Value // Lấy giá trị int từ int?
+                ContractId = i.TenantContractId!.Value // Get int value from int?
             })
             .DistinctBy(d => d.ContractId)
             .ToList();
         
-        // Khởi tạo Dictionary ánh xạ với key là INT/LONG
-        var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>(); // Thay đổi từ string thành int
+        // Initialize mapping dictionary with INT/LONG key
+        var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>(); // Changed from string to int
         
         if (contractIdsRequest.Any())
         {
             try
             {
-                // --- 2. Gọi Property Service Client bằng Contract IDs ---
+                // --- 2. Call Property Service Client with Contract IDs ---
                 
                 // Đảm bảo GetDetailsByContractIdsAsync nhận List<ContractIdsRequestDto> kiểu số
                 var detailsList = await _propertyService.GetDetailsByContractIdsAsync(contractIdsRequest); 
@@ -104,7 +102,7 @@ public class InvoiceServiceImpl : IInvoiceService
         {
             var dto = MapToResponse(invoice);
             
-            // ⭐ LOGIC ĐÚNG VÀ GỌN GÀNG (Thay thế toàn bộ khối IF bị lỗi của bạn):
+            //  LOGIC ĐÚNG VÀ GỌN GÀNG (Thay thế toàn bộ khối IF bị lỗi của bạn):
             // 1. Kiểm tra nếu Contract ID có giá trị (HasValue)
             // 2. VÀ tìm thấy Contract ID đó trong Dictionary (TryGetValue)
             if (invoice.TenantContractId.HasValue && 
@@ -184,11 +182,11 @@ public class InvoiceServiceImpl : IInvoiceService
             
         if (invoice == null) return null;
         
-        // ⭐ Gọi hàm làm giàu dữ liệu và trả về kết quả
+        //  Call data enrichment function and return result
         return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
     }
 
-    // Sửa hàm GetInvoiceByIdAsync (service-to-service)
+    // Fix GetInvoiceByIdAsync function (service-to-service)
     public async Task<InvoiceResponse?> GetInvoiceByIdAsync(int id)
     {
         var invoice = await _invoiceRepo.Query()
@@ -197,7 +195,7 @@ public class InvoiceServiceImpl : IInvoiceService
             
         if (invoice == null) return null;
 
-        // ⭐ Gọi hàm làm giàu dữ liệu và trả về kết quả
+        //  Gọi hàm làm giàu dữ liệu và trả về kết quả
         return (await EnrichInvoicesWithPropertyDetails(new List<Models.Invoice> { invoice })).FirstOrDefault();
     }
 
@@ -206,7 +204,7 @@ public class InvoiceServiceImpl : IInvoiceService
         invoice.CreatedAt = DateTime.UtcNow;
         invoice.TotalAmount = invoice.Items.Sum(item => item.Amount);
         
-        // ⭐ Sử dụng Repository để thêm và lưu
+        //  Sử dụng Repository để thêm và lưu
         await _invoiceRepo.AddAsync(invoice);
         
         _logger.LogInformation("Created invoice {InvoiceId} for user {UserId}", 
@@ -229,10 +227,10 @@ public class InvoiceServiceImpl : IInvoiceService
         existingInvoice.Status = invoice.Status;
         existingInvoice.UpdatedAt = DateTime.UtcNow;
         
-        // Cần phương thức để xóa/cập nhật Items (Giả sử bạn có hàm Update trong Repo)
-        // Lưu ý: Nếu Repo không có sẵn logic xóa items, cần dùng DbContext hoặc sửa Repo
-        // ⭐ Giả định Repository có thể xử lý việc cập nhật
-        existingInvoice.Items.Clear(); // Xóa cũ
+        // Need method to delete/update Items (Assuming you have Update function in Repo)
+        // Note: If Repo doesn't have built-in logic to delete items, need to use DbContext or modify Repo
+        // Assuming Repository can handle updating
+        existingInvoice.Items.Clear(); // Clear old items
         foreach (var item in invoice.Items)
         {
             existingInvoice.Items.Add(item); // Thêm mới
@@ -256,7 +254,7 @@ public class InvoiceServiceImpl : IInvoiceService
         if (invoice == null)
             return false;
 
-        // ⭐ Sử dụng Repository để xóa
+        // Sử dụng Repository để xóa
         await _invoiceRepo.DeleteAsync(invoice);
         
         _logger.LogInformation("Deleted invoice {InvoiceId} for user {UserId}", 
@@ -310,7 +308,7 @@ public class InvoiceServiceImpl : IInvoiceService
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
         
-        // 2. ⭐ Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
+        // 2.  Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
         return await EnrichInvoicesWithPropertyDetails(invoices);
     }
 
@@ -323,7 +321,7 @@ public class InvoiceServiceImpl : IInvoiceService
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
         
-        // 2. ⭐ Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
+        // 2.  Gọi hàm làm giàu dữ liệu và trả về IEnumerable<InvoiceResponse>
         return await EnrichInvoicesWithPropertyDetails(invoices);
     }
     // InvoiceService/Features/Invoice/InvoiceServiceImpl.cs
@@ -334,7 +332,7 @@ public class InvoiceServiceImpl : IInvoiceService
             string tenantIdString = tenantId.ToString();
             DateOnly today = DateOnly.FromDateTime(DateTime.Today); 
             
-            // ⭐ SỬA LỌC TRẠNG THÁI: Chỉ tìm kiếm UNPAID (theo Enum mới)
+            //  SỬA LỌC TRẠNG THÁI: Chỉ tìm kiếm UNPAID (theo Enum mới)
             string unpaidStatus = InvoiceStatus.Unpaid.ToString(); 
 
             // 1. Định nghĩa truy vấn cơ sở
@@ -343,13 +341,13 @@ public class InvoiceServiceImpl : IInvoiceService
                 // Chỉ lọc theo trạng thái Unpaid (như trong DB)
                 .Where(i => i.Status == unpaidStatus); 
 
-            // 2. Tính tổng số tiền chưa thanh toán (Server-side)
+            // 2. Calculate total unpaid amount (Server-side)
             decimal totalAmount = await unpaidInvoicesQuery.SumAsync(i => i.TotalAmount);
             
-            // 3. Lấy chi tiết và ánh xạ (Client-side để tránh lỗi EF Core)
+            // 3. Get details and map (Client-side to avoid EF Core errors)
             var unpaidInvoices = unpaidInvoicesQuery
                 .OrderBy(i => i.DueDate)
-                .AsEnumerable() // BẮT BUỘC: Ép EF Core tải dữ liệu trước khi dùng Enum.Parse và DateOnly.FromDateTime
+                .AsEnumerable() // REQUIRED: Force EF Core to load data before using Enum.Parse and DateOnly.FromDateTime
                 .Select(i => new UnpaidInvoiceDetailDto
                 {
                     InvoiceId = i.Id,
@@ -361,7 +359,7 @@ public class InvoiceServiceImpl : IInvoiceService
                     
                     DueDate = DateOnly.FromDateTime(i.DueDate), 
                     
-                    // ⭐ LOGIC OVERDUE: Tính toán dựa trên DueDate và ngày hiện tại
+                    //  LOGIC OVERDUE: Tính toán dựa trên DueDate và ngày hiện tại
                     IsOverdue = DateOnly.FromDateTime(i.DueDate) < today, 
                     
                     // Trạng thái luôn là Unpaid khi truy vấn

@@ -71,11 +71,11 @@ public class ReadingCycleService : IReadingCycleService
             .AnyAsync(c => c.Id == cycleId && c.UserId == userId);
     }
 
-    public async Task<ReadingCycleDto> CreateAsync(CreateReadingCycleDto createDto)
+    public async Task<ReadingCycleDto> CreateAsync(string userId, CreateReadingCycleDto createDto)
     {
         var cycle = new Models.ReadingCycle
         {
-            UserId = createDto.UserId,
+            UserId = userId,
             CycleMonth = createDto.CycleMonth,
             CycleYear = createDto.CycleYear,
             CreatedAt = DateTime.UtcNow,
@@ -88,7 +88,7 @@ public class ReadingCycleService : IReadingCycleService
         // Lấy chỉ số mới từ lần nộp trước (nếu có) để làm chỉ số cũ cho tháng này
         var previousReading = await _context.MonthlyReadings
             .Include(mr => mr.ReadingCycle)
-            .Where(mr => mr.ReadingCycle!.UserId == createDto.UserId && mr.Status == Models.ReadingStatus.Confirmed)
+            .Where(mr => mr.ReadingCycle!.UserId == userId && mr.Status == Models.ReadingStatus.Confirmed)
             .OrderByDescending(mr => mr.UpdatedAt)
             .FirstOrDefaultAsync();
 

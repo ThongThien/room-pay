@@ -18,7 +18,7 @@ namespace PropertyService.Controllers
     {
         private readonly IContractService _contractService;
 
-        // ⭐ CONSTRUCTOR
+        //  CONSTRUCTOR
         public TenantContractsController(IContractService contractService)
         {
             _contractService = contractService;

@@ -11,7 +11,7 @@ namespace InvoiceService.Repositories.Interfaces
         // Hàm Query đã có
         IQueryable<Invoice> Query(); 
         
-        // ⭐ BỔ SUNG CÁC HÀM CRUD BỊ THIẾU
+        //  BỔ SUNG CÁC HÀM CRUD BỊ THIẾU
         Task AddAsync(Invoice entity);
         Task UpdateAsync(Invoice entity); // Cần để fix lỗi CS1061
         Task DeleteAsync(Invoice entity); // Cần để fix lỗi CS1061

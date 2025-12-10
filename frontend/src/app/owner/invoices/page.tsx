@@ -13,13 +13,6 @@ interface InvoiceApiParams {
     year?: number;
     month?: number;
 }
-// --- DANH SÁCH NHÀ CHỈ CÒN A, B, C ---
-const MOCK_HOUSES_FOR_UI = [
-    { id: 0, name: "Tất cả các Nhà/Tòa" }, // Tùy chọn mặc định
-    { id: 1, name: "A" },
-    { id: 2, name: "B" },
-    { id: 3, name: "C" },
-];
 export default function OwnerInvoicesPage() {
     // --- STATE QUẢN LÝ DỮ LIỆU ---
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -320,7 +313,7 @@ export default function OwnerInvoicesPage() {
             )}
 
             {selectedInvoice && (
-                <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
+                <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} role="Owner"/>
             )}
 
             {/* Pagination Controls */}

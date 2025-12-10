@@ -173,7 +173,8 @@ const TenantDashboardPage: React.FC = () => {
             </div>
 
             {/* Financial & Incidents & Readings */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 text-gray-800" >
+            {/* col4 -> 3 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-gray-800" >
 
                 {/* 1. Unpaid Invoices (Tổng tiền hóa đơn chưa thanh toán) */}
                 <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-yellow-500 lg:col-span-2">
@@ -282,7 +283,7 @@ const TenantDashboardPage: React.FC = () => {
                 </div>
 
                 {/* 3. Incidents/Requests Card */}
-                <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-red-500">
+                {/* <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-red-500">
                     <h3 className="text-xl font-semibold mb-4 text-gray-700">🛠️ Yêu cầu Dịch vụ</h3>
                     <div className="flex justify-between items-center border-b pb-3 mb-3">
                         <span className="text-lg font-medium">Yêu cầu chưa xử lý:</span>
@@ -292,7 +293,7 @@ const TenantDashboardPage: React.FC = () => {
                     <button className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
                         Tạo Yêu cầu Mới
                     </button>
-                </div>
+                </div> */}
             </div>
         </div>
     );

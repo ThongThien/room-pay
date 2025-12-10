@@ -117,21 +117,12 @@ services:
       - app-network
 
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_AA_API_URL: ${NEXT_PUBLIC_AA_API_URL}
-        NEXT_PUBLIC_INVOICE_API_URL: ${NEXT_PUBLIC_INVOICE_API_URL}
-        NEXT_PUBLIC_PROPERTY_API_URL: ${NEXT_PUBLIC_PROPERTY_API_URL}
-        NEXT_PUBLIC_PAYMENT_API_URL: ${NEXT_PUBLIC_PAYMENT_API_URL}
-        NEXT_PUBLIC_READING_API_URL: ${NEXT_PUBLIC_READING_API_URL}
-        NEXT_PUBLIC_IMAGE_SCAN_API_URL: ${NEXT_PUBLIC_IMAGE_SCAN_API_URL}
-
     image: ${ECR_REGISTRY}/intern2025/frontend:latest
     container_name: frontend
     ports:
-      - "3000:3000"
+      - "80:3000"
+    environment:
+      NODE_ENV: production
     restart: unless-stopped
     depends_on:
       - aa
@@ -158,3 +149,6 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  dataprotection-keys:

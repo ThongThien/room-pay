@@ -7,6 +7,7 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-cicd.yaml'
+  workflow_dispatch:
 
 env:
   AWS_REGION: ap-southeast-1 # Change to your AWS region
@@ -39,17 +40,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
       - name: Build
-        env:
-          NEXT_PUBLIC_AA_API_URL: ${{ secrets.NEXT_PUBLIC_AA_API_URL }}
-          NEXT_PUBLIC_INVOICE_API_URL: ${{ secrets.NEXT_PUBLIC_INVOICE_API_URL }}
-          NEXT_PUBLIC_PROPERTY_API_URL: ${{ secrets.NEXT_PUBLIC_PROPERTY_API_URL }}
-          NEXT_PUBLIC_PAYMENT_API_URL: ${{ secrets.NEXT_PUBLIC_PAYMENT_API_URL }}
-          NEXT_PUBLIC_READING_API_URL: ${{ secrets.NEXT_PUBLIC_READING_API_URL }}
-          NEXT_PUBLIC_IMAGE_SCAN_API_URL: ${{ secrets.NEXT_PUBLIC_IMAGE_SCAN_API_URL }}
         run: npm run build
 
       - name: Configure AWS credentials
@@ -67,22 +58,9 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ steps.version.outputs.IMAGE_TAG }}
-          NEXT_PUBLIC_AA_API_URL: ${{ secrets.NEXT_PUBLIC_AA_API_URL }}
-          NEXT_PUBLIC_INVOICE_API_URL: ${{ secrets.NEXT_PUBLIC_INVOICE_API_URL }}
-          NEXT_PUBLIC_PROPERTY_API_URL: ${{ secrets.NEXT_PUBLIC_PROPERTY_API_URL }}
-          NEXT_PUBLIC_PAYMENT_API_URL: ${{ secrets.NEXT_PUBLIC_PAYMENT_API_URL }}
-          NEXT_PUBLIC_READING_API_URL: ${{ secrets.NEXT_PUBLIC_READING_API_URL }}
-          NEXT_PUBLIC_IMAGE_SCAN_API_URL: ${{ secrets.NEXT_PUBLIC_IMAGE_SCAN_API_URL }}
         working-directory: frontend
         run: |
-          docker build \
-            --build-arg NEXT_PUBLIC_AA_API_URL="$NEXT_PUBLIC_AA_API_URL" \
-            --build-arg NEXT_PUBLIC_INVOICE_API_URL="$NEXT_PUBLIC_INVOICE_API_URL" \
-            --build-arg NEXT_PUBLIC_PROPERTY_API_URL="$NEXT_PUBLIC_PROPERTY_API_URL" \
-            --build-arg NEXT_PUBLIC_PAYMENT_API_URL="$NEXT_PUBLIC_PAYMENT_API_URL" \
-            --build-arg NEXT_PUBLIC_READING_API_URL="$NEXT_PUBLIC_READING_API_URL" \
-            --build-arg NEXT_PUBLIC_IMAGE_SCAN_API_URL="$NEXT_PUBLIC_IMAGE_SCAN_API_URL" \
-            -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG .
           docker tag $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
           docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
           docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest

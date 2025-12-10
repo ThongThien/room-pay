@@ -31,49 +31,49 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           </div>
 
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <Link href="/owner/dashboard" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/dashboard" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Tổng quan'}
             </Link>
 
 
-            <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/invoices" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Quản lý hóa đơn'}
             </Link>
 
-            <Link href="/owner/monthlyreading" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/monthlyreading" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Quản lý nộp chỉ số'}
             </Link>
 
-            <Link href="/owner/createtenant" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/createtenant" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Thêm khách thuê'}
             </Link>
 
-            <Link href="/owner/houses" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/houses" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Danh sách nhà - Nam'}
             </Link>
 
-            <Link href="/owner/rooms" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/rooms" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Danh sách phòng - Nam'}
             </Link>
 
-            <Link href="/owner/tenants" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/tenants" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Khách thuê - Mạnh'}
             </Link>
 
-            <Link href="/owner/contracts" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/contracts" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Hợp đồng - Mạnh'}
             </Link>
 
-            <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/tickets" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Yêu cầu sửa chữa - Nam'}
             </Link>
 
-            <Link href="/owner/notification" className="block p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/notification" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Thông báo'}
             </Link>
             <button
               onClick={handleLogout}
-              className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"
+              className="w-full text-left p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"
             >
               {isSidebarOpen && 'Đăng xuất'}
             </button>

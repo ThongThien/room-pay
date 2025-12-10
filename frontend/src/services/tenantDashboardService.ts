@@ -48,6 +48,17 @@ export interface TenantDashboardData {
 export const formatVND = (amount: number) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
+// Lazy load invoice details khi user click vào invoice
+export const loadInvoiceDetails = async (invoiceId: number): Promise<InvoiceItem[]> => {
+    try {
+        const detail = await getInvoiceDetail(invoiceId);
+        return detail?.items || [];
+    } catch (error) {
+        console.warn(`Failed to fetch details for invoice ${invoiceId}:`, error);
+        return [];
+    }
+};
+
 // --- API CALLS ---
 
 export const getTenantDashboardData = async (): Promise<TenantDashboardData> => {
@@ -76,33 +87,13 @@ export const getTenantDashboardData = async (): Promise<TenantDashboardData> => 
             console.warn("Contract API Error:", contractRes.status);
         }
 
-        // Xử lý Invoice Data
+        // Xử lý Invoice Data - KHÔNG load chi tiết items ngay để tăng tốc
         let invoiceData: UnpaidInvoicesResponse = { totalUnpaidAmount: 0, unpaidInvoices: [] };
         if (invoiceRes.ok) {
             const json = await invoiceRes.json();
             if (json.success && json.data) {
                 invoiceData = json.data;
-
-                // Fetch chi tiết items cho mỗi unpaid invoice
-                const invoicesWithDetails = await Promise.all(
-                    invoiceData.unpaidInvoices.map(async (invoice) => {
-                        try {
-                            const detail = await getInvoiceDetail(invoice.invoiceId);
-                            return {
-                                ...invoice,
-                                items: detail?.items || []
-                            };
-                        } catch (error) {
-                            console.warn(`Failed to fetch details for invoice ${invoice.invoiceId}:`, error);
-                            return {
-                                ...invoice,
-                                items: []
-                            };
-                        }
-                    })
-                );
-
-                invoiceData.unpaidInvoices = invoicesWithDetails;
+                // Không fetch chi tiết items ở đây nữa - sẽ lazy load khi cần
             }
         } else {
             console.warn("Invoice API Error:", invoiceRes.status);

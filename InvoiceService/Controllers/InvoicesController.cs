@@ -75,7 +75,12 @@ public class InvoicesController : ControllerBase
     // ==================== GET Endpoints ====================
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetAllInvoices()
+    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetAllInvoices(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? status = null,
+        [FromQuery] int? year = null,
+        [FromQuery] int? month = null)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
                      ?? User.FindFirstValue("sub") 
@@ -96,20 +101,17 @@ public class InvoicesController : ControllerBase
             // User là Owner: Lấy hóa đơn của tất cả Tenant
             var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
             
-            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
-            invoices = await _invoiceService.GetAllInvoicesByOwnerAsync(userId, tenantUserIds);
+            //  GỌI HÀM SERVICE MỚI với pagination
+            invoices = await _invoiceService.GetAllInvoicesByOwnerAsync(userId, tenantUserIds, page, pageSize, status, year, month);
         }
         else
         {
-            // User là Tenant: Lấy hóa đơn của chính họ
-            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
-            invoices = await _invoiceService.GetAllInvoicesByUserAsync(userId);
+            // User là Tenant: Chỉ lấy hóa đơn của chính mình
+            //  GỌI HÀM SERVICE MỚI với pagination
+            invoices = await _invoiceService.GetInvoicesByTenantAsync(userId, page, pageSize, status, year, month);
         }
 
-        // Controller không còn cần logic làm giàu dữ liệu Property nữa
-        // Chỉ cần bổ sung UserName (nếu Service không làm)
-        var response = await EnrichResponseWithUserNameAsync(invoices); 
-        
+        var response = await EnrichResponseWithUserNameAsync(invoices);
         return Ok(response);
     }
 
@@ -144,9 +146,20 @@ public class InvoicesController : ControllerBase
         }
         else
         {
-            // JWT auth
-            //  GỌI HÀM SERVICE MỚI (Trả về DTO đã làm giàu)
-            invoiceResponse = await _invoiceService.GetInvoiceByIdAsync(id, userId);
+            // JWT auth - check if user is owner or tenant
+            var userInfo = await _userServiceClient.GetUserInfoAsync(userId);
+            
+            if (userInfo?.OwnerId == null)
+            {
+                // User is an owner - get invoice and check if it belongs to one of their tenants
+                var tenantUserIds = await _userServiceClient.GetUserIdsByOwnerAsync(userId);
+                invoiceResponse = await _invoiceService.GetInvoiceByIdForOwnerAsync(id, userId, tenantUserIds);
+            }
+            else
+            {
+                // User is a tenant - only allow access to their own invoices
+                invoiceResponse = await _invoiceService.GetInvoiceByIdAsync(id, userId);
+            }
         }
         
         if (invoiceResponse == null)
@@ -542,4 +555,56 @@ public class InvoicesController : ControllerBase
     //     return response;
     // }
 
+
+
+    // [HttpPost("{invoiceId}/remind")]
+    // public async Task<IActionResult> RemindPayment(Guid invoiceId) // Dùng async
+    // {
+    //     // 1. Lấy dữ liệu nghiệp vụ từ MySQL/DBear bằng hàm mới
+    //     var invoice = await _invoiceRepository.GetOverdueInvoiceDetailsAsync(invoiceId);
+        
+    //     if (invoice == null)
+    //     {
+    //         // Trả về nếu không tìm thấy, hoặc nếu hóa đơn đã được thanh toán/chưa quá hạn
+    //         return NotFound("Invoice not found or payment not yet overdue.");
+    //     }
+        
+    //     // 2. Tạo Event Object
+    //     var eventData = new InvoiceOverdueEvent
+    //     {
+    //         InvoiceId = invoice.Id,
+    //         // Sử dụng ID Tenant từ model Invoice
+    //         RecipientUserId = invoice.TenantId.ToString(), // Chuyển Guid/int sang string
+    //         Amount = invoice.TotalAmount,
+    //         DueDate = invoice.DueDate
+    //     };
+
+    //     // 3. Publish Event
+    //     _publisher.PublishInvoiceOverdue(eventData);
+
+    //     return Ok(new { Message = $"Nhắc thanh toán cho hóa đơn {invoiceId} đã được gửi." });
+    // }
+
+    [HttpGet("pending-this-month")]
+    [Authorize(Roles = "Owner")]
+    [ProducesResponseType(typeof(IEnumerable<InvoiceService.Features.Invoice.DTOs.PendingInvoiceDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPendingInvoicesThisMonth()
+    {
+        try
+        {
+            var ownerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(ownerId))
+            {
+                return Unauthorized("Owner ID not found in token");
+            }
+
+            var pendingInvoices = await _invoiceService.GetPendingInvoicesThisMonthAsync(ownerId);
+            return Ok(pendingInvoices);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting pending invoices for current month");
+            return StatusCode(500, "Internal server error");
+        }
+    }
 }

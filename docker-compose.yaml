@@ -154,22 +154,6 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     networks:
       - default
-      
-  notification-service:
-    build:
-      context: ./NotificationService
-      dockerfile: Dockerfile
-    container_name: notification-service
-    ports:
-      - "5003:8080" 
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - SMTP_HOST=mailhog
-    depends_on:
-      - rabbitmq
-      - mailhog
-    networks:
-      - default
 
 networks:
   app-network:

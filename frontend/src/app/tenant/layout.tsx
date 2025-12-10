@@ -15,7 +15,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
         const isConfirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất không?");
 
         if (!isConfirmed) return;
-        
+
         if (typeof window !== 'undefined') {
             localStorage.clear()
         }
@@ -55,13 +55,13 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                             {isSidebarOpen && "Lịch sử nộp chỉ số"}
                         </Link>
 
-                        <Link href="/tenant/requests" className="block p-2 hover:bg-gray-700 rounded">
+                        {/* <Link href="/tenant/requests" className="block p-2 hover:bg-gray-700 rounded">
                             {isSidebarOpen && "Yêu cầu sửa chữa - Mạnh"}
-                        </Link>
-
+                        </Link> */}
+{/* 
                         <Link href="/tenant/notification" className="block p-2 hover:bg-gray-700 rounded">
                             {isSidebarOpen && 'Thông báo'}
-                        </Link>
+                        </Link> */}
 
                         <button
                             onClick={handleLogout}

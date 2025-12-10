@@ -99,7 +99,7 @@ export default function OwnerInvoicesPage() {
         return Array.from(new Set(allHouseNames)).sort();
     }, [invoices]);
 
-    // --- LOGIC: TẠO DANH SÁCH NĂM ĐỘNG ---
+    // --- LOGIC: TẠO DANH SÁCH NĂM ĐỘNG (GIỮ NGUYÊN) ---
     const years = useMemo(() => {
         const currentYear = new Date().getFullYear();
         const startYear = 2020;
@@ -148,6 +148,22 @@ export default function OwnerInvoicesPage() {
         countOverdue: filteredInvoices.filter(i => i.status === "Overdue").length,
     };
 
+    // Tổng số hóa đơn cần nhắc nhở (Chưa thanh toán + Quá hạn)
+    const countRemindable = stats.countUnpaid + stats.countOverdue;
+
+    // Hàm xử lý nhắc tất cả
+    const handleRemindAllPending = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        const pendingInvoices = filteredInvoices.filter(i => i.status === "Unpaid" || i.status === "Overdue");
+        
+        if (pendingInvoices.length === 0) return;
+
+        if (window.confirm(`Gửi thông báo nhắc thanh toán đến ${pendingInvoices.length} hóa đơn chưa thanh toán?`)) {
+            // Gọi API nhắc nợ hàng loạt ở đây
+            alert(`Giả lập: Đã gửi thông báo nhắc nợ đến ${pendingInvoices.length} khách thuê.`);
+        }
+    }
+
     return (
         <div className="space-y-6 p-6 bg-gray-50 min-h-screen text-gray-800">
             {/* Header & Stats Cards */}
@@ -163,10 +179,23 @@ export default function OwnerInvoicesPage() {
 
                 {/* Thống kê nhanh */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-orange-100">
-                        <p className="text-gray-500 text-xs uppercase font-semibold">Cần thu</p>
-                        <p className="text-2xl font-bold text-orange-600">{formatCurrency(stats.totalPending)}</p>
+                    {/* [ĐÃ SỬA] Thẻ Cần thu -> Chuyển thành clickable để nhắc nợ */}
+                    <div 
+                        className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 cursor-pointer hover:bg-orange-50 transition-colors flex flex-col justify-between"
+                        onClick={handleRemindAllPending}
+                    >
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase font-semibold">Cần thu</p>
+                            <p className="text-2xl font-bold text-orange-600">{formatCurrency(stats.totalPending)}</p>
+                        </div>
+                         <button 
+                            className="mt-2 text-orange-600 text-xs font-semibold underline disabled:no-underline disabled:text-gray-400 text-left" 
+                            disabled={countRemindable === 0}
+                        >
+                            {countRemindable > 0 ? `Gửi nhắc thanh toán ${countRemindable} hóa đơn` : "Đã thu hết"}
+                        </button>
                     </div>
+
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-green-100">
                         <p className="text-gray-500 text-xs uppercase font-semibold">Đã thu</p>
                         <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalCollected)}</p>

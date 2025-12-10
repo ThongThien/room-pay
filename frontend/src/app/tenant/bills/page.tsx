@@ -195,6 +195,7 @@ export default function TenantBillsPage() {
                 <InvoiceDetailModal 
                     invoice={selectedInvoice} 
                     onClose={() => setSelectedInvoice(null)} 
+                    role="Tenant"
                 />
             )}
 

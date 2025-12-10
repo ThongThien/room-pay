@@ -10,6 +10,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
 
   const handleLogout = () => {
+    const isConfirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất không?");
+
+    if (!isConfirmed) return;
     // Xóa toàn bộ thông tin đăng nhập
     if (typeof window !== 'undefined') {
       localStorage.clear()
@@ -64,13 +67,13 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Hợp đồng - Mạnh'}
             </Link>
 
-            <Link href="/owner/tickets" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            {/* <Link href="/owner/tickets" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Yêu cầu sửa chữa - Nam'}
-            </Link>
+            </Link> */}
 
-            <Link href="/owner/notification" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            {/* <Link href="/owner/notification" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Thông báo'}
-            </Link>
+            </Link> */}
             <button
               onClick={handleLogout}
               className="w-full text-left p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"

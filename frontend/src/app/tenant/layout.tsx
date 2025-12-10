@@ -12,6 +12,10 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
 
     // Đăng xuất
     const handleLogout = () => {
+        const isConfirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất không?");
+
+        if (!isConfirmed) return;
+        
         if (typeof window !== 'undefined') {
             localStorage.clear()
         }

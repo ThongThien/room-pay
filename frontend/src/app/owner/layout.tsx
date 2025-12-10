@@ -10,6 +10,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
 
   const handleLogout = () => {
+    const isConfirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất không?");
+
+    if (!isConfirmed) return;
     // Xóa toàn bộ thông tin đăng nhập
     if (typeof window !== 'undefined') {
       localStorage.clear()

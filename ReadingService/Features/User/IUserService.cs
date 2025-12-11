@@ -4,4 +4,9 @@ public interface IUserService
     Task<List<string>> GetTenantIdsByOwnerAsync(string ownerId); // hàm lấy tenant id theo owner id
 
     Task<List<UserInfo>> GetUsersByIdsAsync(List<string> userIds); // hàm lấy thông tin user theo danh sách user id
+
+    Task<string?> GetOwnerIdByTenantIdAsync(string tenantId); 
+
+    Task<string?> GetEmailByUserIdAsync(string userId);
+
 }

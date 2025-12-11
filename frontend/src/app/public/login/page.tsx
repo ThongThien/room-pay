@@ -6,12 +6,12 @@ import { loginAPI } from "@/services/authService";
 
 export default function LoginPage() {
   const router = useRouter();
-  
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,23 +31,23 @@ export default function LoginPage() {
       if (result.success) {
         // Lưu Token và thông tin User
         if (result.token) {
-            localStorage.setItem("accessToken", result.token);
+          localStorage.setItem("accessToken", result.token);
         }
-        
+
         // Lưu thông tin user để hiển thị
         if (result.user) {
-            localStorage.setItem("userRole", result.user.role);
-            localStorage.setItem("userFullName", result.user.fullName);
-            localStorage.setItem("userId", result.user.id);
+          localStorage.setItem("userRole", result.user.role);
+          localStorage.setItem("userFullName", result.user.fullName);
+          localStorage.setItem("userId", result.user.id);
         }
 
         // Điều hướng
         if (result.user?.role === "Owner") {
-            router.push("/owner/dashboard"); 
+          router.push("/owner/dashboard");
         } else if (result.user?.role === "Tenant") {
-            router.push("/tenant/dashboard");
+          router.push("/tenant/dashboard");
         } else {
-            router.push("/");
+          router.push("/");
         }
 
       } else {
@@ -65,7 +65,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-md p-8 bg-white rounded shadow-md">
         <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Đăng nhập</h2>
-        
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm text-center">
             {error}
@@ -85,7 +85,7 @@ export default function LoginPage() {
               required
             />
           </div>
-          
+
           {/* Input Password */}
           <div>
             <label className="block mb-1 font-medium text-gray-700">Mật khẩu</label>
@@ -102,9 +102,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2 text-white font-bold rounded transition duration-200 ${
-              loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            className={`w-full py-2 text-white font-bold rounded transition duration-200 ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+              }`}
           >
             {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>

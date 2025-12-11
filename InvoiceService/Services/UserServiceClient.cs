@@ -79,4 +79,33 @@ public class UserServiceClient : IUserServiceClient
             return new List<string>();
         }
     }
+
+    public async Task<List<UserInfo>> GetTenantsByOwnerIdAsync(string ownerId)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"/api/users/owner/{ownerId}/tenants");
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to get tenants by owner {OwnerId}. Status: {StatusCode}", 
+                    ownerId, response.StatusCode);
+                return new List<UserInfo>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var users = JsonSerializer.Deserialize<List<UserInfo>>(content, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            // ⭐️ Trả về List<UserInfo> đầy đủ
+            return users ?? new List<UserInfo>(); 
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling AuthService to get tenants by owner {OwnerId}", ownerId);
+            return new List<UserInfo>();
+        }
+    }
 }

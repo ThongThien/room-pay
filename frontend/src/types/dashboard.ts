@@ -114,7 +114,6 @@ export interface ModalProps {
 export interface DashboardCardProps {
     title: string;
     value: string;
-    apiEndpoint: string;
     color: 'green' | 'red' | 'yellow' | 'default';
     onClick?: () => void;
     isClickable?: boolean;

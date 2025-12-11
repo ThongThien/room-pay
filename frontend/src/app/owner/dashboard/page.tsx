@@ -571,7 +571,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`⛔ Hóa đơn Quá hạn TT (${data.overdueDetails.length} Hóa đơn)`}
                     value={data.invoiceSummary.overdueAmount}
-                    apiEndpoint="/api/v1/invoice/summary/overdue-amount"
                     color="red"
                     onClick={() => openModal('overdue')}
                     isClickable={data.overdueDetails.length > 0}
@@ -581,7 +580,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`⏳ Hóa đơn Chờ TT Tháng này (${data.pendingDetails.length} Hóa đơn)`}
                     value={data.invoiceSummary.currentUnpaidAmount}
-                    apiEndpoint="/api/v1/invoice/summary/current-pending"
                     color="yellow"
                     onClick={() => openModal('pending')}
                     isClickable={data.pendingDetails.length > 0}
@@ -591,7 +589,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title="🛠️ Sự cố Đang chờ xử lý"
                     value={`${data.pendingIncidents} Sự cố`}
-                    apiEndpoint="/api/v1/ticket/owner/summary"
                     color="red"
                     onClick={() => router.push('/owner/ticket')}
                     isClickable={true}
@@ -601,7 +598,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`📄 HĐ Thuê Sắp hết hạn (${data.endContractsCount} Hợp đồng) - 30 ngày`}
                     value={`${data.endContractsCount} Phòng`}
-                    apiEndpoint="/api/v1/contract/warning/ending-count"
                     color="red"
                     onClick={() => openModal('contract')}
                     isClickable={data.endContractsCount > 0}
@@ -611,7 +607,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`⚡ Tiêu thụ Điện/Nước Bất thường (${data.abnormalReadingCount})`}
                     value={`${data.abnormalReadingCount} Chỉ số`}
-                    apiEndpoint="/api/v1/utility-reading/warning/abnormal-count"
                     color="yellow"
                     onClick={() => openModal('abnormal')}
                     isClickable={data.abnormalReadingCount > 0}

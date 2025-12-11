@@ -16,7 +16,7 @@ export interface Invoice {
     invoiceDate: string;
     dueDate: string;
     totalAmount: number;
-    status: "Paid" | "Unpaid" | string; 
+    status: "Paid" | "Unpaid" | string;
     paidDate?: string;
     items: InvoiceItem[];
 }

@@ -5,6 +5,7 @@ using ReadingService.DTOs;
 using ReadingService.Features.User;
 using ReadingService.Models;
 using ReadingService.Features.User.DTOs;
+using Microsoft.Extensions.Logging;
 
 namespace ReadingService.Features.ReadingCycle;
 
@@ -12,11 +13,13 @@ public class ReadingCycleService : IReadingCycleService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUserService _userService;
+    private readonly ILogger<ReadingCycleService> _logger;
 
-    public ReadingCycleService(ApplicationDbContext context, IUserService userService)
+    public ReadingCycleService(ApplicationDbContext context, IUserService userService, ILogger<ReadingCycleService> logger)
     {
         _context = context;
         _userService = userService;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<ReadingCycleDto>> GetAllAsync()
@@ -76,52 +79,36 @@ public class ReadingCycleService : IReadingCycleService
             .AnyAsync(c => c.Id == cycleId && c.UserId == userId);
     }
 
-    public async Task<ReadingCycleDto> CreateAsync(string userId, CreateReadingCycleDto createDto)
+    public async Task<ReadingCycleDto> CreateAsync(string tenantId, CreateReadingCycleDto createDto)
+{
+    // LOG INPUT
+    _logger.LogInformation("   [Service] Creating Cycle for Tenant {TenantId}, Month {M}/{Y}", tenantId, createDto.CycleMonth, createDto.CycleYear);
+
+    var cycle = new ReadingService.Models.ReadingCycle
     {
-        var cycle = new Models.ReadingCycle
-        {
-            UserId = userId,
-            CycleMonth = createDto.CycleMonth,
-            CycleYear = createDto.CycleYear,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        UserId = tenantId,
+        CycleMonth = createDto.CycleMonth,
+        CycleYear = createDto.CycleYear,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
 
-        _context.ReadingCycles.Add(cycle);
-        await _context.SaveChangesAsync();
+    _context.ReadingCycles.Add(cycle);
+    await _context.SaveChangesAsync();
 
-        // Lấy chỉ số mới từ lần nộp trước (nếu có) để làm chỉ số cũ cho tháng này
-        var previousReading = await _context.MonthlyReadings
-            .Include(mr => mr.ReadingCycle)
-            .Where(mr => mr.ReadingCycle!.UserId == userId && mr.Status == Models.ReadingStatus.Confirmed)
-            .OrderByDescending(mr => mr.UpdatedAt)
-            .FirstOrDefaultAsync();
+    // LOG RESULT
+    _logger.LogInformation("   [Service] Cycle Saved to DB. New ID: {Id}", cycle.Id);
 
-        // Tự động tạo MonthlyReading với status Pending
-        var monthlyReading = new Models.MonthlyReading
-        {
-            CycleId = cycle.Id,
-            // Nếu có reading trước, lấy chỉ số mới của nó làm chỉ số cũ cho tháng này
-            ElectricOld = previousReading?.ElectricNew,
-            WaterOld = previousReading?.WaterNew,
-            Status = Models.ReadingStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        _context.MonthlyReadings.Add(monthlyReading);
-        await _context.SaveChangesAsync();
-
-        return new ReadingCycleDto
-        {
-            Id = cycle.Id,
-            UserId = cycle.UserId,
-            CycleMonth = cycle.CycleMonth,
-            CycleYear = cycle.CycleYear,
-            CreatedAt = cycle.CreatedAt,
-            UpdatedAt = cycle.UpdatedAt
-        };
-    }
+    return new ReadingCycleDto
+    {
+        Id = cycle.Id,
+        UserId = cycle.UserId,
+        CycleMonth = cycle.CycleMonth,
+        CycleYear = cycle.CycleYear,
+        CreatedAt = cycle.CreatedAt,
+        UpdatedAt = cycle.UpdatedAt
+    };
+}
 
     public async Task<bool> UpdateAsync(int id, UpdateReadingCycleDto updateDto)
     {

@@ -30,7 +30,8 @@ public class MonthlyReadingService : IMonthlyReadingService
         IInvoiceHttpClient invoiceHttpClient,
         //  Thêm Dependency cho ReadingCycleService
         IReadingCycleService cycleService,
-        IPropertyService propertyService)
+        IPropertyService propertyService
+         )
     {
         _context = context;
         _s3Service = s3Service;
@@ -473,5 +474,66 @@ public class MonthlyReadingService : IMonthlyReadingService
             UpdatedAt = reading.UpdatedAt,
             TenantContractId = reading.TenantContractId,
         };
+    }
+
+    public async Task<MonthlyReadingDto> CreateEmptyAsync(int cycleId, int tenantContractId)
+    {
+        // LOG INPUT
+        _logger.LogInformation("   [Service] Creating MonthlyReading. CycleId: {CycleId}, ContractId: {ContractId}", cycleId, tenantContractId);
+
+        // 1. TÌM CHỈ SỐ CŨ
+        var lastCompletedReading = await _context.MonthlyReadings
+            .Where(mr => mr.TenantContractId == tenantContractId)
+            .Where(mr => mr.Status != ReadingStatus.Pending) 
+            .Where(mr => mr.ElectricNew.HasValue || mr.WaterNew.HasValue) 
+            .OrderByDescending(mr => mr.CreatedAt) 
+            .Select(mr => new { mr.ElectricNew, mr.WaterNew })
+            .FirstOrDefaultAsync(); 
+        
+        int? electricOldValue = lastCompletedReading?.ElectricNew ?? 0;
+        int? waterOldValue = lastCompletedReading?.WaterNew ?? 0;
+
+        // LOG LOGIC CHỈ SỐ
+        if (lastCompletedReading != null)
+        {
+            _logger.LogInformation("   [Service] Found previous reading. Setting Old Values: E={E}, W={W}", electricOldValue, waterOldValue);
+        }
+        else
+        {
+            _logger.LogWarning("   [Service] No previous reading found (or first time). Setting Old Values to 0.");
+        }
+        
+        // 2. TẠO MONTHLY READING
+        var newReading = new ReadingService.Models.MonthlyReading 
+        {
+            CycleId = cycleId,
+            TenantContractId = tenantContractId,
+            Status = ReadingStatus.Pending,
+            ElectricOld = electricOldValue, 
+            WaterOld = waterOldValue,
+            ElectricNew = null,
+            WaterNew = null,
+            ElectricPhotoUrl = null,
+            WaterPhotoUrl = null,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.MonthlyReadings.Add(newReading);
+        await _context.SaveChangesAsync();
+
+        // LOG RESULT
+        _logger.LogInformation("   [Service] MonthlyReading Saved to DB. New ID: {Id}", newReading.Id);
+
+        return new MonthlyReadingDto
+        {
+            Id = newReading.Id,
+            CycleId = newReading.CycleId,
+            TenantContractId = newReading.TenantContractId,
+            ElectricOld = newReading.ElectricOld,
+            WaterOld = newReading.WaterOld,
+            Status = newReading.Status.ToString(),
+            CreatedAt = newReading.CreatedAt
+        }; 
     }
 }

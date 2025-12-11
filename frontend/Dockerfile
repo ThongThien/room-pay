@@ -19,7 +19,6 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all project files
 COPY . .
 
-
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_AA_API_URL=http://47.129.169.174:5286/api

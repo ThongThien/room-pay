@@ -1,0 +1,40 @@
+name: Deploy Image Automatically on EC2 after CI/CD action run completed
+
+on:
+  workflow_run:
+    workflows: ["AA CI/CD", "Frontend CI/CD", "Invoice CI/CD", "Payment CI/CD", "Property CI/CD", "Reading CI/CD", "Image Scan CI/CD"]
+    types:
+      - completed
+
+env:
+  AWS_REGION: ap-southeast-1
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Deploy to EC2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "${{ secrets.EC2_PEM }}" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ec2-user@47.129.169.174 << EOF
+            cd /home/ubuntu/intern-team3-2025
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+            docker-compose pull
+            docker-compose up -d
+            docker image prune -f
+          EOF

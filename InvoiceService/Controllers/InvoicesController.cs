@@ -214,6 +214,7 @@ public class InvoicesController : ControllerBase
     /// <summary>
     /// Create a new invoice for the current user
     /// </summary>
+    [AllowAnonymous]
     [HttpPost]
     public async Task<ActionResult<InvoiceResponse>> CreateInvoice([FromBody] CreateInvoiceRequest request)
     {

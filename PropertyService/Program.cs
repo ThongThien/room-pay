@@ -6,18 +6,33 @@ using System.Text;
 using PropertyService.Services;
 using PropertyService.Services.Interfaces;
 using PropertyService.Repositories;
+using PropertyService.Services.Clients;
+using PropertyService.Models;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Database
+// --- 1. Database ---
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     ));
 
-// 2. JWT Authentication
-var jwt = builder.Configuration.GetSection("JwtSettings");
+// --- 2. CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// --- 3. JWT Authentication ---
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -27,55 +42,83 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwt["Issuer"],
-            ValidAudience = jwt["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Secret"]!))
-
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!))
         };
     });
 
-// 3. Swagger + JWT support
+// --- 4. Swagger Config ---
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition("Bearer", new()
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Property Service API", Version = "v1" });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header
+        In = ParameterLocation.Header,
+        Description = "Nhập token vào: Bearer {token}"
     });
 
-    c.AddSecurityRequirement(new()
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            new OpenApiSecurityScheme
             {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
+                Reference = new OpenApiReference 
+                { 
+                    Type = ReferenceType.SecurityScheme, 
+                    Id = "Bearer" 
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
+
+// --- 5. Dependency Injection ---
 builder.Services.AddAutoMapper(typeof(Program));
+
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
+builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
+
+// --- 6. HTTP Client đến AA Service ---
+builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
+{
+    var aaServiceUrl = builder.Configuration["ServiceUrls:AA"];
+
+    if (string.IsNullOrEmpty(aaServiceUrl))
+    {
+        aaServiceUrl = "http://localhost:5001"; // fallback
+    }
+
+    client.BaseAddress = new Uri(aaServiceUrl);
+});
 
 builder.Services.AddControllers();
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// --- PIPELINE ---
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
+// 1. CORS
+app.UseCors("AllowAll");
+
+// 2. Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
+// 3. Map Controllers
 app.MapControllers();
 
 app.Run();

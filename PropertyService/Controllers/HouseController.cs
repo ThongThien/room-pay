@@ -1,113 +1,179 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using PropertyService.Services.Interfaces;
 using PropertyService.DTOs.Houses;
-using System.Security.Claims;
 
 namespace PropertyService.Controllers;
 
 [ApiController]
 [Route("api/houses")]
+[Authorize(Roles = "Owner")] // Chỉ cho phép tài khoản Role Owner truy cập
 public class HouseController : ControllerBase
 {
-    private readonly IHouseService _service;
+    private readonly IHouseService _houseService;
 
-    public HouseController(IHouseService service)
+    public HouseController(IHouseService houseService)
     {
-        _service = service;
+        _houseService = houseService;
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Create(CreateHouseDto dto)
+    // --- Helper: Lấy OwnerId từ Token ---
+    private Guid GetCurrentOwnerId()
     {
-        Guid ownerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var ownerIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
 
-        var createdHouse = await _service.CreateAsync(dto, ownerId);
-
-        return Ok(new
+        if (ownerIdClaim == null || string.IsNullOrEmpty(ownerIdClaim.Value))
         {
-            success = true,
-            message = "House created successfully",
-            data = createdHouse
-        });
+            throw new UnauthorizedAccessException("Không tìm thấy thông tin định danh trong Token.");
+        }
+
+        if (Guid.TryParse(ownerIdClaim.Value, out Guid ownerId))
+        {
+            return ownerId;
+        }
+
+        throw new UnauthorizedAccessException("Token không hợp lệ (ID không đúng định dạng).");
     }
 
+    // --- 1. LẤY DANH SÁCH NHÀ ---
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        Guid ownerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-        var houses = await _service.GetAllAsync(ownerId);
-
-        return Ok(new
+        try
         {
-            success = true,
-            message = "Houses retrieved successfully",
-            data = houses
-        });
+            var ownerId = GetCurrentOwnerId();
+            var houses = await _houseService.GetAllAsync(ownerId);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách nhà thành công.",
+                data = houses
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Lỗi Server: " + ex.Message });
+        }
     }
 
+    // --- 2. TẠO NHÀ MỚI ---
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateHouseDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { success = false, message = "Dữ liệu gửi lên không hợp lệ.", errors = ModelState });
+        }
+
+        try
+        {
+            var ownerId = GetCurrentOwnerId();
+            var createdHouse = await _houseService.CreateAsync(dto, ownerId);
+
+            return StatusCode(201, new
+            {
+                success = true,
+                message = "Tạo nhà trọ mới thành công.",
+                data = createdHouse
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    // --- 3. LẤY CHI TIẾT 1 NHÀ ---
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(int id)
     {
-        var house = await _service.GetByIdAsync(id);
-        if (house == null)
+        try
         {
-            return NotFound(new
+            var ownerId = GetCurrentOwnerId();
+            var isOwned = await _houseService.IsOwnedByAsync(id, ownerId);
+
+            if (!isOwned)
             {
-                success = false,
-                message = "House not found"
+                return StatusCode(403, new { success = false, message = "Bạn không có quyền truy cập hoặc nhà không tồn tại." });
+            }
+
+            var house = await _houseService.GetByIdAsync(id);
+            if (house == null)
+            {
+                return NotFound(new { success = false, message = "Không tìm thấy nhà trọ." });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                data = house
             });
         }
-
-        return Ok(new
+        catch (Exception ex)
         {
-            success = true,
-            message = "House retrieved successfully",
-            data = house
-        });
+            return BadRequest(new { success = false, message = ex.Message });
+        }
     }
 
+    // --- 4. CẬP NHẬT NHÀ ---
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, UpdateHouseDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateHouseDto dto)
     {
-        var house = await _service.GetByIdAsync(id);
-        if (house == null)
+        try
         {
-            return NotFound(new
+            var ownerId = GetCurrentOwnerId();
+            var isOwned = await _houseService.IsOwnedByAsync(id, ownerId);
+
+            if (!isOwned)
             {
-                success = false,
-                message = "House not found"
+                return StatusCode(403, new { success = false, message = "Bạn không có quyền sửa nhà này." });
+            }
+
+            await _houseService.UpdateAsync(id, dto);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Cập nhật thông tin nhà thành công."
             });
         }
-
-        await _service.UpdateAsync(id, dto);
-
-        return Ok(new
+        catch (Exception ex)
         {
-            success = true,
-            message = "House updated successfully"
-        });
+            return BadRequest(new { success = false, message = "Không thể cập nhật: " + ex.Message });
+        }
     }
 
+    // --- 5. XÓA NHÀ ---
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var house = await _service.GetByIdAsync(id);
-        if (house == null)
+        try
         {
-            return NotFound(new
+            var ownerId = GetCurrentOwnerId();
+            var isOwned = await _houseService.IsOwnedByAsync(id, ownerId);
+
+            if (!isOwned)
             {
-                success = false,
-                message = "House not found"
+                return StatusCode(403, new { success = false, message = "Bạn không có quyền xóa nhà này." });
+            }
+
+            await _houseService.DeleteAsync(id);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Đã xóa nhà trọ thành công."
             });
         }
-
-        await _service.DeleteAsync(id);
-
-        return Ok(new
+        catch (Exception)
         {
-            success = true,
-            message = "House deleted successfully"
-        });
+            return BadRequest(new { success = false, message = "Không thể xóa: Nhà đang chứa phòng hoặc dữ liệu liên quan." });
+        }
     }
 }

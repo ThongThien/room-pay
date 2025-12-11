@@ -9,6 +9,7 @@ using InvoiceService.Repositories.Implementations;
 using InvoiceService.Features.Property;
 using System.Text;
 using InvoiceService.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Đọc JwtSettings từ cấu hình
@@ -56,7 +57,8 @@ builder.Services.AddScoped<IPricingService, PricingService>();
 builder.Services.AddHttpClient<InvoiceService.Services.IUserServiceClient, InvoiceService.Services.UserServiceClient>();
 builder.Services.AddHttpClient<IPropertyService, PropertyServiceClientImpl>();
 builder.Services.AddSingleton<InvoiceService.Services.PaymentWebSocketHandler>();
-
+builder.Services.AddScoped<IInvoiceReminderService, InvoiceReminderService>();
+builder.Services.AddScoped<IMessageProducer,RabbitMQProducer>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

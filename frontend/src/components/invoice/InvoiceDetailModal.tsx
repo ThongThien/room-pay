@@ -8,9 +8,10 @@ import { getInvoiceDetail } from "@/services/invoiceService";
 interface InvoiceDetailModalProps {
   invoice: Invoice;
   onClose: () => void;
+  role?: 'Owner' | 'Tenant';
 }
 
-export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailModalProps) {
+export default function InvoiceDetailModal({ invoice, onClose, role = 'Tenant'}: InvoiceDetailModalProps) {
   const router = useRouter();
   const [items, setItems] = useState(invoice.items || []);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -47,6 +48,7 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
 
   // Kiểm tra trạng thái thanh toán
   const isPaid = invoice.status === "Paid";
+  const canPay = role === 'Tenant' && !isPaid;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn">
@@ -140,29 +142,23 @@ export default function InvoiceDetailModal({ invoice, onClose }: InvoiceDetailMo
         </div>
 
         {/* Tổng cộng */}
-        <div className="flex justify-between items-center pt-4 border-t border-dashed border-gray-300 mb-6">
-          <span className="font-bold text-gray-800 text-lg">Tổng cộng</span>
-          <span className={`font-bold text-lg ${isPaid ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(invoice.totalAmount)}
-          </span>
+        <div className="mt-2">
+            {canPay ? (
+              <button 
+                onClick={() => router.push(`/tenant/payment/${invoice.id}`)}
+                className="w-full py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 shadow-md transition-all active:scale-95 text-sm uppercase tracking-wide"
+              >
+                Thanh toán ngay
+              </button>
+            ) : (
+              <button 
+                onClick={onClose}
+                className="w-full py-3 bg-gray-100 text-gray-600 rounded-lg font-bold hover:bg-gray-200 transition-all text-sm"
+              >
+                Đóng
+              </button>
+            )}
         </div>
-
-        {/* Nút hành động */}
-        {!isPaid ? (
-          <button 
-            onClick={() => router.push(`/tenant/payment/${invoice.id}`)}
-            className="w-full py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 shadow-md transition-all active:scale-95 text-sm uppercase tracking-wide"
-          >
-            Thanh toán ngay
-          </button>
-        ) : (
-           <button 
-             onClick={onClose}
-             className="w-full py-3 bg-gray-100 text-gray-600 rounded-lg font-bold hover:bg-gray-200 transition-all text-sm"
-            >
-            Đóng
-          </button>
-        )}
 
       </div>
     </div>

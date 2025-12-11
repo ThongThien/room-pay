@@ -2,21 +2,28 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Net.Http;
 using System.Text.Json; 
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 
 namespace PropertyService.Services.Clients
 {
     public class UserServiceClient : IUserServiceClient
     {
         private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
 
-        public UserServiceClient(HttpClient httpClient)
+        public UserServiceClient(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
+            _configuration = configuration;
         }
 
         public async Task<bool> CheckTenantExists(string tenantId) 
         {
-            var response = await _httpClient.GetAsync($"/api/users/{tenantId}/exists");
+            var request = new HttpRequestMessage(HttpMethod.Get, $"/api/users/{tenantId}/exists");
+            request.Headers.Add("X-Service-Api-Key", _configuration["ServiceApiKey"]);
+
+            var response = await _httpClient.SendAsync(request);
 
             if (response.IsSuccessStatusCode)
             {
@@ -32,10 +39,13 @@ namespace PropertyService.Services.Clients
             return false; 
         }
 
-        public async Task<object?> GetUserByIdAsync(string userId) 
+        public async Task<Dictionary<string, object>?> GetUserByIdAsync(string userId) 
         {
             // Endpoint: GET /api/users/{userId} 
-            var response = await _httpClient.GetAsync($"/api/users/{userId}");
+            var request = new HttpRequestMessage(HttpMethod.Get, $"/api/users/{userId}");
+            request.Headers.Add("X-Service-Api-Key", _configuration["ServiceApiKey"]);
+
+            var response = await _httpClient.SendAsync(request);
 
             if (response.IsSuccessStatusCode)
             {
@@ -43,7 +53,7 @@ namespace PropertyService.Services.Clients
                 
                 try
                 {
-                    return JsonSerializer.Deserialize<object>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    return JsonSerializer.Deserialize<Dictionary<string, object>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 }
                 catch (JsonException)
                 {

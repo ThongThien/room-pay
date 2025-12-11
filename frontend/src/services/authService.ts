@@ -1,6 +1,18 @@
 const AA_API_URL = process.env.NEXT_PUBLIC_AA_API_URL;
 
-export const loginAPI = async (email, password) => {
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  token?: string;
+  user?: {
+    id: string;
+    role: string;
+    fullName: string;
+  };
+  [key: string]: unknown;
+}
+
+export const loginAPI = async (email: string, password: string): Promise<ApiResponse> => {
   try {
     const res = await fetch(`${AA_API_URL}/auth/login`, {
       method: 'POST',
@@ -14,7 +26,7 @@ export const loginAPI = async (email, password) => {
     });
 
     // Lấy dữ liệu JSON trả về từ Backend
-    const data = await res.json();
+    const data: ApiResponse = await res.json();
 
     return data;
 
@@ -27,7 +39,7 @@ export const loginAPI = async (email, password) => {
   }
 };
 
-export const registerAPI = async (fullName, email, password, confirmPassword) => {
+export const registerAPI = async (fullName: string, email: string, password: string, confirmPassword: string): Promise<ApiResponse> => {
   try {
     const res = await fetch(`${AA_API_URL}/auth/register`, {
       method: 'POST',
@@ -42,7 +54,7 @@ export const registerAPI = async (fullName, email, password, confirmPassword) =>
       }),
     });
 
-    const data = await res.json();
+    const data: ApiResponse = await res.json();
     return data;
 
   } catch (error) {

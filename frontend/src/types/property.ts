@@ -1,7 +1,6 @@
 export enum RoomStatus {
   Vacant = 0,
   Occupied = 1,
-  ClosingSoon = 2,
 }
 
 export interface House {

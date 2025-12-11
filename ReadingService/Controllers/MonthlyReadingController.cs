@@ -11,6 +11,10 @@ using ReadingService.Features.User.DTOs;
 using ReadingService.DTOs;
 using ReadingService.Enums;
 using System.Net;
+using Microsoft.EntityFrameworkCore;
+using ReadingService.Features.User;
+using ReadingService.Features.Property;
+using ReadingService.Features.Property.DTOs;
 namespace ReadingService.Controllers;
 
 [ApiController]
@@ -24,13 +28,17 @@ public class MonthlyReadingController : ControllerBase
     private readonly IConfiguration _config;
 
     private readonly IMessageProducer _producer;
+    private readonly IUserService _userService;
+    private readonly IPropertyService _propertyService;
     public MonthlyReadingController(
         IMonthlyReadingService monthlyReadingService,
         IReadingCycleService readingCycleService,
         ILogger<MonthlyReadingController> logger,
         ApplicationDbContext context,
         IConfiguration config,
-        IMessageProducer producer)
+        IMessageProducer producer,
+        IUserService userService,
+        IPropertyService propertyService)
     {
         _monthlyReadingService = monthlyReadingService;
         _readingCycleService = readingCycleService;
@@ -38,6 +46,8 @@ public class MonthlyReadingController : ControllerBase
         _context = context;
         _config = config;
         _producer = producer;
+        _userService = userService;
+        _propertyService = propertyService;
     }
 
     /// <summary>
@@ -221,9 +231,101 @@ public class MonthlyReadingController : ControllerBase
     {
         try
         {
-            var allReadings = await _monthlyReadingService.GetAllAsync();
+            // Get all readings with ReadingCycle included
+            var allReadings = await _context.MonthlyReadings
+                .Include(r => r.ReadingCycle)
+                .ToListAsync();
+
             var abnormal = allReadings.Where(r => (r.ElectricNew - r.ElectricOld > threshold)).ToList();
-            return Ok(abnormal);
+
+            if (!abnormal.Any())
+            {
+                return Ok(new List<MonthlyReadingResponseDto>());
+            }
+
+            // Collect contractIds and userIds for enrichment
+            var contractIds = abnormal
+                .Where(r => r.TenantContractId.HasValue)
+                .Select(r => r.TenantContractId!.Value)
+                .Distinct()
+                .ToList();
+
+            var userIds = abnormal
+                .Where(r => r.ReadingCycle != null)
+                .Select(r => r.ReadingCycle!.UserId)
+                .Distinct()
+                .ToList();
+
+            // Get property details
+            var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>();
+            if (contractIds.Any())
+            {
+                try
+                {
+                    var detailsList = await _propertyService.GetDetailsByContractIdsAsync(contractIds);
+                    propertyDetailsMap = detailsList
+                        .Where(d => d.ContractId.HasValue)
+                        .ToDictionary(d => d.ContractId!.Value, d => d);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calling PropertyService for abnormal electric readings");
+                }
+            }
+
+            // Get user info
+            var tenantMap = new Dictionary<string, string>();
+            if (userIds.Any())
+            {
+                try
+                {
+                    var tenantInfos = await _userService.GetUsersByIdsAsync(userIds);
+                    tenantMap = tenantInfos.ToDictionary(t => t.Id, t => t.FullName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calling UserService for abnormal electric readings");
+                }
+            }
+
+            // Map to response DTOs with enrichment
+            var responseList = abnormal.Select(reading =>
+            {
+                var dto = new MonthlyReadingResponseDto
+                {
+                    Id = reading.Id,
+                    CycleId = reading.CycleId,
+                    ElectricOld = reading.ElectricOld,
+                    ElectricNew = reading.ElectricNew,
+                    ElectricPhotoUrl = reading.ElectricPhotoUrl,
+                    WaterOld = reading.WaterOld,
+                    WaterNew = reading.WaterNew,
+                    WaterPhotoUrl = reading.WaterPhotoUrl,
+                    Status = reading.Status,
+                    CreatedAt = reading.CreatedAt,
+                    UpdatedAt = reading.UpdatedAt,
+                    TenantContractId = reading.TenantContractId,
+                    TenantId = reading.ReadingCycle?.UserId ?? string.Empty,
+                };
+
+                // Enrich tenant name
+                if (reading.ReadingCycle != null && tenantMap.TryGetValue(reading.ReadingCycle.UserId, out var tenantName))
+                {
+                    dto.TenantName = tenantName;
+                }
+
+                // Enrich property details
+                if (reading.TenantContractId.HasValue && propertyDetailsMap.TryGetValue(reading.TenantContractId.Value, out var details))
+                {
+                    dto.HouseName = details.HouseName;
+                    dto.RoomName = details.RoomName;
+                    dto.Floor = details.Floor;
+                }
+
+                return dto;
+            }).ToList();
+
+            return Ok(responseList);
         }
         catch (Exception ex)
         {
@@ -241,9 +343,101 @@ public class MonthlyReadingController : ControllerBase
     {
         try
         {
-            var allReadings = await _monthlyReadingService.GetAllAsync();
+            // Get all readings with ReadingCycle included
+            var allReadings = await _context.MonthlyReadings
+                .Include(r => r.ReadingCycle)
+                .ToListAsync();
+
             var abnormal = allReadings.Where(r => (r.WaterNew - r.WaterOld > threshold)).ToList();
-            return Ok(abnormal);
+
+            if (!abnormal.Any())
+            {
+                return Ok(new List<MonthlyReadingResponseDto>());
+            }
+
+            // Collect contractIds and userIds for enrichment
+            var contractIds = abnormal
+                .Where(r => r.TenantContractId.HasValue)
+                .Select(r => r.TenantContractId!.Value)
+                .Distinct()
+                .ToList();
+
+            var userIds = abnormal
+                .Where(r => r.ReadingCycle != null)
+                .Select(r => r.ReadingCycle!.UserId)
+                .Distinct()
+                .ToList();
+
+            // Get property details
+            var propertyDetailsMap = new Dictionary<int, PropertyDetailsDto>();
+            if (contractIds.Any())
+            {
+                try
+                {
+                    var detailsList = await _propertyService.GetDetailsByContractIdsAsync(contractIds);
+                    propertyDetailsMap = detailsList
+                        .Where(d => d.ContractId.HasValue)
+                        .ToDictionary(d => d.ContractId!.Value, d => d);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calling PropertyService for abnormal water readings");
+                }
+            }
+
+            // Get user info
+            var tenantMap = new Dictionary<string, string>();
+            if (userIds.Any())
+            {
+                try
+                {
+                    var tenantInfos = await _userService.GetUsersByIdsAsync(userIds);
+                    tenantMap = tenantInfos.ToDictionary(t => t.Id, t => t.FullName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calling UserService for abnormal water readings");
+                }
+            }
+
+            // Map to response DTOs with enrichment
+            var responseList = abnormal.Select(reading =>
+            {
+                var dto = new MonthlyReadingResponseDto
+                {
+                    Id = reading.Id,
+                    CycleId = reading.CycleId,
+                    ElectricOld = reading.ElectricOld,
+                    ElectricNew = reading.ElectricNew,
+                    ElectricPhotoUrl = reading.ElectricPhotoUrl,
+                    WaterOld = reading.WaterOld,
+                    WaterNew = reading.WaterNew,
+                    WaterPhotoUrl = reading.WaterPhotoUrl,
+                    Status = reading.Status,
+                    CreatedAt = reading.CreatedAt,
+                    UpdatedAt = reading.UpdatedAt,
+                    TenantContractId = reading.TenantContractId,
+                    TenantId = reading.ReadingCycle?.UserId ?? string.Empty,
+                };
+
+                // Enrich tenant name
+                if (reading.ReadingCycle != null && tenantMap.TryGetValue(reading.ReadingCycle.UserId, out var tenantName))
+                {
+                    dto.TenantName = tenantName;
+                }
+
+                // Enrich property details
+                if (reading.TenantContractId.HasValue && propertyDetailsMap.TryGetValue(reading.TenantContractId.Value, out var details))
+                {
+                    dto.HouseName = details.HouseName;
+                    dto.RoomName = details.RoomName;
+                    dto.Floor = details.Floor;
+                }
+
+                return dto;
+            }).ToList();
+
+            return Ok(responseList);
         }
         catch (Exception ex)
         {

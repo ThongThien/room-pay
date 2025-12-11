@@ -36,3 +36,5 @@ nginx/logs/
 # Python
 __pycache__/
 uploads/
+
+start-services.sh

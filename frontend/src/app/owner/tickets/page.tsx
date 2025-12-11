@@ -1,241 +1,239 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { Ticket, CreateTicketDto } from "@/types/ticket";
+import { Ticket } from "@/types/ticket";
 import { ticketService } from "@/services/ticket.service";
-import { Plus, Trash2, CheckCircle, Clock, AlertCircle, Wrench, X } from "lucide-react";
+import {
+  CheckCircle, AlertCircle, Loader2, CalendarDays, Trash2, MapPin, Wrench, Search, Filter, ChevronDown
+} from "lucide-react";
+
+// --- STYLES CONFIG ---
+const styles = {
+  pageWrapper: "min-h-screen bg-slate-50 font-sans text-slate-800 p-6 sm:p-8",
+  
+  // HEADER
+  header: {
+    container: "mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between",
+    subTitle: "mb-2 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700",
+    title: "text-3xl font-extrabold tracking-tight text-slate-900",
+    desc: "mt-2 text-slate-500 max-w-lg",
+  },
+
+  // FILTER BAR
+  filterBar: {
+    container: "mb-8 flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100 sm:flex-row sm:items-center relative z-10",
+    searchBox: "relative flex-1",
+    searchInput: "w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-medium outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all",
+    searchIcon: "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4",
+    
+    // Dropdown Container
+    filterGroup: "relative",
+    filterBtn: "inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors",
+    activeFilterBtn: "inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700",
+    
+    // Dropdown Menu
+    dropdown: "absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-100 bg-white p-1.5 shadow-xl shadow-slate-200/50 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-100",
+    dropdownItem: "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer transition-colors",
+    activeItem: "bg-blue-50 text-blue-700",
+  },
+
+  // GRID
+  grid: "grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3",
+
+  // CARD
+  card: {
+    base: "group relative flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.1)]",
+    header: "mb-4 flex items-start justify-between",
+    idBadge: "inline-flex items-center justify-center rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 border border-slate-200",
+    body: "mb-6 flex-1",
+    title: "mb-2 text-lg font-bold text-slate-900 line-clamp-1 group-hover:text-blue-700 transition-colors",
+    desc: "text-sm text-slate-500 line-clamp-3 leading-relaxed",
+    meta: "flex items-center gap-4 text-xs font-medium text-slate-400 mt-3",
+    footer: "flex items-center justify-between border-t border-slate-100 pt-4 mt-auto",
+    
+    actionGroup: "flex items-center gap-2",
+    doneBtn: "inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-100 transition-colors",
+    deleteBtn: "inline-flex items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors",
+  },
+
+  // EMPTY STATE
+  empty: {
+    box: "flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white py-20 text-center",
+    icon: "mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300",
+    text: "text-base font-semibold text-slate-900",
+    subText: "text-sm text-slate-500 mt-1 max-w-xs",
+  }
+};
 
 export default function TicketPage() {
-  // --- STATE ---
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // --- STATE FILTER ---
+  const [filterStatus, setFilterStatus] = useState("all"); 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Form data state
-  const [formData, setFormData] = useState<CreateTicketDto>({
-    tenantId: 101, 
-    roomId: 202, 
-    title: "", 
-    description: "",
-  });
-
-  // --- LOGIC: FETCH DATA ---
   const fetchTickets = async () => {
     try {
       const data = await ticketService.getAll();
-      setTickets(data);
-    } catch (error) { 
-      console.error(error); 
-    } finally { 
-      setLoading(false); 
-    }
+      setTickets(data.reverse());
+    } catch (error) { console.error(error); } 
+    finally { setLoading(false); }
   };
 
-  useEffect(() => { 
-    fetchTickets(); 
-  }, []);
+  useEffect(() => { fetchTickets(); }, []);
 
-  // --- LOGIC: CREATE TICKET ---
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await ticketService.create(formData);
-      alert("Tạo yêu cầu thành công!");
-      
-      // Reset form & Close popup
-      setShowForm(false);
-      setFormData({ ...formData, title: "", description: "" });
-      
-      // Reload list
-      fetchTickets();
-    } catch (error) { 
-      alert("Lỗi khi tạo vé. Kiểm tra lại Backend nhé!"); 
-    }
-  };
-
-  // --- LOGIC: UPDATE STATUS ---
   const handleStatusChange = async (id: number) => {
-    if(confirm("Đánh dấu yêu cầu này đã xử lý xong?")) {
+    if(confirm("Xác nhận đã xử lý xong yêu cầu này?")) {
         await ticketService.updateStatus(id, 'done');
         fetchTickets();
     }
   };
 
-  // --- LOGIC: DELETE TICKET ---
   const handleDelete = async (id: number) => {
-    if (confirm("Bạn muốn xóa yêu cầu này?")) {
+    if (confirm("Bạn chắc chắn muốn xóa yêu cầu này?")) {
       await ticketService.delete(id);
       fetchTickets();
     }
   };
 
-  // --- RENDER ---
+  const filteredTickets = tickets.filter(t => {
+    const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          t.roomId.toString().includes(searchTerm);
+    
+    const matchesStatus = filterStatus === "all" || t.status === filterStatus;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Helper hiển thị tên trạng thái (Đã bỏ 'Đang xử lý')
+  const getFilterLabel = (status: string) => {
+      switch(status) {
+          case 'pending': return 'Chờ tiếp nhận';
+          case 'done': return 'Đã xong';
+          default: return 'Tất cả trạng thái';
+      }
+  };
+
+  const renderStatusBadge = (status: string) => {
+    const base = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide";
+    if (status === "done") return <span className={`${base} bg-emerald-50 text-emerald-600 border border-emerald-100`}><CheckCircle className="h-3 w-3"/> Đã Xong</span>;
+    if (status === "processing") return <span className={`${base} bg-blue-50 text-blue-600 border border-blue-100`}><Loader2 className="h-3 w-3 animate-spin"/> Đang Xử Lý</span>;
+    return <span className={`${base} bg-orange-50 text-orange-600 border border-orange-100`}><AlertCircle className="h-3 w-3"/> Chờ Tiếp Nhận</span>;
+  };
+
   return (
-    <div>
-      {/* 1. Header & Nút Thêm */}
-      <div className="flex justify-between items-center mb-6">
+    <div className={styles.pageWrapper}>
+      
+      {/* HEADER */}
+      <div className={styles.header.container}>
         <div>
-           <h1 className="text-2xl font-bold text-gray-800">Yêu Cầu Sửa Chữa</h1>
-           <p className="text-gray-500 text-sm">Quản lý các sự cố báo hỏng từ khách thuê</p>
-        </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium flex items-center shadow-md transition"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Thêm Yêu Cầu
-        </button>
-      </div>
-
-      {/* 2. Danh sách vé (Table) */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
-        {loading ? (
-           <div className="p-8 text-center text-gray-500">Đang tải dữ liệu...</div>
-        ) : tickets.length === 0 ? (
-           <div className="p-20 flex flex-col items-center justify-center text-gray-400">
-             <div className="bg-gray-100 p-4 rounded-full mb-4">
-                <Wrench className="w-10 h-10 text-gray-300" />
-             </div>
-             <p>Chưa có yêu cầu sửa chữa nào.</p>
-             <button onClick={() => setShowForm(true)} className="text-green-500 mt-2 hover:underline">Tạo yêu cầu đầu tiên</button>
+           <div className={styles.header.subTitle}>
+              <Wrench className="h-3.5 w-3.5" /> Quản lý vận hành
            </div>
-        ) : (
-            // Bảng dữ liệu
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold">
-                        <tr>
-                            <th className="p-4 border-b">ID</th>
-                            <th className="p-4 border-b">Tiêu đề & Mô tả</th>
-                            <th className="p-4 border-b">Thông tin</th>
-                            <th className="p-4 border-b">Trạng thái</th>
-                            <th className="p-4 border-b text-right">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-sm divide-y divide-gray-100">
-                        {tickets.map(t => (
-                            <tr key={t.id} className="hover:bg-gray-50 transition">
-                                <td className="p-4 font-bold text-gray-400">#{t.id}</td>
-                                <td className="p-4">
-                                    <div className="font-bold text-gray-800 text-base">{t.title}</div>
-                                    <div className="text-gray-500 truncate max-w-xs">{t.description}</div>
-                                </td>
-                                <td className="p-4 text-gray-600">
-                                    <div>Phòng: <span className="font-semibold text-gray-800">{t.roomId}</span></div>
-                                    <div className="text-xs">Tenant: {t.tenantId}</div>
-                                </td>
-                                <td className="p-4">
-                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold capitalize
-                                        ${t.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                        {t.status === 'done' ? <CheckCircle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}
-                                        {t.status}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-right space-x-2">
-                                    {t.status !== 'done' && (
-                                        <button onClick={() => handleStatusChange(t.id)} className="text-green-600 hover:bg-green-50 p-2 rounded" title="Hoàn thành">
-                                            <CheckCircle className="w-5 h-5"/>
-                                        </button>
-                                    )}
-                                    <button onClick={() => handleDelete(t.id)} className="text-red-500 hover:bg-red-50 p-2 rounded" title="Xóa">
-                                        <Trash2 className="w-5 h-5"/>
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        )}
+           <h1 className={styles.header.title}>Yêu Cầu Sửa Chữa</h1>
+           <p className={styles.header.desc}>Danh sách các sự cố báo hỏng từ cư dân cần được xử lý.</p>
+        </div>
       </div>
 
-      {/* 3. Popup Form (Modal) - Giao diện mới */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg animate-in fade-in zoom-in duration-200">
-                
-                {/* Header Popup */}
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h2 className="text-2xl font-bold text-gray-800">Thêm yêu cầu mới</h2>
-                    <button 
-                      onClick={() => setShowForm(false)} 
-                      className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
+      {/* TOOLBAR */}
+      <div className={styles.filterBar.container}>
+         
+         {/* Search */}
+         <div className={styles.filterBar.searchBox}>
+            <Search className={styles.filterBar.searchIcon} />
+            <input 
+                placeholder="Tìm theo tiêu đề hoặc số phòng..." 
+                className={styles.filterBar.searchInput}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+         </div>
+
+         {/* Filter Dropdown */}
+         <div className={styles.filterBar.filterGroup}>
+            <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={filterStatus === 'all' ? styles.filterBar.filterBtn : styles.filterBar.activeFilterBtn}
+            >
+                <Filter className="h-4 w-4"/> 
+                {getFilterLabel(filterStatus)}
+                <ChevronDown className="h-3.5 w-3.5 opacity-50 ml-1"/>
+            </button>
+
+            {/* Menu Dropdown - Đã bỏ mục 'Đang xử lý' */}
+            {isDropdownOpen && (
+                <div className={styles.filterBar.dropdown}>
+                    {[
+                        { val: 'all', label: 'Tất cả' },
+                        { val: 'pending', label: 'Chờ tiếp nhận' },
+                        { val: 'done', label: 'Đã xong' }
+                    ].map((opt) => (
+                        <div 
+                            key={opt.val}
+                            onClick={() => {
+                                setFilterStatus(opt.val);
+                                setIsDropdownOpen(false);
+                            }}
+                            className={`${styles.filterBar.dropdownItem} ${filterStatus === opt.val ? styles.filterBar.activeItem : ''}`}
+                        >
+                            {opt.label}
+                            {filterStatus === opt.val && <CheckCircle className="h-3.5 w-3.5"/>}
+                        </div>
+                    ))}
                 </div>
+            )}
+         </div>
+      </div>
 
-                {/* Form Inputs */}
-                <form onSubmit={handleCreate} className="space-y-5">
-                    
-                    {/* Input Tiêu đề */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Tiêu đề sự cố</label>
-                        <input 
-                            className="w-full border border-gray-300 bg-gray-50 p-3 rounded-lg text-gray-900 focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all placeholder-gray-400" 
-                            placeholder="Ví dụ: Hỏng bóng đèn nhà tắm..." 
-                            required
-                            value={formData.title} 
-                            onChange={e => setFormData({...formData, title: e.target.value})} 
-                        />
-                    </div>
+      {/* CONTENT GRID */}
+      {loading ? (
+         <div className="flex justify-center py-20"><Loader2 className="h-10 w-10 animate-spin text-blue-500"/></div>
+      ) : filteredTickets.length === 0 ? (
+         <div className={styles.empty.box}>
+            <div className={styles.empty.icon}><Search className="h-8 w-8" /></div>
+            <p className={styles.empty.text}>Không tìm thấy kết quả</p>
+            <p className={styles.empty.subText}>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+         </div>
+      ) : (
+         <div className={styles.grid}>
+            {filteredTickets.map(t => (
+               <div key={t.id} className={styles.card.base}>
+                  {/* Header Card */}
+                  <div className={styles.card.header}>
+                     <span className={styles.card.idBadge}>#{t.id}</span>
+                     {renderStatusBadge(t.status)}
+                  </div>
 
-                    {/* Input Mô tả */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Mô tả chi tiết</label>
-                        <textarea 
-                            className="w-full border border-gray-300 bg-gray-50 p-3 rounded-lg text-gray-900 h-32 focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all placeholder-gray-400 resize-none" 
-                            placeholder="Mô tả tình trạng hỏng hóc..." 
-                            required
-                            value={formData.description} 
-                            onChange={e => setFormData({...formData, description: e.target.value})} 
-                        />
-                    </div>
+                  {/* Body Card */}
+                  <div className={styles.card.body}>
+                     <h3 className={styles.card.title} title={t.title}>{t.title}</h3>
+                     <p className={styles.card.desc} title={t.description}>{t.description}</p>
+                     
+                     <div className={styles.card.meta}>
+                        <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded"><MapPin className="h-3 w-3"/> Phòng {t.roomId}</span>
+                        <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded"><CalendarDays className="h-3 w-3"/> {new Date(t.createdAt).toLocaleDateString('vi-VN')}</span>
+                     </div>
+                  </div>
 
-                    {/* Input Room & Tenant */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Mã Phòng</label>
-                            <input 
-                                type="number" 
-                                className="w-full border border-gray-300 bg-gray-50 p-3 rounded-lg text-gray-900 focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
-                                placeholder="101" 
-                                required
-                                value={formData.roomId} 
-                                onChange={e => setFormData({...formData, roomId: +e.target.value})} 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Mã Khách</label>
-                            <input 
-                                type="number" 
-                                className="w-full border border-gray-300 bg-gray-50 p-3 rounded-lg text-gray-900 focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
-                                placeholder="001" 
-                                required
-                                value={formData.tenantId} 
-                                onChange={e => setFormData({...formData, tenantId: +e.target.value})} 
-                            />
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t mt-6">
-                        <button 
-                            type="button" 
-                            onClick={() => setShowForm(false)} 
-                            className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-                        >
-                            Hủy bỏ
+                  {/* Footer Action */}
+                  <div className={styles.card.footer}>
+                     <div className="text-xs font-semibold text-slate-400">Tenant: #{t.tenantId}</div>
+                     <div className={styles.card.actionGroup}>
+                        {t.status !== 'done' && (
+                           <button onClick={() => handleStatusChange(t.id)} className={styles.card.doneBtn}>
+                              <CheckCircle className="h-3.5 w-3.5" /> Hoàn thành
+                           </button>
+                        )}
+                        <button onClick={() => handleDelete(t.id)} className={styles.card.deleteBtn} title="Xóa yêu cầu">
+                           <Trash2 className="h-4 w-4" />
                         </button>
-                        <button 
-                            type="submit" 
-                            className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 shadow-md hover:shadow-lg transition-all"
-                        >
-                            Lưu yêu cầu
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                     </div>
+                  </div>
+               </div>
+            ))}
+         </div>
       )}
     </div>
   );

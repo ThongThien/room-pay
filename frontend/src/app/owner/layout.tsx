@@ -67,9 +67,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Hợp đồng - Mạnh'}
             </Link>
 
-            {/* <Link href="/owner/tickets" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            { <Link href="/owner/tickets" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Yêu cầu sửa chữa - Nam'}
-            </Link> */}
+            </Link> }
 
             {/* <Link href="/owner/notification" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Thông báo'}

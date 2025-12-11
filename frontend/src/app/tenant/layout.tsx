@@ -55,9 +55,9 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                             {isSidebarOpen && "Lịch sử nộp chỉ số"}
                         </Link>
 
-                        {/* <Link href="/tenant/requests" className="block p-2 hover:bg-gray-700 rounded">
-                            {isSidebarOpen && "Yêu cầu sửa chữa - Mạnh"}
-                        </Link> */}
+                        { <Link href="/tenant/tickets" className="block p-2 hover:bg-gray-700 rounded">
+                            {isSidebarOpen && "Yêu cầu sửa chữa "}
+                        </Link> }
 {/* 
                         <Link href="/tenant/notification" className="block p-2 hover:bg-gray-700 rounded">
                             {isSidebarOpen && 'Thông báo'}

@@ -6,6 +6,10 @@ using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle;
 using ReadingService.Data;
 using ReadingService.Models;
+using ReadingService.Services;
+using ReadingService.Features.User.DTOs;
+using ReadingService.DTOs;
+using ReadingService.Enums;
 using System.Net;
 namespace ReadingService.Controllers;
 
@@ -18,18 +22,22 @@ public class MonthlyReadingController : ControllerBase
     private readonly ILogger<MonthlyReadingController> _logger;
     private readonly ApplicationDbContext _context;
     private readonly IConfiguration _config;
+
+    private readonly IMessageProducer _producer;
     public MonthlyReadingController(
         IMonthlyReadingService monthlyReadingService,
         IReadingCycleService readingCycleService,
         ILogger<MonthlyReadingController> logger,
         ApplicationDbContext context,
-        IConfiguration config)
+        IConfiguration config,
+        IMessageProducer producer)
     {
         _monthlyReadingService = monthlyReadingService;
         _readingCycleService = readingCycleService;
         _logger = logger;
         _context = context;
         _config = config;
+        _producer = producer;
     }
 
     /// <summary>
@@ -280,6 +288,86 @@ public class MonthlyReadingController : ControllerBase
         {
             _logger.LogError(ex, "Lỗi khi tạo pre-signed URL ảnh từ S3");
             return StatusCode(500, new { message = "Lỗi tạo pre-signed URL ảnh từ S3", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// API Owner sử dụng để nhắc các Tenant chưa nộp chỉ số điện nước cho chu kỳ MỚI NHẤT.
+    /// Endpoint: POST api/MonthlyReading/remind-submission/latest
+    /// </summary>
+    [Authorize(Roles = "Owner")]
+    [HttpPost("remind-submission/latest")] 
+    public async Task<IActionResult> RemindSubmissionLatest()
+    {
+        // 1. TRÍCH XUẤT OWNER ID
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                        ?? User.FindFirstValue("sub") 
+                        ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(ownerId))
+        {
+            return Unauthorized(new { message = "Không tìm thấy thông tin Owner" });
+        }
+        
+        try
+        {
+            // 2. TÌM CYCLE MỚI NHẤT
+            // Hàm này trả về ReadingCycleDto của bản ghi ReadingCycle DO OWNER tạo ra 
+            var latestCycle = await _readingCycleService.GetLatestCycleByOwnerAsync(ownerId);
+            
+            if (latestCycle == null)
+            {
+                return NotFound(new { message = "Không tìm thấy chu kỳ đọc chỉ số mới nhất hoặc đang hoạt động." });
+            }
+
+            // ID này là ID của ReadingCycle bản ghi chung (thuộc Owner)
+            int ownerCycleId = latestCycle.Id; 
+
+            // 3. GỌI SERVICE LẤY DANH SÁCH KHÁCH HÀNG CHƯA NỘP CHỈ SỐ
+            var tenantsToRemind = await _readingCycleService.GetTenantsMissingReadingAsync(ownerCycleId);
+            
+            if (tenantsToRemind == null || !tenantsToRemind.Any())
+            {
+                return Ok(new { message = $"Thành công: Không có khách hàng nào chưa nộp chỉ số cho chu kỳ mới nhất (ID {ownerCycleId})." });
+            }
+
+            // 4. CHUẨN BỊ VÀ GỬI MESSAGE QUA RABBITMQ
+            
+            // OwnerName cần được lấy từ UserService (giả định)
+            // Nếu chưa có UserService, tạm thời dùng Owner ID để tránh lỗi.
+            string ownerName = "Chủ nhà"; // Sửa lại: Lấy từ UserService nếu có
+            
+            var customersToNotify = tenantsToRemind.Select(t => new UserInfo // ⭐️ Sử dụng UserInfo đã được using
+            {
+                Id = t.Id, FullName = t.FullName, Email = t.Email, OwnerId = t.OwnerId 
+            }).ToList();
+
+            var message = new ReadingNotificationMessage 
+            {
+                Type = NotificationType.RemindSubmission,
+                ReadingCycleId = ownerCycleId,
+                CustomersToNotify = customersToNotify,
+                OwnerName = ownerName,
+                CycleMonth = latestCycle.CycleMonth,
+                CycleYear = latestCycle.CycleYear
+            };
+            
+            // ⭐️ Sửa lỗi CS1503/CS0828 (Giả định): đảm bảo SendMessage được gọi đúng cú pháp.
+            // Nếu lỗi vẫn còn, cần kiểm tra code chi tiết dòng 345, 349, 350.
+            _producer.SendMessage(message, _config["RabbitMQ:QueueName"] ?? "notification_queue");
+            
+            _logger.LogInformation($"Gửi nhắc nhở nộp chỉ số thành công cho {tenantsToRemind.Count()} khách hàng (Cycle ID: {ownerCycleId}).");
+
+            return Ok(new 
+            { 
+                message = $"Đã gửi nhắc nhở nộp chỉ số thành công đến {tenantsToRemind.Count()} khách hàng cho chu kỳ {latestCycle.CycleMonth}/{latestCycle.CycleYear}.",
+                RecipientsCount = tenantsToRemind.Count()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi xử lý RemindSubmission cho Cycle mới nhất");
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi gửi nhắc nhở." });
         }
     }
 }

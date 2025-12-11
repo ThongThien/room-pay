@@ -10,6 +10,8 @@ namespace NotificationService.DTOs.Reading
         
         public int ReadingCycleId { get; set; }
         public string? OwnerName { get; set; }
+        public int CycleMonth { get; set; }
+        public int CycleYear { get; set; }
         
         // Danh sách khách hàng cần thông báo (ví dụ: khi có Cycle mới, gửi cho tất cả)
         // Lưu ý: Dùng List<UserInfo> thay vì List<int> để có sẵn Email và FullName

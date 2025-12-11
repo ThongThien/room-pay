@@ -38,11 +38,11 @@ namespace NotificationService.Services
 
             // Thiết lập Tiêu đề và Nội dung
             email.Subject = subject;
-            email.Body = new TextPart(MimeKit.Text.TextFormat.Html) 
-            { 
-                Text = message 
+            var builder = new BodyBuilder
+            {
+                HtmlBody = message 
             };
-
+            email.Body = builder.ToMessageBody();
             using (var client = new SmtpClient())
             {
                 try

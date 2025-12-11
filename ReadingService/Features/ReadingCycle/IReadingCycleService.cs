@@ -1,5 +1,5 @@
 using ReadingService.Features.ReadingCycle.DTOs;
-
+using ReadingService.Features.User.DTOs;
 namespace ReadingService.Features.ReadingCycle;
 
 public interface IReadingCycleService
@@ -12,4 +12,7 @@ public interface IReadingCycleService
     Task<bool> UpdateAsync(int id, UpdateReadingCycleDto updateDto);
     Task<bool> DeleteAsync(int id);
     Task<bool> ExistsAsync(string userId, int month, int year);
+
+    Task<ReadingCycleDto?> GetLatestCycleByOwnerAsync(string ownerId);
+    Task<IEnumerable<UserInfo>> GetTenantsMissingReadingAsync(int cycleId);
 }

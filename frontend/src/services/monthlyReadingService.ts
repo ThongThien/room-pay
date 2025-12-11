@@ -1,6 +1,9 @@
 import { API_URLS, getAuthHeaders } from "@/utils/config";
 import { MonthlyReading } from "@/types/monthlyReading";
 
+const BASE_URL = `${API_URLS.READING}/MonthlyReading`;
+const CYCLE_URL = `${API_URLS.READING}/ReadingCycle`;
+
 /**
  * Lấy tất cả chỉ số điện nước (Dành cho cả Owner và Tenant)
  * Endpoint: GET /api/MonthlyReading
@@ -56,10 +59,9 @@ export const submitMonthlyReading = async (
   formData: FormData
 ): Promise<boolean> => {
   try {
-    // 1. Lấy headers chuẩn từ config (có chứa Token)
     const headers = getAuthHeaders();
     
-    // 2. QUAN TRỌNG: Xóa 'Content-Type' để browser tự động set 'multipart/form-data' kèm boundary
+    // QUAN TRỌNG: Xóa 'Content-Type' để browser tự động set 'multipart/form-data' kèm boundary
     // Nếu để 'application/json', việc upload ảnh sẽ thất bại.
     delete headers["Content-Type"];
 
@@ -72,6 +74,52 @@ export const submitMonthlyReading = async (
     return response.ok;
   } catch (error) {
     console.error("Error submitting reading:", error);
+    return false;
+  }
+};
+
+// Nhắc nộp chỉ số (Gửi cho những người status = Pending/Overdue)
+export const sendRemindSubmission = async (): Promise<boolean> => {
+  try {
+    // API: POST /api/MonthlyReading/remind-submission/latest
+    const response = await fetch(`${BASE_URL}/remind-submission/latest`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to remind submission. Status: ${response.status}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error calling remind submission API:", error);
+    return false;
+  }
+};
+
+// Thông báo kỳ mới
+export const triggerNewCycleNotification = async (month: number, year: number): Promise<boolean> => {
+  try {
+    // API: POST /api/ReadingCycle (Body: { cycleMonth, cycleYear })
+    // Lưu ý: API này vừa tạo chu kỳ (nếu chưa có) vừa gửi thông báo
+    const response = await fetch(`${CYCLE_URL}`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ cycleMonth: month, cycleYear: year }),
+    });
+
+    if (!response.ok) {
+        // Có thể API trả về lỗi nếu chu kỳ đã tồn tại
+        console.error(`Failed to trigger new cycle. Status: ${response.status}`);
+        return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error triggering new cycle:", error);
     return false;
   }
 };

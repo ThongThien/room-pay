@@ -8,7 +8,7 @@ import InvoiceStats from "@/components/invoice/InvoiceStats";
 import InvoiceFilters from "@/components/invoice/InvoiceFilters";
 import InvoiceTable from "@/components/invoice/InvoiceTable";
 import InvoicePagination from "@/components/invoice/InvoicePagination";
-import ConfirmModal from "@/components/invoice/ConfirmModal"; 
+import ConfirmModal from "@/components/common/ConfirmModal"; 
 
 export default function OwnerInvoicesPage() {
     // --- STATE QUẢN LÝ DỮ LIỆU ---

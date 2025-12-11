@@ -256,6 +256,24 @@ public class InvoicesController : ControllerBase
         {
             return BadRequest(new { error = $"Không tìm thấy Hợp đồng đang Active cho người dùng {userId}. Không thể tạo hóa đơn." });
         }
+
+        var tenantContract = await propertyService.GetTenantContractByIdAsync(tenantContractId.Value);
+        if (tenantContract == null)
+        {
+            return BadRequest(new { error = $"Không tìm thấy chi tiết hợp đồng {tenantContractId}." });
+        }
+
+        // Tạo description ưu tiên theo tháng/năm, sau đó dùng Contract ID
+        var descriptionSource = "";
+        if (request.CycleMonth.HasValue && request.CycleYear.HasValue)
+        {
+            descriptionSource = $"tháng {request.CycleMonth}/{request.CycleYear}";
+        }
+        else 
+        {
+            // Dùng TenantContractId (Đã được đảm bảo có)
+            descriptionSource = $"Hợp đồng {tenantContractId}"; 
+        }
         // ----------------------------------------------------------------------
 
         var invoice = new Invoice
@@ -280,18 +298,6 @@ public class InvoicesController : ControllerBase
 
             var items = new List<InvoiceItem>();
 
-            // Tạo description ưu tiên theo tháng/năm, sau đó dùng Contract ID
-            var descriptionSource = "";
-            if (request.CycleMonth.HasValue && request.CycleYear.HasValue)
-            {
-                descriptionSource = $"tháng {request.CycleMonth}/{request.CycleYear}";
-            }
-            else 
-            {
-                // Dùng TenantContractId (Đã được đảm bảo có)
-                descriptionSource = $"Hợp đồng {tenantContractId}"; 
-            }
-            
             // Tiền điện
             if (request.ElectricUsage.HasValue && request.ElectricUsage.Value > 0)
             {
@@ -321,14 +327,14 @@ public class InvoicesController : ControllerBase
             }
 
             // Thêm tiền phòng
-            if (activePricing.RoomPrice > 0)
+            if (tenantContract.Price > 0)
             {
                 items.Add(new InvoiceItem
                 {
                     Description = $"Tiền phòng {descriptionSource}",
                     Quantity = 1,
-                    UnitPrice = activePricing.RoomPrice,
-                    Amount = activePricing.RoomPrice,
+                    UnitPrice = tenantContract.Price,
+                    Amount = tenantContract.Price,
                     ProductCode = "ROOM"
                 });
             }
@@ -356,6 +362,19 @@ public class InvoicesController : ControllerBase
                 Amount = item.Amount,
                 ProductCode = item.ProductCode
             }).ToList();
+        }
+
+        // Luôn thêm tiền phòng từ hợp đồng nếu chưa có
+        if (tenantContract.Price > 0 && !invoice.Items.Any(i => i.ProductCode == "ROOM"))
+        {
+            invoice.Items.Add(new InvoiceItem
+            {
+                Description = $"Tiền phòng {descriptionSource}",
+                Quantity = 1,
+                UnitPrice = tenantContract.Price,
+                Amount = tenantContract.Price,
+                ProductCode = "ROOM"
+            });
         }
 
         var createdInvoice = await _invoiceService.CreateInvoiceAsync(invoice);
@@ -520,7 +539,7 @@ public class InvoicesController : ControllerBase
             PaidDate = invoice.PaidDate,
             CreatedAt = invoice.CreatedAt,
             UpdatedAt = invoice.UpdatedAt,
-            Items = invoice.Items.Select(item => new InvoiceItemResponse
+            Items = invoice.Items.Select(item => new InvoiceService.Features.Invoice.DTOs.InvoiceItemResponse
             {
                 Id = item.Id,
                 Description = item.Description,

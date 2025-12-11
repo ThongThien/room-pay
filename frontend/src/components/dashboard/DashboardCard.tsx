@@ -1,32 +1,27 @@
 import React from 'react';
 import { DashboardCardProps } from '../../types/dashboard';
 
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, apiEndpoint, color, onClick, isClickable = false }) => {
+const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, color, onClick, isClickable = false }) => {
     let borderColor = 'border-gray-300';
     let textColor = 'text-gray-800';
-    let apiBgColor = 'bg-gray-100';
 
     switch (color) {
         case 'green':
             borderColor = 'border-green-500';
             textColor = 'text-green-700';
-            apiBgColor = 'bg-green-50';
             break;
         case 'red':
             borderColor = 'border-red-500';
             textColor = 'text-red-700';
-            apiBgColor = 'bg-red-50';
             break;
         case 'yellow':
             borderColor = 'border-yellow-600';
             textColor = 'text-yellow-700';
-            apiBgColor = 'bg-yellow-50';
             break;
         case 'default':
         default:
             borderColor = 'border-indigo-400';
             textColor = 'text-gray-800';
-            apiBgColor = 'bg-indigo-50';
             break;
     }
 

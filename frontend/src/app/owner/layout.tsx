@@ -38,33 +38,28 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Tổng quan'}
             </Link>
 
+            <Link href="/owner/houses" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Quản lý nhà'}
+            </Link>
 
-            <Link href="/owner/invoices" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Quản lý hóa đơn'}
+            <Link href="/owner/rooms" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Quản lý phòng'}
+            </Link>
+
+            <Link href="/owner/tenants" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Quản lý khách thuê'}
+            </Link>
+
+            <Link href="/owner/contracts" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Hợp đồng thuê'}
             </Link>
 
             <Link href="/owner/monthlyreading" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
               {isSidebarOpen && 'Quản lý nộp chỉ số'}
             </Link>
 
-            <Link href="/owner/createtenant" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Thêm khách thuê'}
-            </Link>
-
-            <Link href="/owner/houses" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Danh sách nhà - Nam'}
-            </Link>
-
-            <Link href="/owner/rooms" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Danh sách phòng - Nam'}
-            </Link>
-
-            <Link href="/owner/tenants" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Khách thuê - Mạnh'}
-            </Link>
-
-            <Link href="/owner/contracts" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Hợp đồng - Mạnh'}
+            <Link href="/owner/invoices" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+              {isSidebarOpen && 'Quản lý hóa đơn'}
             </Link>
 
             {/* <Link href="/owner/tickets" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">

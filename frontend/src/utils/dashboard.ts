@@ -9,12 +9,12 @@ export const parseRevenueToNumber = (revenueStr: string): number => {
 };
 
 // Hàm tính số ngày quá hạn
-export const calculateOverdueDays = (dueDateStr: string): number => {
+export const calculateOverdueDays = (dueDateStr: string, status?: string): number => {
     const dueDate = new Date(dueDateStr);
     const today = new Date();
     const diffTime = today.getTime() - dueDate.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays); // Không trả về số âm
+    return status === 'Overdue' ? Math.max(0, diffDays) : 0;
 };
 
 // Hàm format tiền tệ VNĐ
@@ -39,12 +39,22 @@ export const mapOverdueInvoiceAPIResponse = (apiData: OverdueInvoiceAPIResponse[
     return apiData.map(invoice => ({
         id: invoice.id.toString(),
         tenantName: invoice.userName,
-        roomNumber: "N/A",
+        houseName: invoice.houseName || "N/A",
+        roomNumber: invoice.roomName || "N/A",
         amount: formatCurrency(invoice.totalAmount),
         dueDate: new Date(invoice.dueDate).toLocaleDateString('vi-VN'),
-        overdueDays: calculateOverdueDays(invoice.dueDate),
+        overdueDays: calculateOverdueDays(invoice.dueDate, invoice.status),
     }));
 };
 
 // Navigation helper (tạm thời)
 export const useNavigate = () => (path: string) => alert(`Chuyển hướng đến: ${path}`);
+
+// Hàm tính số ngày còn lại đến hết hạn hợp đồng
+export const calculateRemainingDays = (endDateStr: string): number => {
+    const endDate = new Date(endDateStr);
+    const today = new Date();
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays); // Không trả về số âm
+};

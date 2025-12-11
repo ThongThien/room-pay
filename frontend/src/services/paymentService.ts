@@ -33,7 +33,7 @@ export const getWebSocketUrl = (invoiceId: string): string => {
         const wsProtocol = url.protocol === 'https:' ? 'wss' : 'ws';
         const host = url.host;
         return `${wsProtocol}://${host}/ws/payment-status/${invoiceId}`;
-    } catch (err) {
+    } catch {
         throw new Error('Không thể kết nối đến server. Vui lòng thử lại.');
     }
 };

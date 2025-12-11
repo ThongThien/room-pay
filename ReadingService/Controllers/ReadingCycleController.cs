@@ -5,6 +5,12 @@ using ReadingService.Features.ReadingCycle;
 using ReadingService.Features.ReadingCycle.DTOs;
 using ReadingService.Features.MonthlyReading; 
 using ReadingService.Features.MonthlyReading.DTOs;
+using ReadingService.Services;
+using ReadingService.Features.User;
+using ReadingService.Features.Property;
+using ReadingService.Features.User.DTOs;
+using ReadingService.Features.Property.DTOs;
+
 namespace ReadingService.Controllers;
 
 [ApiController]
@@ -12,23 +18,31 @@ namespace ReadingService.Controllers;
 [Authorize]
 public class ReadingCycleController : ControllerBase
 {
-    private readonly IReadingCycleService _service;
+    private readonly IReadingCycleService _readingCycleService;
     private readonly IMonthlyReadingService _monthlyReadingService;
     private readonly ILogger<ReadingCycleController> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
-
-    public ReadingCycleController(IReadingCycleService service,
+    private readonly IMessageProducer _rabbitMqProducer; 
+    private readonly IUserService _userService;  
+    private readonly IPropertyService _propertyService;
+    public ReadingCycleController(IReadingCycleService readingCycleService,
     IMonthlyReadingService monthlyReadingService,
     ILogger<ReadingCycleController> logger,
     IHttpClientFactory httpClientFactory,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    IMessageProducer rabbitMqProducer,
+    IUserService userService,
+    IPropertyService propertyService)
     {
-        _service = service;
+        _readingCycleService = readingCycleService;
         _monthlyReadingService = monthlyReadingService;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _rabbitMqProducer = rabbitMqProducer;
+        _userService = userService;
+        _propertyService = propertyService;
     }
 
     // GetMyMissingReadings
@@ -85,7 +99,7 @@ public class ReadingCycleController : ControllerBase
         }
 
         // Only get cycles for current user
-        var cycles = await _service.GetByUserIdAsync(userId);
+        var cycles = await _readingCycleService.GetByUserIdAsync(userId);
         return Ok(cycles);
     }
 
@@ -103,7 +117,7 @@ public class ReadingCycleController : ControllerBase
             return Unauthorized(new { message = "Không tìm thấy thông tin người dùng" });
         }
 
-        var cycle = await _service.GetByIdAsync(id);
+        var cycle = await _readingCycleService.GetByIdAsync(id);
 
         if (cycle == null)
         {
@@ -122,66 +136,133 @@ public class ReadingCycleController : ControllerBase
     // POST: api/ReadingCycle trigger owner create or auto creation on 20th of every month
     [HttpPost]
     [Authorize(Roles = "Owner")]
-    public async Task<ActionResult> CreateReadingCycle(CreateReadingCycleDto createDto)
+    public async Task<ActionResult> CreateReadingCycle([FromBody] CreateReadingCycleDto createDto) // Thêm [FromBody] để rõ ràng
     {
-        // Validate month
+        // 1. LOG INPUT
+        _logger.LogInformation("🟢 [START] API CreateReadingCycle Triggered. Payload: Month={Month}, Year={Year}", 
+            createDto.CycleMonth, createDto.CycleYear);
+
         if (createDto.CycleMonth < 1 || createDto.CycleMonth > 12)
         {
-            return BadRequest(new { message = "Cycle month must be between 1 and 12" });
+            _logger.LogWarning("⚠️ [VALIDATION] Invalid Month: {Month}", createDto.CycleMonth);
+            return BadRequest(new { message = "Tháng không hợp lệ (1-12)." });
         }
 
-        // Get current owner ID
         var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                     ?? User.FindFirstValue("sub") 
-                     ?? User.FindFirstValue("userId");
+                    ?? User.FindFirstValue("sub") 
+                    ?? User.FindFirstValue("userId");
         
-        if (string.IsNullOrEmpty(ownerId))
+        if (string.IsNullOrEmpty(ownerId)) 
         {
-            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng" });
+            _logger.LogWarning("⚠️ [AUTH] Cannot find OwnerId in Token.");
+            return Unauthorized();
         }
+
+        _logger.LogInformation("👤 Owner ID Identified: {OwnerId}", ownerId);
 
         try
         {
-            // Get all tenants for this owner
-            var tenants = await GetTenantsByOwnerAsync(ownerId);
-            if (tenants == null || !tenants.Any())
+            // 2. LOG QUÁ TRÌNH LẤY TENANT
+            var allTenants = await GetTenantsByOwnerAsync(ownerId);
+            if (allTenants == null || !allTenants.Any())
             {
-                return BadRequest(new { message = "No tenants found for this owner" });
+                _logger.LogWarning("⚠️ No tenants found for Owner {OwnerId}", ownerId);
+                return BadRequest(new { message = "Không tìm thấy khách thuê nào." });
             }
 
-            var createdCycles = new List<ReadingCycleDto>();
-            var skippedCycles = new List<string>();
+            _logger.LogInformation("📋 Found {Count} total tenants for Owner {OwnerId}. Starting processing...", allTenants.Count, ownerId);
 
-            foreach (var tenant in tenants)
+            var createdCount = 0;
+            var skippedCount = 0;
+            var customersToNotify = new List<TenantDto>(); 
+
+            foreach (var tenant in allTenants)
             {
-                // Check if cycle already exists for this tenant
-                var exists = await _service.ExistsAsync(tenant.Id, createDto.CycleMonth, createDto.CycleYear);
+                _logger.LogInformation("👉 Processing Tenant: {Id} ({Name})", tenant.Id, tenant.FullName);
+
+                // 3. LOG CHECK CONTRACT
+                var activeContractId = await _propertyService.GetActiveContractIdByUserIdAsync(tenant.Id);
+
+                if (!activeContractId.HasValue)
+                {
+                    _logger.LogInformation("   ⏭️ SKIPPED: Tenant {Id} has NO ACTIVE CONTRACT.", tenant.Id);
+                    skippedCount++;
+                    continue; 
+                }
+                
+                _logger.LogInformation("   ✅ Contract Found: ID {ContractId}", activeContractId.Value);
+
+                // 4. LOG CHECK EXISTS
+                var exists = await _readingCycleService.ExistsAsync(tenant.Id, createDto.CycleMonth, createDto.CycleYear);
                 if (exists)
                 {
-                    skippedCycles.Add(tenant.Id);
+                    _logger.LogInformation("   ⏭️ SKIPPED: Cycle for {Month}/{Year} ALREADY EXISTS for Tenant {Id}.", createDto.CycleMonth, createDto.CycleYear, tenant.Id);
+                    skippedCount++;
                     continue;
                 }
 
-                var cycle = await _service.CreateAsync(tenant.Id, new CreateReadingCycleDto
+                try 
                 {
-                    CycleMonth = createDto.CycleMonth,
-                    CycleYear = createDto.CycleYear
-                });
+                    // 5. LOG TẠO CYCLE
+                    _logger.LogInformation("   🔄 Creating ReadingCycle...");
+                    var cycleDto = await _readingCycleService.CreateAsync(tenant.Id, createDto);
+                    _logger.LogInformation("   ✅ Cycle Created. ID: {CycleId}", cycleDto.Id);
 
-                createdCycles.Add(cycle);
+                    // 6. LOG TẠO MONTHLY READING
+                    _logger.LogInformation("   🔄 Creating MonthlyReading...");
+                    var readingDto = await _monthlyReadingService.CreateEmptyAsync(
+                        cycleDto.Id, 
+                        activeContractId.Value
+                    );
+                    _logger.LogInformation("   ✅ MonthlyReading Created. ID: {ReadingId}, OldElec: {EOld}, OldWater: {WOld}", 
+                        readingDto.Id, readingDto.ElectricOld, readingDto.WaterOld);
+
+                    createdCount++;
+                    customersToNotify.Add(tenant);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ ERROR creating data for Tenant {TenantId}. StackTrace: {Trace}", tenant.Id, ex.StackTrace);
+                }
             }
+
+            // 7. LOG RABBITMQ
+            // ReadingCycleController.cs
+            if (customersToNotify.Any())
+            {
+                _logger.LogInformation("📧 Preparing RabbitMQ message for {Count} users...", customersToNotify.Count);
+                
+                var notificationMessage = new 
+                {
+                    Type = "NewCycle",
+                    CycleMonth = createDto.CycleMonth,
+                    CycleYear = createDto.CycleYear,
+                    CustomersToNotify = customersToNotify.Select(t => new { t.Id, t.FullName, t.Email }).ToList() 
+                };
+                
+                // Dòng có vấn đề:
+                _rabbitMqProducer.SendMessage(notificationMessage, "notification_queue"); 
+                
+                _logger.LogInformation("🚀 RabbitMQ Message Sent Successfully.");
+            }
+            else
+            {
+                _logger.LogInformation("📭 No new cycles created, skipping RabbitMQ.");
+            }
+
+            _logger.LogInformation("🟢 [END] Process Completed. Created: {Created}, Skipped: {Skipped}", createdCount, skippedCount);
 
             return Ok(new 
             { 
-                message = $"Created {createdCycles.Count} reading cycles, skipped {skippedCycles.Count} existing ones",
-                created = createdCycles,
-                skipped = skippedCycles
+                message = $"Hoàn tất. Tạo mới: {createdCount}. Bỏ qua: {skippedCount}.",
+                created = createdCount,
+                skipped = skippedCount
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating reading cycles for owner {OwnerId}", ownerId);
-            return StatusCode(500, new { message = "Có lỗi xảy ra khi tạo chu kỳ đọc" });
+            _logger.LogError(ex, "❌ CRITICAL ERROR in CreateReadingCycle.");
+            return StatusCode(500, new { message = "Lỗi nội bộ server." });
         }
     }
 
@@ -237,7 +318,7 @@ public class ReadingCycleController : ControllerBase
             return BadRequest(new { message = "Cycle month must be between 1 and 12" });
         }
 
-        var success = await _service.UpdateAsync(id, updateDto);
+        var success = await _readingCycleService.UpdateAsync(id, updateDto);
 
         if (!success)
         {
@@ -251,7 +332,7 @@ public class ReadingCycleController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteReadingCycle(int id)
     {
-        var success = await _service.DeleteAsync(id);
+        var success = await _readingCycleService.DeleteAsync(id);
 
         if (!success)
         {

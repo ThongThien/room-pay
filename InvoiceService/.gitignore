@@ -5,8 +5,9 @@
 
 # dotenv files
 .env
+appsettings.*.json
 
-# User-specific files
+git pull origin main# User-specific files
 *.rsuser
 *.suo
 *.user
@@ -482,3 +483,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+bin/
+obj/

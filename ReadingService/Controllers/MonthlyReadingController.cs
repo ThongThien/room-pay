@@ -4,31 +4,38 @@ using System.Security.Claims;
 using ReadingService.Features.MonthlyReading;
 using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle;
-
+using ReadingService.Data;
+using ReadingService.Models;
+using System.Net;
 namespace ReadingService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class MonthlyReadingController : ControllerBase
 {
     private readonly IMonthlyReadingService _monthlyReadingService;
     private readonly IReadingCycleService _readingCycleService;
     private readonly ILogger<MonthlyReadingController> _logger;
-
+    private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _config;
     public MonthlyReadingController(
         IMonthlyReadingService monthlyReadingService,
         IReadingCycleService readingCycleService,
-        ILogger<MonthlyReadingController> logger)
+        ILogger<MonthlyReadingController> logger,
+        ApplicationDbContext context,
+        IConfiguration config)
     {
         _monthlyReadingService = monthlyReadingService;
         _readingCycleService = readingCycleService;
         _logger = logger;
+        _context = context;
+        _config = config;
     }
 
     /// <summary>
     /// Nộp chỉ số điện nước cho MonthlyReading (submit reading)
     /// </summary>
+    [Authorize]
     [HttpPost("{cycleId}/submit")]
     public async Task<ActionResult<MonthlyReadingResponseDto>> SubmitMonthlyReading(
         int cycleId,
@@ -71,41 +78,9 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy tất cả MonthlyReadings của user hiện tại
+    /// Get user's MonthlyReading by CycleId
     /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
-    {
-        // Lấy userId từ JWT token
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                     ?? User.FindFirstValue("sub") 
-                     ?? User.FindFirstValue("userId");
-        
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng" });
-        }
-
-        // Lấy tất cả cycles của user
-        var cycles = await _readingCycleService.GetByUserIdAsync(userId);
-        var cycleIds = cycles.Select(c => c.Id).ToList();
-
-        var readings = new List<MonthlyReadingResponseDto>();
-        foreach (var cycleId in cycleIds)
-        {
-            var reading = await _monthlyReadingService.GetByCycleIdAsync(cycleId);
-            if (reading != null)
-            {
-                readings.Add(reading);
-            }
-        }
-
-        return Ok(readings);
-    }
-
-    /// <summary>
-    /// Lấy MonthlyReading của user theo CycleId
-    /// </summary>
+    [Authorize]
     [HttpGet("by-cycle/{cycleId}")]
     public async Task<ActionResult<MonthlyReadingResponseDto>> GetMyMonthlyReadingByCycle(int cycleId)
     {
@@ -137,8 +112,9 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy thông tin MonthlyReading theo ID
+    /// Get MonthlyReading information by ID
     /// </summary>
+    [Authorize]
     [HttpGet("{id}")]
     public async Task<ActionResult<MonthlyReadingResponseDto>> GetMonthlyReading(int id)
     {
@@ -151,12 +127,11 @@ public class MonthlyReadingController : ControllerBase
 
         return Ok(response);
     }
-
     /// <summary>
-    /// Xóa MonthlyReading
+    /// Delete MonthlyReading
     /// </summary>
-    [HttpDelete("{id}")]
     [Authorize(Roles = "Owner")]
+    [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteMonthlyReading(int id)
     {
         try
@@ -172,6 +147,139 @@ public class MonthlyReadingController : ControllerBase
         {
             _logger.LogError(ex, "Lỗi khi xóa MonthlyReading");
             return StatusCode(500, new { message = "Có lỗi xảy ra khi xóa reading", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy TẤT CẢ MonthlyReadings của user (Tenant: lấy của mình; Owner: lấy của tất cả Tenant được quản lý)
+    /// Endpoint: GET api/MonthlyReading
+    /// </summary>
+    [Authorize]
+    [HttpGet] 
+    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAllMyMonthlyReadings()
+    {
+        // 1. TRÍCH XUẤT CLAIMS TỪ JWT TOKEN
+        
+        // Lấy User ID (sẽ là Tenant ID hoặc Owner ID tùy vai trò)
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                    ?? User.FindFirstValue("sub") 
+                    ?? User.FindFirstValue("userId");
+        
+        // Lấy Role (Quan trọng nhất cho Service để biết cách lọc)
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        
+        // Lấy OwnerId (Claim này có thể có nếu Role là Tenant, nhưng không bắt buộc cho logic Owner)
+        var ownerIdClaim = User.FindFirstValue("ownerId"); 
+        
+        // 2. KIỂM TRA TÍNH HỢP LỆ
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+        {
+            // Ghi log lỗi nếu không tìm thấy thông tin cần thiết
+            _logger.LogWarning("Truy cập không hợp lệ: Không tìm thấy UserId hoặc Role.");
+            return Unauthorized(new { message = "Không tìm thấy thông tin người dùng hoặc vai trò trong token." });
+        }
+
+        try
+        {
+            // 3. CALL SERVICE TO HANDLE FILTERING AND DATA ENRICHMENT LOGIC
+            // Service will automatically: 
+            // a) Use Role and UserId to determine query scope (Individual Tenant vs Owner management)
+            // b) Call User Service and Property Service to get Tenant names, House, Room.
+            var readings = await _monthlyReadingService.GetAllReadingsByRoleAsync(
+                userId, 
+                role, 
+                ownerIdClaim 
+            );
+            
+            // Log success message
+            _logger.LogInformation("UserId {UserId} ({Role}) successfully retrieved {Count} MonthlyReadings.", userId, role, readings.Count());
+
+            return Ok(readings);
+        }
+        catch (Exception ex)
+        {
+            // Ghi log lỗi và trả về 500 Internal Server Error
+            _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings của user {UserId}", userId);
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings từ Service", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// API returns invoices with abnormal electric readings (electric consumption > threshold)
+    /// </summary>
+    [Authorize(Roles = "Owner")]
+    [HttpGet("abnormal-electric")]
+    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAbnormalElectricReadings([FromQuery] int threshold)
+    {
+        try
+        {
+            var allReadings = await _monthlyReadingService.GetAllAsync();
+            var abnormal = allReadings.Where(r => (r.ElectricNew - r.ElectricOld > threshold)).ToList();
+            return Ok(abnormal);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings điện bất thường");
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings điện bất thường", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// API returns invoices with abnormal water readings (water consumption > threshold)
+    /// </summary>
+    [Authorize(Roles = "Owner")]
+    [HttpGet("abnormal-water")]
+    public async Task<ActionResult<IEnumerable<MonthlyReadingResponseDto>>> GetAbnormalWaterReadings([FromQuery] int threshold)
+    {
+        try
+        {
+            var allReadings = await _monthlyReadingService.GetAllAsync();
+            var abnormal = allReadings.Where(r => (r.WaterNew - r.WaterOld > threshold)).ToList();
+            return Ok(abnormal);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lấy MonthlyReadings nước bất thường");
+            return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy readings nước bất thường", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Proxy S3 image: return image from S3 (used for frontend)
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("image-proxy")]
+    public async Task<IActionResult> GetS3Image([FromQuery] string key)
+    {
+        // Read AWS config from appsettings
+        var awsSection = _config.GetSection("AWS");
+        var awsAccessKey = awsSection["AccessKey"];
+        var awsSecretKey = awsSection["SecretKey"];
+        var regionStr = awsSection["Region"] ?? "ap-southeast-1";
+        var bucketName = awsSection["BucketName"];
+        var region = Amazon.RegionEndpoint.GetBySystemName(regionStr);
+
+        try
+        {
+            using var s3 = new Amazon.S3.AmazonS3Client(awsAccessKey, awsSecretKey, region);
+            var request = new Amazon.S3.Model.GetPreSignedUrlRequest
+            {
+                BucketName = bucketName,
+                Key = key,
+                Expires = DateTime.UtcNow.AddMinutes(10),
+                Verb = Amazon.S3.HttpVerb.GET
+            };
+            var url = s3.GetPreSignedURL(request);
+            return Ok(new { url });
+        }
+        catch (Amazon.S3.AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return NotFound(new { message = "Không tìm thấy ảnh trên S3", key });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi tạo pre-signed URL ảnh từ S3");
+            return StatusCode(500, new { message = "Lỗi tạo pre-signed URL ảnh từ S3", error = ex.Message });
         }
     }
 }

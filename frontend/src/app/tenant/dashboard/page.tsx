@@ -1,485 +1,302 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-/* ============================================
-   INTERFACES
-=============================================== */
-// Định nghĩa chi tiết 1 dòng trong hóa đơn
-interface InvoiceItem {
-    name: string
-    qty: number
-    price: number
+import { 
+    getTenantDashboardData, 
+    formatVND,
+    UnpaidInvoiceItem,
+    loadInvoiceDetails
+} from '@/services/tenantDashboardService';
+
+interface TenantViewData {
+    houseName: string;
+    roomNumber: string;
+    contractStatus: string;
+    contractEndDate: string;
+    isExpiringSoon: boolean;
+
+    totalUnpaidAmount: string;
+    unpaidInvoices: {
+        invoiceId: number;
+        month: string;
+        amount: string;
+        dueDate: string;
+        isOverdue: boolean;
+        items: UnpaidInvoiceItem['items'];
+    }[];
+
+    openIncidents: number;
+    missingReadings: {
+        month: string;
+        type: string;
+    }[];
 }
 
-// Định nghĩa cấu trúc Hóa đơn hoàn chỉnh
-interface Invoice {
-    id: string
-    month: string
-    status: "paid" | "unpaid" // Giới hạn giá trị chuỗi cho chặt chẽ hơn
-    items: InvoiceItem[]
-    total: number
-}
+const TenantInfoCard: React.FC<{ title: string; value: string; className?: string; apiEndpoint: string }> = ({ title, value, className = '' }) => (
+    <div className={`bg-white p-5 rounded-xl shadow-lg border-l-4 border-blue-400 ${className}`}>
+        <div className="text-sm font-medium text-gray-500">{title}</div>
+        <div className="text-2xl font-bold text-gray-800 mt-1">{value}</div>
+    </div>
+);
 
-// Định nghĩa Props cho Component ReadingCard
-interface ReadingCardProps {
-    title: string
-    icon: string
-    oldValue: number
-    newValue: number
-    status: string
-    imageUrl: string
-    isLoading?: boolean
-    onUpload: (file: File) => void
-}
+const TenantDashboardPage: React.FC = () => {
+    // State lưu dữ liệu hiển thị
+    const [data, setData] = useState<TenantViewData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [expandedInvoice, setExpandedInvoice] = useState<number | null>(null);
+    const [loadingInvoiceDetails, setLoadingInvoiceDetails] = useState<Set<number>>(new Set());
+    const router = useRouter();
 
-// Định nghĩa Props cho Component InvoiceCard
-interface InvoiceCardProps {
-    invoice: Invoice
-    setInvoice: (invoice: Invoice | null) => void
-}
-
-interface ApproveReadingPayload {
-    electric: ReadingValue
-    water: ReadingValue
-}
-
-interface ReadingValue {
-    old: number
-    new: number
-    img: string
-    status: string
-}
-
-interface InvoiceData {
-    electricQty: number
-    waterQty: number
-}
-
-interface ReadingCycle {
-    month: number
-    year: number
-    deadline: string
-}
-
-/* ============================================
-   FAKE API
-=============================================== */
-const FakeAPI = {
-    getCurrentReadingCycle: async () => {
-        return {
-            month: 1,
-            year: 2024,
-            deadline: "2024-01-25"
-        }
-    },
-
-    uploadImage: async (type: "electric" | "water", file: File) => {
-        const formData = new FormData()
-        formData.append("file", file)
-
-        // GỌI ĐÚNG VÀO BACKEND THẬT
-        const url = `http://localhost:5000/api/${type}/upload`
-
-        const res = await fetch(url, {
-            method: "POST",
-            body: formData
-        })
-
-        const data = await res.json()
-
-        if (!res.ok || data.success === false) {
-            console.error(`Upload ${type} lỗi:`, data.error)
-            throw new Error(data.error || "Upload thất bại")
-        }
-
-        // Convert ảnh local để hiển thị
-        const imageUrl = URL.createObjectURL(file)
-
-        return {
-            imageUrl,
-            aiValue: Number(data.reading)
-        }
-    },
-
-    createInvoice: async (data: InvoiceData) => {
-        await new Promise(r => setTimeout(r, 500))
-        return {
-            id: "inv_fake_001",
-            month: "2024-01",
-            status: "unpaid",
-            items: [
-                { name: "Tiền điện", qty: data.electricQty, price: 3500 },
-                { name: "Tiền nước", qty: data.waterQty, price: 7000 }
-            ]
-        }
-    },
-
-    payInvoice: async () => {
-        await new Promise(r => setTimeout(r, 500))
-        return { status: "paid" }
-    },
-
-    approveReading: async (payload: ApproveReadingPayload) => {
-        await new Promise(r => setTimeout(r, 500))
-        return { success: true }
-    }
-}
-
-/* ============================================
-   MAIN COMPONENT
-=============================================== */
-export default function TenantDashboard() {
-    const [cycle, setCycle] = useState<ReadingCycle | null>(null)
-    const [uploadingElec, setUploadingElec] = useState(false)
-    const [uploadingWater, setUploadingWater] = useState(false)
-    const [electric, setElectric] = useState<ReadingValue>({
-        old: 120,
-        new: 0,
-        img: "",
-        status: "pending"
-    })
-
-    const [water, setWater] = useState<ReadingValue>({
-        old: 15,
-        new: 0,
-        img: "",
-        status: "pending"
-    })
-
-    const [invoice, setInvoice] = useState<Invoice | null>(null)
-    /* LOAD KỲ THU */
-    useEffect(() => {
-        FakeAPI.getCurrentReadingCycle().then(res => setCycle(res))
-    }, [])
-
-    /* TẠO HÓA ĐƠN TỰ ĐỘNG */
-    useEffect(() => {
-        const ready =
-            electric.status === "approved" && water.status === "approved"
-
-        if (ready && !invoice) {
-            FakeAPI.createInvoice({
-                electricQty: electric.new - electric.old,
-                waterQty: water.new - water.old
-            }).then(res => {
-                const total =
-                    res.items[0].qty * res.items[0].price +
-                    res.items[1].qty * res.items[1].price
-
-                setInvoice({ ...res, total } as Invoice)
-            })
-        }
-    }, [electric, water, invoice])
-
-    /* UPLOAD ẢNH */
-    const handleUpload = async (type: "electric" | "water", file: File) => {
-        // Bật loading đúng card
-        if (type === "electric") setUploadingElec(true)
-        if (type === "water") setUploadingWater(true)
-
-        try {
-            const res = await FakeAPI.uploadImage(type, file)
-
-            if (type === "electric") {
-                setElectric(prev => ({
-                    ...prev,
-                    img: res.imageUrl,
-                    new: res.aiValue,
-                    status: "pending"
-                }))
+    // Function để load chi tiết invoice khi click
+    const handleExpandInvoice = async (invoiceId: number) => {
+        const isExpanding = expandedInvoice !== invoiceId;
+        
+        if (isExpanding) {
+            // Kiểm tra xem đã load details chưa
+            const invoice = data?.unpaidInvoices.find(inv => inv.invoiceId === invoiceId);
+            if (invoice && (!invoice.items || invoice.items.length === 0)) {
+                // Chưa load details, load ngay bây giờ
+                setLoadingInvoiceDetails(prev => new Set(prev).add(invoiceId));
+                try {
+                    const items = await loadInvoiceDetails(invoiceId);
+                    setData(prevData => {
+                        if (!prevData) return prevData;
+                        return {
+                            ...prevData,
+                            unpaidInvoices: prevData.unpaidInvoices.map(inv =>
+                                inv.invoiceId === invoiceId ? { ...inv, items } : inv
+                            )
+                        };
+                    });
+                } catch (error) {
+                    console.error('Failed to load invoice details:', error);
+                } finally {
+                    setLoadingInvoiceDetails(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(invoiceId);
+                        return newSet;
+                    });
+                }
             }
-
-            if (type === "water") {
-                setWater(prev => ({
-                    ...prev,
-                    img: res.imageUrl,
-                    new: res.aiValue,
-                    status: "pending"
-                }))
-            }
-
-            setInvoice(null)
-
-        } catch (err) {
-            alert(`Ảnh mờ hoặc đọc lỗi: Hãy thử upload lại!`)
         }
+        
+        setExpandedInvoice(isExpanding ? invoiceId : null);
+    };
 
-        // Tắt loading
-        if (type === "electric") setUploadingElec(false)
-        if (type === "water") setUploadingWater(false)
-    }
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const apiData = await getTenantDashboardData();
 
+                const viewData: TenantViewData = {
+                    // Contract Info
+                    houseName: apiData.contract?.houseName || "Đang cập nhật",
+                    roomNumber: apiData.contract?.roomNumber || "---",
+                    contractStatus: apiData.contract?.contractStatus || "Chưa có HĐ",
+                    contractEndDate: apiData.contract?.contractEndDate
+                        ? new Date(apiData.contract.contractEndDate).toLocaleDateString('vi-VN')
+                        : "---",
+                    isExpiringSoon: apiData.contract?.isExpiringSoon || false,
 
-    /* XÁC NHẬN CHỈ SỐ */
-    const handleApprove = async () => {
-        await FakeAPI.approveReading({ electric, water })
+                    // Invoice Info
+                    totalUnpaidAmount: formatVND(apiData.invoices.totalUnpaidAmount),
+                    unpaidInvoices: apiData.invoices.unpaidInvoices.map(inv => ({
+                        invoiceId: inv.invoiceId,
+                        month: inv.month,
+                        amount: formatVND(inv.amount),
+                        dueDate: new Date(inv.dueDate).toLocaleDateString('vi-VN'),
+                        isOverdue: inv.isOverdue,
+                        items: inv.items
+                    })),
 
-        setElectric(prev => ({ ...prev, status: "approved" }))
-        setWater(prev => ({ ...prev, status: "approved" }))
-    }
+                    // Incident Info
+                    openIncidents: apiData.openIncidents,
 
-    return (
-        <div className="space-y-7">
+                    // Reading Info
+                    missingReadings: apiData.readings.missingReadings.map(r => ({
+                        month: r.monthYear,
+                        type: 'Both' // Backend chưa trả về type, mặc định hiển thị Both
+                    }))
+                };
 
-            {/* SECTION 1: Kỳ thu */}
-            {cycle && (
-                <div className="bg-white p-5 rounded-xl shadow text-gray-700">
-                    <h2 className="font-bold text-lg">
-                        Kỳ thu tháng {cycle.month}/{cycle.year}
-                    </h2>
-                    <p className="text-sm opacity-70">
-                        Deadline gửi chỉ số: <b>{cycle.deadline}</b>
-                    </p>
-                </div>
-            )}
+                setData(viewData);
+            } catch (error) {
+                console.error("Failed to fetch dashboard data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-            {/* SECTION 2: Điện + nước */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ReadingCard
-                    title="Chỉ số điện"
-                    icon="⚡"
-                    oldValue={electric.old}
-                    newValue={electric.new}
-                    status={electric.status}
-                    imageUrl={electric.img}
-                    isLoading={uploadingElec}
-                    onUpload={(f: File) => handleUpload("electric", f)}
-                />
+        fetchData();
+    }, []);
 
-                <ReadingCard
-                    title="Chỉ số nước"
-                    icon="💧"
-                    oldValue={water.old}
-                    newValue={water.new}
-                    status={water.status}
-                    imageUrl={water.img}
-                    isLoading={uploadingWater}
-                    onUpload={(f: File) => handleUpload("water", f)}
-                />
-            </div>
-
-            {/* SECTION 3: Xác nhận */}
-            <div className="bg-white p-5 rounded-xl shadow">
-                <h3 className="font-bold text-gray-700 mb-3">
-                    Xác nhận chỉ số tháng
-                </h3>
-
-                <button
-                    onClick={handleApprove}
-                    disabled={
-                        electric.new === 0 ||
-                        water.new === 0 ||
-                        electric.status === "approved"
-                    }
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-40"
-                >
-                    Xác nhận số liệu
-                </button>
-            </div>
-
-            {/* SECTION 4: Hóa đơn */}
-            {invoice && (
-                <InvoiceCard invoice={invoice} setInvoice={setInvoice} />
-            )}
+    if (loading) return (
+        <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
         </div>
-    )
-}
+    );
 
-/* ============================================
-   COMPONENT: Reading Card
-=============================================== */
-// Destructuring props trực tiếp và gán type
-function ReadingCard({
-    title,
-    icon,
-    oldValue,
-    newValue,
-    status,
-    imageUrl,
-    isLoading,
-    onUpload
-}: ReadingCardProps) {
+    if (!data) return <div className="p-8 text-center text-red-500">Không thể tải dữ liệu</div>;
+
+    const totalUnpaidColor = data.unpaidInvoices.some(inv => inv.isOverdue)
+        ? 'text-red-600'
+        : data.unpaidInvoices.length > 0
+            ? 'text-orange-500'
+            : 'text-green-600';
+
     return (
-        <div className="bg-white shadow p-5 rounded-xl">
+        <div className="p-8 bg-gray-50 min-h-screen">
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">Bảng Thông Tin Người thuê</h1>
 
-            <h3 className="font-bold text-gray-700 text-lg mb-3">
-                {icon} {title}
-            </h3>
-
-            {/* Upload */}
-            <label className="block cursor-pointer">
-                <input
-                    type="file"
-                    hidden
-                    onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) onUpload(file)
-                    }}
+            {/* Contract & Property Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-gray-800">
+                <TenantInfoCard
+                    title="Căn hộ/Phòng đang thuê"
+                    value={`${data.houseName} - ${data.roomNumber}`}
+                    apiEndpoint="/api/tenant/contracts/active-info"
+                    className="lg:col-span-2"
                 />
-                <div className="relative w-full h-[400px] border border-gray-200 bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center">
-                    {isLoading ? (
-                        <span className="animate-pulse text-blue-600 font-medium">
-                            ⏳ Đang xử lý ảnh...
-                        </span>
-                    ) : imageUrl ? (
-                        <Image
-                            src={imageUrl}
-                            alt="meter"
-                            fill
-                            className="object-contain p-2"
-                        />
-                    ) : (
-                        <span className="opacity-60 text-gray-700">
-                            Chọn ảnh công tơ
-                        </span>
-                    )}
-                </div>
-
-            </label>
-
-            <div className="mt-4 text-sm text-gray-700 space-y-1">
-                <p>Chỉ số tháng trước: <b>{oldValue}</b></p>
-                <p>Chỉ số tháng này (AI): <b>{newValue}</b></p>
-
-                <p className="mt-1">
-                    Trạng thái:{" "}
-                    {status === "pending" ? (
-                        <span className="text-yellow-600 font-semibold">Chờ xác nhận</span>
-                    ) : (
-                        <span className="text-green-600 font-semibold">Đã duyệt</span>
-                    )}
-                </p>
-            </div>
-        </div>
-    )
-}
-
-/* ============================================
-   COMPONENT: INVOICE
-=============================================== */
-function InvoiceCard({ invoice, setInvoice }: InvoiceCardProps) {
-    const [showQR, setShowQR] = useState(false)
-    const [paymentStatus, setPaymentStatus] = useState<"pending" | "success">("pending")
-    const handlePay = async () => {
-        const res = await FakeAPI.payInvoice()
-
-        // trạng thái trong modal
-        //setPaymentStatus("success")
-
-        // cập nhật invoice sang paid
-        setInvoice({
-            ...invoice,
-            status: res.status as "paid"
-        })
-
-        // Đợi trạng thái hiện 1 chút rồi đóng modal
-        setTimeout(() => setShowQR(false), 700)
-    }
-
-    return (
-        <div className="bg-white shadow p-5 rounded-xl">
-
-            <h3 className="font-bold text-lg text-gray-700 mb-3">
-                Hóa đơn tháng {invoice.month}
-            </h3>
-
-            <div className="space-y-2 text-gray-700">
-                {invoice.items.map((i, idx) => (
-                    <p key={idx}>
-                        {i.name}: {i.qty} × {i.price.toLocaleString()}đ ={" "}
-                        <b>{(i.qty * i.price).toLocaleString()}đ</b>
-                    </p>
-                ))}
+                <TenantInfoCard
+                    title="Ngày kết thúc Hợp đồng"
+                    value={data.contractEndDate}
+                    apiEndpoint="/api/tenant/contracts/active-info"
+                />
+                <TenantInfoCard
+                    title="Trạng thái Hợp đồng"
+                    value={data.contractStatus}
+                    apiEndpoint="/api/tenant/contracts/active-info"
+                />
             </div>
 
-            <p className="mt-3 text-lg font-bold text-gray-700">
-                Tổng tiền: {invoice.total.toLocaleString()}đ
-            </p>
+            {/* Financial & Incidents & Readings */}
+            {/* col4 -> 3 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-gray-800" >
 
-            <p className="mt-1 text-gray-700">
-                Trạng thái:{" "}
-                {invoice.status === "paid" ? (
-                    <span className="text-green-600 font-semibold">Đã thanh toán</span>
-                ) : (
-                    <span className="text-red-600 font-semibold">Chưa thanh toán</span>
-                )}
-            </p>
+                {/* 1. Unpaid Invoices (Tổng tiền hóa đơn chưa thanh toán) */}
+                <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-yellow-500 lg:col-span-2">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-700">💳 Tổng tiền Hóa đơn Chưa thanh toán</h3>
 
-            {/* ⭐ Nút thanh toán luôn bật nếu chưa thanh toán */}
-            {invoice.status === "unpaid" && (
-                <button
-                    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg"
-                    onClick={() => {
-                        setPaymentStatus("pending") // reset modal status
-                        setShowQR(true)            // chỉ mở modal
-                    }}
-                >
-                    Thanh toán
-                </button>
-            )}
+                    {/* Tổng số tiền */}
+                    <div className="flex justify-between items-center border-b pb-3 mb-3">
+                        <span className="text-lg font-medium">Tổng số dư cần trả:</span>
+                        <span className={`text-3xl font-extrabold ${totalUnpaidColor}`}>
+                            {data.totalUnpaidAmount}
+                        </span>
+                    </div>
 
-            {/* ⭐ MODAL */}
-            {showQR && (
-                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-
-                    <div className="bg-white p-6 rounded-xl shadow-xl w-[320px] text-center">
-
-                        <h3 className="font-bold text-gray-800 mb-2">
-                            Thanh toán bằng QR
-                        </h3>
-
-                        {/* Trạng thái trong modal */}
-                        <p className="text-sm mb-3">
-                            Trạng thái:{" "}
-                            {paymentStatus === "pending" ? (
-                                <span className="text-yellow-600 font-semibold">
-                                    Chờ thanh toán...
-                                </span>
-                            ) : (
-                                <span className="text-green-600 font-semibold">
-                                    Đã thanh toán
-                                </span>
-                            )}
-                        </p>
-
-                        {/* QR Image */}
-                        <div className="flex justify-center my-3">
-                            <Image
-                                src="/qr.png"
-                                alt="QR Code"
-                                width={240}
-                                height={240}
-                                className="rounded-lg shadow"
-                            />
-                        </div>
-
-                        {/* Buttons */}
-                        <div className="flex flex-col gap-2 mt-4">
-
-                            {/* Nút xác nhận thanh toán */}
-                            {paymentStatus === "pending" && (
-                                <button
-                                    onClick={handlePay}
-                                    className="bg-green-600 text-white py-2 rounded-lg"
-                                >
-                                    Tôi đã thanh toán
-                                </button>
-                            )}
-
-                            {/* Đóng modal */}
-                            <button
-                                onClick={() => setShowQR(false)}
-                                className="bg-gray-200 text-gray-700 py-2 rounded-lg"
-                            >
-                                Đóng
-                            </button>
-                        </div>
-
+                    {/* Danh sách các hóa đơn chưa thanh toán */}
+                    <p className="text-sm font-semibold mt-4 mb-2">Chi tiết các tháng còn nợ:</p>
+                    <div className="space-y-3">
+                        {data.unpaidInvoices.length > 0 ? (
+                            data.unpaidInvoices.map((invoice) => (
+                                <div key={invoice.invoiceId} className="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div className="flex justify-between items-center text-sm p-3 bg-gray-50">
+                                        <div className="flex flex-col flex-1">
+                                            <span className={`font-semibold ${invoice.isOverdue ? 'text-red-500' : 'text-gray-700'}`}>
+                                                {invoice.month}
+                                            </span>
+                                            <span className={`text-sm font-bold ${invoice.isOverdue ? 'text-red-400' : 'text-orange-400'}`}>
+                                                {invoice.amount} {invoice.isOverdue ? '(QUÁ HẠN)' : `(Hạn: ${invoice.dueDate})`}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleExpandInvoice(invoice.invoiceId)}
+                                                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                                            >
+                                                {expandedInvoice === invoice.invoiceId ? 'Ẩn' : 'Chi tiết'}
+                                            </button>
+                                            <button
+                                                onClick={() => router.push(`/tenant/payment/${invoice.invoiceId}`)}
+                                                className={`px-3 py-1 rounded-lg font-bold text-xs text-white transition ${invoice.isOverdue ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+                                            >
+                                                Thanh toán
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Chi tiết các khoản */}
+                                    {expandedInvoice === invoice.invoiceId && (
+                                        <div className="p-3 bg-white border-t">
+                                            {loadingInvoiceDetails.has(invoice.invoiceId) ? (
+                                                <div className="flex items-center justify-center py-4">
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                                                    <span className="ml-2 text-sm text-gray-500">Đang tải chi tiết...</span>
+                                                </div>
+                                            ) : (invoice.items && invoice.items.length > 0) ? (
+                                                <>
+                                                    <h4 className="text-sm font-semibold mb-2 text-gray-700">Chi tiết các khoản:</h4>
+                                                    <div className="space-y-1">
+                                                        {invoice.items?.map((item, index) => (
+                                                            <div key={index} className="flex justify-between text-xs text-gray-600 py-1">
+                                                                <span className="flex-1">{item.description}</span>
+                                                                <span className="text-right w-16">{item.quantity}</span>
+                                                                <span className="text-right w-20">{formatVND(item.unitPrice)}</span>
+                                                                <span className="text-right w-20 font-semibold">{formatVND(item.amount)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="text-sm text-gray-500 py-2">Không có chi tiết khoản nào.</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center text-green-500 italic p-3 bg-green-50 rounded">
+                                <span className="font-bold">🎉 Bạn đã thanh toán hết nợ!</span>
+                            </div>
+                        )}
                     </div>
                 </div>
-            )}
+
+                {/* 2. Payment Upload Link & Missing Readings */}
+                <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-700">⚡ Bạn đã nộp Chỉ số Điện/Nước?</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                        Vui lòng nộp chỉ số để hóa đơn tháng này được tính toán chính xác.
+                    </p>
+
+                    {/* WARNING: Các tháng chưa nộp chỉ số */}
+                    {data.missingReadings.length > 0 && (
+                        <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+                            <p className="font-bold text-red-700 text-sm mb-1">⚠️ Cảnh báo Chỉ số Thiếu:</p>
+                            <ul className="list-disc list-inside text-xs text-red-600">
+                                {data.missingReadings.map((reading, index) => (
+                                    <li key={index} className="pl-1">
+                                        {reading.month}: Chỉ số <span className="font-semibold">{reading.type === 'Both' ? "Điện & Nước" : ""}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <Link href="/tenant/readinghistory" className="block w-full text-center bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition font-bold">
+                        Đi tới trang nộp chỉ số
+                    </Link>
+                </div>
+
+                {/* 3. Incidents/Requests Card */}
+                {/* <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-red-500">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-700">🛠️ Yêu cầu Dịch vụ</h3>
+                    <div className="flex justify-between items-center border-b pb-3 mb-3">
+                        <span className="text-lg font-medium">Yêu cầu chưa xử lý:</span>
+                        <span className="text-3xl font-extrabold text-red-600">{data.openIncidents}</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">Bạn có thể tạo yêu cầu sửa chữa/hỗ trợ mới.</p>
+                    <button className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                        Tạo Yêu cầu Mới
+                    </button>
+                </div> */}
+            </div>
         </div>
-    )
-}
+    );
+};
+
+export default TenantDashboardPage;

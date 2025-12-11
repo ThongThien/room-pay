@@ -27,7 +27,7 @@ swagger_config = {
     ],
     "static_url_path": "/flasgger_static",
     "swagger_ui": True,
-    "specs_route": "/api/docs"
+    "specs_route": "/swagger"
 }
 
 swagger_template = {
@@ -66,6 +66,26 @@ genai.configure(api_key=GEMINI_API_KEY)
 # Allowed extensions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 
+# Meter type configurations
+METER_CONFIGS = {
+    'electric': {
+        'expected_digits': 6,
+        'return_digits': 5,
+        'prompt': None,  # Will be set from env
+        'note': 'Last digit removed from original 6-digit reading'
+    },
+    'water': {
+        'expected_digits': 5,
+        'return_digits': 4,
+        'prompt': None,  # Will be set from env
+        'note': 'Last digit removed from original 5-digit reading'
+    }
+}
+
+# Set prompts from environment
+METER_CONFIGS['electric']['prompt'] = ELECTRIC_METER_PROMPT
+METER_CONFIGS['water']['prompt'] = WATER_METER_PROMPT
+
 # Create upload folder if needed
 UPLOAD_FOLDER = 'uploads'
 if PRESERVE_UPLOADS and not os.path.exists(UPLOAD_FOLDER):
@@ -90,63 +110,87 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def validate_file_request(request):
+    """Validate file upload request"""
+    if 'file' not in request.files:
+        return False, 'No file provided'
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return False, 'No file selected'
+    
+    if not allowed_file(file.filename):
+        return False, f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+    
+    return True, file
+
+
 def validate_meter_reading(reading, meter_type):
-    """
-    Validate meter reading based on type
-    - Electric meter: exactly 6 digits
-    - Water meter: exactly 5 digits
-    """
+    """Validate meter reading based on type"""
     if not reading:
         return False
     
-    # Remove all non-digit characters
     digits_only = re.sub(r'\D', '', reading)
+    expected_digits = METER_CONFIGS[meter_type]['expected_digits']
     
-    if meter_type == 'electric':
-        return len(digits_only) == 6
-    elif meter_type == 'water':
-        return len(digits_only) == 5
-    
-    return False
+    return len(digits_only) == expected_digits
 
 
 def extract_meter_reading_with_gemini(image_path, meter_type):
-    """
-    Extract meter reading using Gemini API
-    """
+    """Extract meter reading using Gemini API"""
     try:
-        # Open and load the image
         img = Image.open(image_path)
-        
-        # Create the model
         model = genai.GenerativeModel(GEMINI_MODEL)
-        
-        # Get prompt based on meter type from environment variables
-        if meter_type == 'electric':
-            prompt = ELECTRIC_METER_PROMPT
-        else:  # water meter
-            prompt = WATER_METER_PROMPT
+        prompt = METER_CONFIGS[meter_type]['prompt']
 
-        # Generate content
         response = model.generate_content([prompt, img])
-        
-        # Extract text from response
         reading = response.text.strip()
         
-        # Check if model indicated unclear
         if 'UNCLEAR' in reading.upper():
             return None
         
-        # Validate the reading
         if validate_meter_reading(reading, meter_type):
-            # Return only digits
-            return re.sub(r'\D', '', reading)
-        else:
-            return None
+            digits_only = re.sub(r'\D', '', reading)
+            return digits_only[:-1] if len(digits_only) > 0 else None
+        
+        return None
             
     except Exception as e:
         print(f"Error during OCR: {str(e)}")
         return None
+
+
+def process_meter_upload(meter_type):
+    """Common logic for processing meter uploads"""
+    # Validate request
+    is_valid, result = validate_file_request(request)
+    if not is_valid:
+        return jsonify({'success': False, 'error': result}), 400
+    
+    file = result
+    
+    try:
+        temp_path = save_temp_file(file)
+        reading = extract_meter_reading_with_gemini(temp_path, meter_type)
+        
+        if not PRESERVE_UPLOADS:
+            os.remove(temp_path)
+        
+        if reading:
+            config = METER_CONFIGS[meter_type]
+            return jsonify({
+                'success': True,
+                'meter_type': meter_type,
+                'reading': reading,
+                'digits': config['return_digits'],
+                'note': config['note']
+            }), 200
+        else:
+            return jsonify({'success': False, 'error': 'IMAGE_QUALITY_TOO_LOW'}), 400
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Processing error: {str(e)}'}), 500
 
 
 @app.route('/api/health', methods=['GET'])
@@ -182,7 +226,7 @@ def health_check():
 @app.route('/api/electric/upload', methods=['POST'])
 def ocr_electric_meter():
     """
-    OCR endpoint for electric meter reading (6 digits)
+    OCR endpoint for electric meter reading (returns 5 digits after removing last digit)
     ---
     tags:
       - Electric Meter
@@ -208,103 +252,27 @@ def ocr_electric_meter():
               example: electric
             reading:
               type: string
-              example: "123456"
+              example: "12345"
             digits:
               type: integer
-              example: 6
+              example: 5
+            note:
+              type: string
+              example: "Last digit removed from original 6-digit reading"
       400:
         description: Bad request - no file, invalid file type, or image quality too low
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-              example: false
-            error:
-              type: string
-              example: IMAGE_QUALITY_TOO_LOW
       413:
         description: File too large
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-              example: false
-            error:
-              type: string
-              example: File too large. Maximum size is 8MB
       500:
         description: Internal server error
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-              example: false
-            error:
-              type: string
-              example: Processing error
     """
-    # Check if file is present
-    if 'file' not in request.files:
-        return jsonify({
-            'success': False,
-            'error': 'No file provided'
-        }), 400
-    
-    file = request.files['file']
-    
-    # Check if file is selected
-    if file.filename == '':
-        return jsonify({
-            'success': False,
-            'error': 'No file selected'
-        }), 400
-    
-    # Check if file type is allowed
-    if not allowed_file(file.filename):
-        return jsonify({
-            'success': False,
-            'error': 'File type not allowed. Allowed types: ' + ', '.join(ALLOWED_EXTENSIONS)
-        }), 400
-    
-    try:
-        # Save file temporarily
-        temp_path = save_temp_file(file)
-        
-        # Extract reading
-        reading = extract_meter_reading_with_gemini(temp_path, 'electric')
-        
-        # Clean up if not preserving
-        if not PRESERVE_UPLOADS:
-            os.remove(temp_path)
-        
-        # Check if reading was successful
-        if reading:
-            return jsonify({
-                'success': True,
-                'meter_type': 'electric',
-                'reading': reading,
-                'digits': 6
-            }), 200
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'IMAGE_QUALITY_TOO_LOW'
-            }), 400
-            
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Processing error: {str(e)}'
-        }), 500
+    return process_meter_upload('electric')
 
 
 @app.route('/api/water/upload', methods=['POST'])
 def ocr_water_meter():
     """
-    OCR endpoint for water meter reading (5 digits)
+    OCR endpoint for water meter reading (returns 4 digits after removing last digit)
     ---
     tags:
       - Water Meter
@@ -330,97 +298,21 @@ def ocr_water_meter():
               example: water
             reading:
               type: string
-              example: "12345"
+              example: "1234"
             digits:
               type: integer
-              example: 5
+              example: 4
+            note:
+              type: string
+              example: "Last digit removed from original 5-digit reading"
       400:
         description: Bad request - no file, invalid file type, or image quality too low
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-              example: false
-            error:
-              type: string
-              example: IMAGE_QUALITY_TOO_LOW
       413:
         description: File too large
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-              example: false
-            error:
-              type: string
-              example: File too large. Maximum size is 8MB
       500:
         description: Internal server error
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-              example: false
-            error:
-              type: string
-              example: Processing error
     """
-    # Check if file is present
-    if 'file' not in request.files:
-        return jsonify({
-            'success': False,
-            'error': 'No file provided'
-        }), 400
-    
-    file = request.files['file']
-    
-    # Check if file is selected
-    if file.filename == '':
-        return jsonify({
-            'success': False,
-            'error': 'No file selected'
-        }), 400
-    
-    # Check if file type is allowed
-    if not allowed_file(file.filename):
-        return jsonify({
-            'success': False,
-            'error': 'File type not allowed. Allowed types: ' + ', '.join(ALLOWED_EXTENSIONS)
-        }), 400
-    
-    try:
-        # Save file temporarily
-        temp_path = save_temp_file(file)
-        
-        # Extract reading
-        reading = extract_meter_reading_with_gemini(temp_path, 'water')
-        
-        # Clean up if not preserving
-        if not PRESERVE_UPLOADS:
-            os.remove(temp_path)
-        
-        # Check if reading was successful
-        if reading:
-            return jsonify({
-                'success': True,
-                'meter_type': 'water',
-                'reading': reading,
-                'digits': 5
-            }), 200
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'IMAGE_QUALITY_TOO_LOW'
-            }), 400
-            
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Processing error: {str(e)}'
-        }), 500
+    return process_meter_upload('water')
 
 
 @app.errorhandler(413)

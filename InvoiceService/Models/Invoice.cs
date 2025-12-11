@@ -12,6 +12,7 @@ public class Invoice
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     
+    public int? TenantContractId { get; set; }
     // Navigation property
     public List<InvoiceItem> Items { get; set; } = new();
 }

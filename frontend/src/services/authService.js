@@ -1,10 +1,8 @@
-// src/services/authService.js
-
 const AA_API_URL = process.env.NEXT_PUBLIC_AA_API_URL;
 
 export const loginAPI = async (email, password) => {
   try {
-    const res = await fetch(`${AA_API_URL}/Auth/login`, {
+    const res = await fetch(`${AA_API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -22,16 +20,16 @@ export const loginAPI = async (email, password) => {
 
   } catch (error) {
     console.error("Lỗi fetch:", error);
-    return { 
-      success: false, 
-      message: "Không thể kết nối đến máy chủ." 
+    return {
+      success: false,
+      message: "Không thể kết nối đến máy chủ."
     };
   }
 };
 
 export const registerAPI = async (fullName, email, password, confirmPassword) => {
   try {
-    const res = await fetch(`${AA_API_URL}/Auth/register`, {
+    const res = await fetch(`${AA_API_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,7 +38,7 @@ export const registerAPI = async (fullName, email, password, confirmPassword) =>
         fullName: fullName,
         email: email,
         password: password,
-        confirmPassword: confirmPassword 
+        confirmPassword: confirmPassword
       }),
     });
 
@@ -49,9 +47,9 @@ export const registerAPI = async (fullName, email, password, confirmPassword) =>
 
   } catch (error) {
     console.error("Lỗi fetch register:", error);
-    return { 
-      success: false, 
-      message: "Không thể kết nối đến máy chủ." 
+    return {
+      success: false,
+      message: "Không thể kết nối đến máy chủ."
     };
   }
 };

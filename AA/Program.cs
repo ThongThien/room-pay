@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-
+using AA.Features.Users;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Cors
@@ -73,7 +73,7 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
-
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
@@ -128,11 +128,9 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(scope.ServiceProvider);
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Configure the HTTP request pipeline.
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");

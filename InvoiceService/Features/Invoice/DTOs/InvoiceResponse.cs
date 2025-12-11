@@ -4,6 +4,7 @@ public class InvoiceResponse
 {
     public int Id { get; set; }
     public string UserId { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
     public DateTime DueDate { get; set; }
     public decimal TotalAmount { get; set; }
@@ -11,7 +12,12 @@ public class InvoiceResponse
     public DateTime? PaidDate { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
-    public List<InvoiceItemResponse> Items { get; set; } = new();
+    public int? TenantContractId { get; set; }
+    public string? HouseName { get; set; } = string.Empty;
+    public string? RoomName { get; set; } = string.Empty;
+    public int? Floor { get; set; }
+    public List<InvoiceItemResponse> Items { get; set; } = new List<InvoiceItemResponse>();
+    
 }
 
 public class InvoiceItemResponse

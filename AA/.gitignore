@@ -232,3 +232,6 @@ $RECYCLE.BIN/
 .fuse_hidden*
 .directory
 .Trash-*
+
+bin/
+obj/

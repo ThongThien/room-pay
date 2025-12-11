@@ -2,11 +2,48 @@ using InvoiceService.Data;
 using InvoiceService.Features.Invoice;
 using InvoiceService.Features.Pricing;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using InvoiceService.Repositories.Interfaces; 
+using InvoiceService.Repositories.Implementations;
+using InvoiceService.Features.Property;
+using System.Text;
+using InvoiceService.Services;
+// using RabbitMQ.Client;
 var builder = WebApplication.CreateBuilder(args);
+
+// Đọc JwtSettings từ cấu hình
+var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
+var jwtSecret = jwtSettingsSection.GetValue<string>("Secret") 
+    ?? throw new InvalidOperationException("JWT Secret is not configured");
+var jwtIssuer = jwtSettingsSection.GetValue<string>("Issuer") 
+    ?? throw new InvalidOperationException("JWT Issuer is not configured");
+var jwtAudience = jwtSettingsSection.GetValue<string>("Audience") 
+    ?? throw new InvalidOperationException("JWT Audience is not configured");
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+// Thêm xác thực JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
 // Configure Entity Framework and MySQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -14,10 +51,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
-// Register services
+builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>(); 
 builder.Services.AddScoped<IInvoiceService, InvoiceServiceImpl>();
 builder.Services.AddScoped<IPricingService, PricingService>();
-
+builder.Services.AddHttpClient<InvoiceService.Services.IUserServiceClient, InvoiceService.Services.UserServiceClient>();
+builder.Services.AddHttpClient<IPropertyService, PropertyServiceClientImpl>();
+builder.Services.AddSingleton<InvoiceService.Services.PaymentWebSocketHandler>();
+// builder.Services.AddSingleton<IRabbitMQPublisher, RabbitMQPublisher>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -61,16 +101,17 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
 
+// Enable WebSocket support
+app.UseWebSockets();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

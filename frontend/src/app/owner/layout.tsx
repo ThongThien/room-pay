@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import RoleGuard from '@/components/auth/RoleGuard'
+import NotificationDropdown from "@/components/noti/NotificationDropdown"
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -62,13 +63,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Quản lý hóa đơn'}
             </Link>
 
-            {/* <Link href="/owner/tickets" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Yêu cầu sửa chữa - Nam'}
-            </Link> */}
-
-            {/* <Link href="/owner/notification" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
-              {isSidebarOpen && 'Thông báo'}
-            </Link> */}
             <button
               onClick={handleLogout}
               className="w-full text-left p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"
@@ -87,16 +81,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           <header className="bg-white shadow p-4 flex justify-between items-center">
             <h1 className="font-bold text-gray-950 text-xl">Khu vực chủ nhà</h1>
             <div className="flex items-center gap-4">
-              <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">
-                <Image
-                  src="/bell.svg"
-                  alt="nofi"
-                  width={24}
-                  height={24}
-                  className="w-6 h-6"
-                />
-                <span className="absolute top-1.5 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-              </button>
+              
+              {/* Thay thế nút chuông cũ bằng Component NotificationDropdown */}
+              <NotificationDropdown />
+
               <div className="h-6 w-px bg-gray-300"></div>
               <div className="flex items-center gap-3">
                 <div className="text-right">

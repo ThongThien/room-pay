@@ -94,4 +94,60 @@ public class UserService : IUserService
             return new List<UserInfo>();
         }
     }
+
+    // ⭐️ TRIỂN KHAI HÀM LẤY OWNER ID ⭐️
+    public async Task<string?> GetOwnerIdByTenantIdAsync(string tenantId)
+    {
+        try
+        {
+            // Giả định AA Service có endpoint /api/users/tenant/{tenantId}/owner-id
+            var response = await _httpClient.GetAsync($"/api/users/tenant/{tenantId}/owner-id");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                // Server trả về string ID thuần, không cần Deserialize phức tạp
+                return content.Trim('"'); // Loại bỏ dấu nháy kép nếu response là JSON string
+            }
+            
+            _logger.LogWarning("Failed to get owner ID for tenant {TenantId}. Status: {StatusCode}", tenantId, response.StatusCode);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling AuthService to get owner ID for tenant {TenantId}", tenantId);
+            return null;
+        }
+    }
+
+    // ⭐️ TRIỂN KHAI HÀM LẤY EMAIL OWNER ⭐️
+    public async Task<string?> GetEmailByUserIdAsync(string userId)
+    {
+        try
+        {
+            // AA Service có endpoint /api/users/{userId} và trả về DTO
+            var response = await _httpClient.GetAsync($"/api/users/{userId}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                
+                // Endpoint /api/users/{userId} trả về object có chứa 'email' (xem UsersController)
+                var userInfo = JsonSerializer.Deserialize<UserInfo>(content, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                
+                return userInfo?.Email;
+            }
+
+            _logger.LogWarning("Failed to get email for user {UserId}. Status: {StatusCode}", userId, response.StatusCode);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling AuthService to get email for user {UserId}", userId);
+            return null;
+        }
+    }
 }

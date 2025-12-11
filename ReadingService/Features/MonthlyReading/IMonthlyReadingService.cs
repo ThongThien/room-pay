@@ -18,6 +18,6 @@ public interface IMonthlyReadingService
     // Task<IEnumerable<MonthlyReadingResponseDto>> GetAllReadingsByUserIdAsync(string userId);
     Task<List<MonthlyReadingResponseDto>> GetAllAsync();
     
-    
+    Task<MonthlyReadingDto> CreateEmptyAsync(int cycleId, int tenantContractId);
 }
 

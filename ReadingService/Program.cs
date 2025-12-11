@@ -106,6 +106,8 @@ builder.Services.AddScoped<IS3Service, S3Service>();
 builder.Services.AddScoped<IMonthlyReadingService, MonthlyReadingService>();
 builder.Services.AddScoped<IReadingCycleService, ReadingCycleService>();
 
+builder.Services.AddScoped<IMessageProducer, RabbitMQProducer>();
+
 // Register IUserService with configured HttpClient
 builder.Services.AddHttpClient<IUserService, UserService>(client => 
 { 

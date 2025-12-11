@@ -24,6 +24,7 @@ export interface AbnormalReadingListItem {
     houseName: string;
     type: 'Electricity' | 'Water';
     increasePercent: number;
+    increaseAmount: number;
 }
 
 export interface NearExpiryContractListItem {
@@ -167,4 +168,24 @@ export interface NearExpiryContractListItem {
     roomNumber: string;
     endDate: string;
     remainingDays: number;
+}
+
+export interface AbnormalReadingAPIResponse {
+    id: number;
+    cycleId: number;
+    electricOld: number;
+    electricNew: number;
+    electricPhotoUrl: string;
+    waterOld: number;
+    waterNew: number;
+    waterPhotoUrl: string;
+    status: number;
+    createdAt: string;
+    updatedAt: string;
+    tenantContractId: number;
+    houseName: string;
+    roomName: string;
+    floor: number;
+    tenantName: string;
+    tenantId: string;
 }

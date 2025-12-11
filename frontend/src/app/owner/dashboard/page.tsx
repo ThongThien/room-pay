@@ -173,13 +173,13 @@ const AbnormalReadingList: React.FC<{ data: AbnormalReadingListItem[] }> = ({ da
             </div>
         ) : (
             data.map((item) => (
-                <div key={item.id} className="bg-orange-50 border border-orange-200 rounded-lg p-4 hover:bg-orange-100 transition-all duration-200 hover:shadow-md">
+                <div key={`${item.id}-${item.type}`} className="bg-orange-50 border border-orange-200 rounded-lg p-4 hover:bg-orange-100 transition-all duration-200 hover:shadow-md">
                     <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="text-lg font-bold text-gray-800">Phòng {item.roomNumber}</span>
                                 <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
-                                    {item.type}
+                                    {item.type === 'Electricity' ? 'Điện' : 'Nước'}
                                 </span>
                             </div>
                             <div className="text-sm text-gray-700 font-medium">
@@ -187,8 +187,8 @@ const AbnormalReadingList: React.FC<{ data: AbnormalReadingListItem[] }> = ({ da
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="text-xs text-gray-500 mb-1">Tăng tiêu thụ</div>
-                            <div className="text-lg font-bold text-red-600">+{item.increasePercent}%</div>
+                            <div className="text-xs text-gray-500 mb-1">Mức tăng</div>
+                            <div className="text-lg font-bold text-red-600">+{item.increaseAmount} {item.type === 'Electricity' ? 'kWh điện' : 'm³ nước'}</div>
                         </div>
                     </div>
                     

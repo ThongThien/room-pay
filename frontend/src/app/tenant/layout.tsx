@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import RoleGuard from "@/components/auth/RoleGuard"
+import NotificationDropdown from "@/components/noti/NotificationDropdown"
 
 export default function TenantLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -55,14 +56,6 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                             {isSidebarOpen && "Lịch sử nộp chỉ số"}
                         </Link>
 
-                        {/* <Link href="/tenant/requests" className="block p-2 hover:bg-gray-700 rounded">
-                            {isSidebarOpen && "Yêu cầu sửa chữa - Mạnh"}
-                        </Link> */}
-{/* 
-                        <Link href="/tenant/notification" className="block p-2 hover:bg-gray-700 rounded">
-                            {isSidebarOpen && 'Thông báo'}
-                        </Link> */}
-
                         <button
                             onClick={handleLogout}
                             className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded mt-4"
@@ -85,16 +78,8 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                         <h1 className="font-bold text-gray-700 text-xl">Khu vực người thuê</h1>
 
                         <div className="flex items-center gap-4">
-                            <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">
-                                <Image
-                                    src="/bell.svg"
-                                    alt="nofi"
-                                    width={24}
-                                    height={24}
-                                    className="w-6 h-6"
-                                />
-                                <span className="absolute top-1.5 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-                            </button>
+                            {/* Thay thế nút chuông cũ bằng Component này */}
+                            <NotificationDropdown />
 
                             <div className="h-6 w-px bg-gray-300"></div>
 

@@ -1,5 +1,6 @@
 // Constants cho Owner Dashboard
 export const INVOICE_API_URL = process.env.NEXT_PUBLIC_INVOICE_API_URL;
+export const PROPERTY_API_URL = process.env.NEXT_PUBLIC_PROPERTY_API_URL;
 export const PENDING_INVOICES_API_URL = `${INVOICE_API_URL}/invoices/pending-this-month`;
 
 // Fake data cho development

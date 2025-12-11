@@ -30,7 +30,10 @@ const OverdueInvoiceList: React.FC<{ data: OverdueInvoiceListItem[] }> = ({ data
                                 </span>
                             </div>
                             <div className="text-sm text-gray-700 font-medium">
-                                 {item.tenantName}
+                                {item.houseName} - {item.roomNumber}
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                Khách hàng: {item.tenantName}
                             </div>
                         </div>
                         <div className="text-right">
@@ -78,7 +81,10 @@ const PendingInvoiceList: React.FC<{ data: PendingInvoiceListItem[] }> = ({ data
                                 </span>
                             </div>
                             <div className="text-sm text-gray-700 font-medium">
-                                 {item.tenantName}
+                                {item.roomNumber}
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                 Khách hàng: {item.tenantName}
                             </div>
                         </div>
                         <div className="text-right">
@@ -95,6 +101,57 @@ const PendingInvoiceList: React.FC<{ data: PendingInvoiceListItem[] }> = ({ data
                         <div className="flex gap-2">
                             <button className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors">
                                 Nhắc nhở
+                            </button>
+                            <button className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
+                                Liên hệ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ))
+        )}
+    </div>
+);
+
+const NearExpiryContractList: React.FC<{ data: NearExpiryContractListItem[] }> = ({ data }) => (
+    <div className="space-y-4">
+        {data.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+                <div className="text-4xl mb-2">📄</div>
+                <p>Không có hợp đồng sắp hết hạn</p>
+            </div>
+        ) : (
+            data.map((item) => (
+                <div key={item.id} className="bg-blue-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition-all duration-200 hover:shadow-md">
+                    <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-lg font-bold text-gray-800">Phòng {item.roomNumber}</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                                    SẮP HẾT HẠN HỢP ĐỒNG
+                                </span>
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                {item.houseName}
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                Khách hàng: {item.tenantName}
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-xs text-gray-500 mb-1">Ngày kết thúc</div>
+                            <div className="text-sm font-semibold text-gray-800">{item.endDate}</div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-blue-600">
+                            <span className="text-sm">📅</span>
+                            <span className="text-sm font-semibold">Còn {item.remainingDays} ngày</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                                Gia hạn
                             </button>
                             <button className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
                                 Liên hệ
@@ -155,53 +212,7 @@ const AbnormalReadingList: React.FC<{ data: AbnormalReadingListItem[] }> = ({ da
     </div>
 );
 
-const NearExpiryContractList: React.FC<{ data: NearExpiryContractListItem[] }> = ({ data }) => (
-    <div className="space-y-4">
-        {data.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-                <div className="text-4xl mb-2">📄</div>
-                <p>Không có hợp đồng sắp hết hạn</p>
-            </div>
-        ) : (
-            data.map((item) => (
-                <div key={item.id} className="bg-blue-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition-all duration-200 hover:shadow-md">
-                    <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-lg font-bold text-gray-800">Phòng {item.roomNumber}</span>
-                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                                    HẾT HẠN SẮP
-                                </span>
-                            </div>
-                            <div className="text-sm text-gray-700 font-medium">
-                                {item.houseName} - Khách: {item.tenantName}
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className="text-xs text-gray-500 mb-1">Ngày kết thúc</div>
-                            <div className="text-sm font-semibold text-gray-800">{item.endDate}</div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-blue-600">
-                            <span className="text-sm">📅</span>
-                            <span className="text-sm font-semibold">Còn {item.remainingDays} ngày</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <button className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                                Gia hạn
-                            </button>
-                            <button className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
-                                Liên hệ
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ))
-        )}
-    </div>
-);
+
 
 
 // --- COMPONENTS CHART (Đã Cập nhật) ---

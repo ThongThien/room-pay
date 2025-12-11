@@ -1,8 +1,11 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
 namespace PropertyService.Services.Clients
 {
     public interface IUserServiceClient
     {
         Task<bool> CheckTenantExists(string tenantId);
-        Task<object?> GetUserByIdAsync(string userId);
+        Task<Dictionary<string, object>?> GetUserByIdAsync(string userId);
     }
 }

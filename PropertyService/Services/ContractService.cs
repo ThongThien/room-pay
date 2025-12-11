@@ -265,8 +265,8 @@ public class ContractService : IContractService
                 CreatedAt = c.CreatedAt,
                 
                 // Lấy thông tin JOIN từ Rooms và Houses
-                HouseName = c.Room.House.Name, 
-                RoomNumber = c.Room.Name 
+                HouseName = c.Room!.House!.Name, 
+                RoomNumber = c.Room!.Name 
             })
             .FirstOrDefaultAsync(); // Lấy 1 bản ghi duy nhất
 
@@ -290,11 +290,20 @@ public class ContractService : IContractService
         var expiringContracts = await _contractRepo.Query()
             .Include(c => c.Room)
             .ThenInclude(r => r.House)
-            .Where(c => c.Room != null && houseIds.Contains(c.Room.HouseId))
+            .Where(c => c.Room != null && houseIds.Contains(c.Room!.HouseId))
             .Where(c => c.Status == ContractStatus.Active) // Chỉ lấy hợp đồng đang active
             .Where(c => c.EndDate != null && c.EndDate >= today && c.EndDate <= thresholdDate)
             .OrderBy(c => c.EndDate)
             .ToListAsync();
+
+        // Fetch tenant names
+        var tenantIds = expiringContracts.Select(c => c.TenantId).Distinct().ToList();
+        var tenantTasks = tenantIds.Select(id => _userService.GetUserByIdAsync(id)).ToList();
+        var tenantResults = await Task.WhenAll(tenantTasks);
+        var tenantDict = tenantIds.Zip(tenantResults, (id, user) => new { id, user })
+            .ToDictionary(x => x.id, x => x.user?.TryGetValue("fullName", out var name) == true ? name?.ToString() ?? "Unknown" : "Unknown");
+
+        _logger.LogInformation("Fetched tenant names: {@TenantDict}", tenantDict);
 
         // Map sang DTO sau khi đã load từ database
         return expiringContracts.Select(c => new ContractDto
@@ -302,14 +311,15 @@ public class ContractService : IContractService
             Id = c.Id,
             RoomId = c.RoomId,
             TenantId = Guid.TryParse(c.TenantId, out var tenantGuid) ? tenantGuid : Guid.Empty,
+            TenantName = tenantDict.TryGetValue(c.TenantId, out var name) ? name : "Unknown",
             StartDate = c.StartDate,
             EndDate = c.EndDate,
             Price = c.Price,
             Status = c.Status,
             FileUrl = c.FileUrl,
             CreatedAt = c.CreatedAt,
-            HouseName = c.Room?.House?.Name ?? string.Empty,
-            RoomNumber = c.Room?.Name ?? string.Empty
+            HouseName = c.Room!.House!.Name ?? string.Empty,
+            RoomNumber = c.Room!.Name ?? string.Empty
         }).ToList();
     }
 
@@ -346,9 +356,9 @@ public class ContractService : IContractService
             .Select(c => new PropertyDetailsDto
             {
                 ContractId = c.Id,
-                HouseName = c.Room.House.Name,
-                RoomName = c.Room.Name, 
-                Floor = c.Room.Floor 
+                HouseName = c.Room!.House!.Name,
+                RoomName = c.Room!.Name, 
+                Floor = c.Room!.Floor 
             })
             .ToListAsync();
 

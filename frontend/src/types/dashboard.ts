@@ -2,6 +2,7 @@
 export interface OverdueInvoiceListItem {
     id: string;
     tenantName: string;
+    houseName: string;
     roomNumber: string;
     amount: string;
     dueDate: string;
@@ -93,6 +94,10 @@ export interface OverdueInvoiceAPIResponse {
     paidDate: string | null;
     createdAt: string;
     updatedAt: string;
+    tenantContractId: number;
+    houseName: string;
+    roomName: string;
+    floor: number;
     items: Array<{
         id: number;
         description: string;
@@ -138,4 +143,28 @@ export interface DataTableProps<T = Record<string, unknown>> {
     }>;
     data: T[];
     onRowClick?: (row: T) => void;
+}
+
+// API Response interfaces
+export interface ContractAPIResponse {
+    id: number;
+    roomId: number;
+    tenantName: string;
+    startDate: string;
+    endDate: string;
+    price: number;
+    status: number;
+    fileUrl: string;
+    createdAt: string;
+    houseName: string;
+    roomNumber: string;
+}
+
+export interface NearExpiryContractListItem {
+    id: string;
+    tenantName: string;
+    houseName: string;
+    roomNumber: string;
+    endDate: string;
+    remainingDays: number;
 }

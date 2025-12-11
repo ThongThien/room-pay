@@ -46,8 +46,6 @@ public class PropertyQueryService : IPropertyQueryService
             .Select(c => new PropertyDetailsDto
             {
                 ContractId = c.Id, 
-                // Sử dụng ?. hoặc !. (nếu bạn chắc chắn có data, nhưng ?. là an toàn nhất)
-                // Giả định Room!.Name và Room!.Floor là các trường hợp lệ
                 Floor = c.Room!.Floor, 
                 HouseName = c.Room!.House!.Name ?? string.Empty,
                 RoomName = c.Room!.Name ?? string.Empty,
@@ -57,7 +55,7 @@ public class PropertyQueryService : IPropertyQueryService
         //  LOG ĐIỂM QUAN TRỌNG: Kiểm tra kết quả truy vấn DB 
         if (results.Count != uniqueContractIds.Count)
         {
-            _logger.LogWarning("⚠️ Found {FoundCount} details out of {RequestedCount} requested contracts. Missing details for some IDs (Do liên kết Room/House bị thiếu).", 
+            _logger.LogWarning("Found {FoundCount} details out of {RequestedCount} requested contracts. Missing details for some IDs (Do liên kết Room/House bị thiếu).", 
                 results.Count, uniqueContractIds.Count);
         }
         else

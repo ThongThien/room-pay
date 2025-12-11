@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { MonthlyReading } from "@/types/monthlyReading";
+import { MonthlyReading, ReadingStatus } from "@/types/monthlyReading";
 import { getAllMonthlyReadings } from "@/services/monthlyReadingService";
 import UtilityReadingDetailModal from "@/components/monthlyReading/UtilityReadingDetailModal";
 
 export default function OwnerUtilitiesPage() {
     const [readings, setReadings] = useState<MonthlyReading[]>([]);
     const [loading, setLoading] = useState(true);
-    const [statusFilter, setStatusFilter] = useState<"ALL" | "Confirmed" | "Pending">("ALL");
+    const [statusFilter, setStatusFilter] = useState<"ALL" | ReadingStatus>("ALL");
     
     // State thời gian
     const [selectedMonth, setSelectedMonth] = useState<number | "ALL">(new Date().getMonth() + 1);
@@ -29,11 +29,33 @@ export default function OwnerUtilitiesPage() {
         return list;
     }, []);
 
-    // Helper: Chuẩn hóa trạng thái
-    const normalizeStatus = (status: number | string | undefined | null): "Confirmed" | "Pending" => {
-        if (status === 1 || status === "Confirmed" || status === "confirmed") {
+    // --- Helper: Tính toán trạng thái (Confirmed / Pending / Overdue) ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calculateStatus = (item: any): ReadingStatus => {
+        // 1. Đã nộp
+        if (item.status === 1 || item.status === "Confirmed" || item.status === "confirmed") {
             return "Confirmed";
         }
+
+        // 2. Tính toán Quá hạn
+        const readingDate = new Date(item.createdAt || item.CreatedAt);
+        const rMonth = readingDate.getMonth() + 1;
+        const rYear = readingDate.getFullYear();
+
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+        const currentDay = now.getDate();
+        const DEADLINE_DAY = 20; // Hạn nộp là ngày 20 hàng tháng
+
+        // Nếu năm cũ -> Quá hạn
+        if (rYear < currentYear) return "Overdue";
+        // Nếu năm nay nhưng tháng cũ -> Quá hạn
+        if (rYear === currentYear && rMonth < currentMonth) return "Overdue";
+        // Nếu cùng tháng hiện tại nhưng đã qua ngày deadline -> Quá hạn
+        if (rYear === currentYear && rMonth === currentMonth && currentDay > DEADLINE_DAY) return "Overdue";
+
+        // 3. Còn lại -> Chờ nộp (Pending)
         return "Pending";
     };
 
@@ -53,7 +75,7 @@ export default function OwnerUtilitiesPage() {
                     tenantName: item.tenantName || item.TenantName,
                     tenantContractId: item.tenantContractId || item.TenantContractId,
                     
-                    status: normalizeStatus(item.status !== undefined ? item.status : item.Status), 
+                    status: calculateStatus(item), 
                     
                     electricOld: item.electricOld || item.ElectricOld || 0,
                     electricNew: item.electricNew || item.ElectricNew || 0,
@@ -105,17 +127,37 @@ export default function OwnerUtilitiesPage() {
     const stats = useMemo(() => {
         return {
             countConfirmed: filteredReadings.filter(i => i.status === "Confirmed").length,
-            countPending: filteredReadings.filter(i => i.status === "Pending").length,
+            // Đếm tổng số chưa hoàn thành (Pending + Overdue) để hiển thị ở card
+            countNotSubmitted: filteredReadings.filter(i => i.status === "Pending" || i.status === "Overdue").length,
+            countOverdue: filteredReadings.filter(i => i.status === "Overdue").length,
             totalRooms: filteredReadings.length
         };
     }, [filteredReadings]);
 
+    // --- Kiểm tra có phải tháng hiện tại không ---
+    const isCurrentMonthView = useMemo(() => {
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+        return Number(selectedMonth) === currentMonth && Number(selectedYear) === currentYear;
+    }, [selectedMonth, selectedYear]);
+
+    // --- Xử lý nhắc nhở ---
     const handleRemindAllPending = (e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
-        const pendingRooms = filteredReadings.filter(r => r.status === "Pending");
-        if (pendingRooms.length === 0) return;
-        if (window.confirm(`Gửi thông báo nhắc nộp ảnh đến ${pendingRooms.length} phòng?`)) {
-            alert(`Giả lập: Đã gửi thông báo đến ${pendingRooms.length} phòng.`);
+        
+        // Chặn nếu không phải tháng hiện tại
+        if (!isCurrentMonthView) {
+            alert("Bạn chỉ có thể gửi nhắc nhở cho kỳ thu tiền hiện tại.");
+            return;
+        }
+
+        // Lấy danh sách chưa nộp (Pending + Overdue)
+        const recipients = filteredReadings.filter(r => r.status === "Pending" || r.status === "Overdue");
+        if (recipients.length === 0) return;
+
+        if (window.confirm(`Gửi thông báo nhắc nộp ảnh đến ${recipients.length} phòng chưa nộp (bao gồm cả quá hạn)?`)) {
+            alert(`Giả lập: Đã gửi thông báo đến ${recipients.length} phòng.`);
         }
     }
 
@@ -133,15 +175,30 @@ export default function OwnerUtilitiesPage() {
                         <p className="text-gray-500 text-xs uppercase font-semibold">ĐÃ NỘP CHỈ SỐ</p>
                         <p className="text-2xl font-bold text-green-600">{stats.countConfirmed}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100 cursor-pointer hover:bg-red-50 transition-colors flex flex-col justify-between" onClick={handleRemindAllPending}>
+                    
+                    <div 
+                        className={`bg-white p-4 rounded-xl shadow-sm border border-orange-100 cursor-pointer hover:bg-orange-50 transition-colors flex flex-col justify-between ${!isCurrentMonthView ? 'opacity-70 cursor-not-allowed' : ''}`} 
+                        onClick={isCurrentMonthView ? handleRemindAllPending : undefined}
+                    >
                         <div>
                             <p className="text-gray-500 text-xs uppercase font-semibold">CHƯA NỘP CHỈ SỐ</p>
-                            <p className="text-2xl font-bold text-red-600">{stats.countPending}</p>
+                            <div className="flex items-end gap-2">
+                                <p className="text-2xl font-bold text-orange-600">{stats.countNotSubmitted}</p>
+                                {stats.countOverdue > 0 && (
+                                    <span className="text-xs text-red-500 font-bold mb-1">({stats.countOverdue} quá hạn)</span>
+                                )}
+                            </div>
                         </div>
-                        <button className="mt-2 text-red-600 text-xs font-semibold underline disabled:no-underline disabled:text-gray-400 text-left" disabled={stats.countPending === 0}>
-                            {stats.countPending > 0 ? "Gửi thông báo nhắc nộp" : "Tất cả đã nộp"}
+                        <button 
+                            className="mt-2 text-orange-600 text-xs font-semibold underline disabled:no-underline disabled:text-gray-400 text-left" 
+                            disabled={!isCurrentMonthView || stats.countNotSubmitted === 0}
+                        >
+                            {isCurrentMonthView 
+                                ? (stats.countNotSubmitted > 0 ? "Gửi thông báo nhắc nộp" : "Tất cả đã nộp") 
+                                : "Chỉ nhắc tháng hiện tại"}
                         </button>
                     </div>
+
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100">
                         <p className="text-gray-500 text-xs uppercase font-semibold">TỔNG SỐ PHÒNG (THEO LỌC)</p>
                         <p className="text-2xl font-bold text-blue-600">{stats.totalRooms}</p>
@@ -150,10 +207,11 @@ export default function OwnerUtilitiesPage() {
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg shadow-sm border items-center justify-between">
-                <div className="flex bg-gray-100 p-1 rounded-md">
+                <div className="flex bg-gray-100 p-1 rounded-md overflow-x-auto">
                     <button onClick={() => setStatusFilter("ALL")} className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "ALL" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Tất cả</button>
                     <button onClick={() => setStatusFilter("Confirmed")} className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "Confirmed" ? "bg-white text-green-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Đã nộp</button>
-                    <button onClick={() => setStatusFilter("Pending")} className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "Pending" ? "bg-white text-red-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Chưa nộp</button>
+                    <button onClick={() => setStatusFilter("Pending")} className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "Pending" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Chờ nộp</button>
+                    <button onClick={() => setStatusFilter("Overdue")} className={`px-4 py-2 rounded text-sm font-medium transition-colors ${statusFilter === "Overdue" ? "bg-white text-red-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Quá hạn</button>
                 </div>
                 <div className="flex gap-2">
                     <select value={selectedHouseName} onChange={(e) => setSelectedHouseName(e.target.value)} className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[150px]">
@@ -211,15 +269,20 @@ export default function OwnerUtilitiesPage() {
                                         </td>
 
                                         <td className="p-4 text-center">
-                                            {reading.status === "Confirmed" ? 
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Đã nộp</span> : 
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Chưa nộp</span>
-                                            }
+                                            {reading.status === "Confirmed" && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">Đã nộp</span>
+                                            )}
+                                            {reading.status === "Pending" && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 whitespace-nowrap">Chờ nộp</span>
+                                            )}
+                                            {reading.status === "Overdue" && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 whitespace-nowrap">Quá hạn</span>
+                                            )}
                                         </td>
 
                                         <td className="p-4 text-center">
                                             {reading.status === "Confirmed" && (
-                                                <button onClick={(e) => { e.stopPropagation(); setSelectedReading(reading); }} className="text-blue-600 text-xs font-semibold hover:text-blue-800 transition">Chi tiết</button>
+                                                <button onClick={(e) => { e.stopPropagation(); setSelectedReading(reading); }} className="text-blue-600 text-xs font-semibold hover:text-blue-800 transition whitespace-nowrap">Chi tiết</button>
                                             )}
                                         </td>
                                     </tr>

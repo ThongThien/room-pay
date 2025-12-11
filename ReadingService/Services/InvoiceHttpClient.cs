@@ -38,15 +38,15 @@ public class InvoiceHttpClient : IInvoiceHttpClient
                 return false;
             }
 
-            // Calculate due date as the last day of the current month
-            var now = DateTime.UtcNow;
-            var lastDayOfMonth = new DateTime(now.Year, now.Month, DateTime.DaysInMonth(now.Year, now.Month));
+            // Calculate invoice date as the first day of the cycle month, due date as the last day
+            var invoiceDate = new DateTime(cycleYear, cycleMonth, 1);
+            var dueDate = new DateTime(cycleYear, cycleMonth, DateTime.DaysInMonth(cycleYear, cycleMonth));
 
             var createInvoiceRequest = new CreateInvoiceRequest
             {
                 UserId = userId,
-                InvoiceDate = DateTime.UtcNow,
-                DueDate = lastDayOfMonth,
+                InvoiceDate = invoiceDate,
+                DueDate = dueDate,
                 ElectricUsage = electricUsage,
                 WaterUsage = waterUsage,
                 CycleId = cycleId,

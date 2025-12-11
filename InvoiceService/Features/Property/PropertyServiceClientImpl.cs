@@ -149,4 +149,37 @@ public class PropertyServiceClientImpl : IPropertyService
             return null;
         }
     }
+
+    public async Task<TenantContractDto?> GetTenantContractByIdAsync(int contractId)
+    {
+        var apiUrl = $"api/property/contracts/{contractId}";
+
+        try
+        {
+            _logger.LogInformation("PropertyService Client: Requesting tenant contract details for Contract ID: {ContractId}", contractId);
+
+            var response = await _httpClient.GetAsync(apiUrl);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Property Service failed to get tenant contract {ContractId}. Status {Status}. Content: {Error}",
+                    contractId, response.StatusCode, errorContent);
+                return null;
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            var result = JsonSerializer.Deserialize<TenantContractDto>(responseContent, _jsonSerializerOptions);
+
+            _logger.LogInformation("PropertyService Client: Successfully received tenant contract details for Contract ID: {ContractId}", contractId);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling PropertyService to get tenant contract {ContractId}.", contractId);
+            return null;
+        }
+    }
 }

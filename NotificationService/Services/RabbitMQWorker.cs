@@ -127,6 +127,12 @@ namespace NotificationService.Services
                             await HandleReadingNotification(readingMessage, repository);
                             break;
 
+                        case NotificationType.ReadingAnomaly: // ⭐️ CASE MỚI ⭐️
+                                // Deserialize BƯỚC 2: DTO của Anomaly
+                                var anomalyMessage = JsonSerializer.Deserialize<AnomalyNotificationMessage>(message, _jsonOptions);
+                                await HandleReadingAnomaly(anomalyMessage, repository); // Gọi hàm xử lý mới
+                                break;
+
                         default:
                             Console.WriteLine($"[WARNING] Unknown Notification Type: {baseMessage.Type}");
                             break;
@@ -238,6 +244,60 @@ namespace NotificationService.Services
                 Console.WriteLine($"[DB] Saved {message.Type} for User {customer.Id}");
             }
         }
+
+        private async Task HandleReadingAnomaly(AnomalyNotificationMessage message, INotificationRepository repository)
+        {
+            if (message == null) return;
+
+            var culture = new CultureInfo("vi-VN");
+            var subject = "[CẢNH BÁO] Tiêu thụ BẤT THƯỜNG - Phòng/Khách hàng cần kiểm tra gấp!";
+            
+            // --- 1. Soạn Email cho Owner ---
+            var emailBody = new StringBuilder();
+            emailBody.AppendLine("Kính gửi Quản lý trọ,");
+            emailBody.AppendLine($"Hệ thống phát hiện mức tiêu thụ điện nước bất thường cho một khách hàng:");
+            emailBody.AppendLine("---");
+            emailBody.AppendLine($"* Khách hàng ID: {message.TenantId}");
+            emailBody.AppendLine($"* Chu kỳ: {message.CycleMonth}/{message.CycleYear}");
+
+            if (message.IsElectricAnomaly)
+            {
+                emailBody.AppendLine($"* ⚡️ **ĐIỆN BẤT THƯỜNG:** {message.ElectricUsage.ToString("N0", culture)} kWh (Ngưỡng > 500)");
+            }
+            else
+            {
+                emailBody.AppendLine($"* ⚡️ Điện bình thường: {message.ElectricUsage.ToString("N0", culture)} kWh");
+            }
+
+            if (message.IsWaterAnomaly)
+            {
+                emailBody.AppendLine($"* 💧 **NƯỚC BẤT THƯỜNG:** {message.WaterUsage} m³ (Ngưỡng > 30)");
+            }
+            else
+            {
+                emailBody.AppendLine($"* 💧 Nước bình thường: {message.WaterUsage} m³");
+            }
+
+            emailBody.AppendLine("---");
+            emailBody.AppendLine("Vui lòng kiểm tra ngay lập tức để xác nhận tính chính xác của chỉ số hoặc tìm nguyên nhân rò rỉ/sử dụng quá mức.");
+            emailBody.AppendLine("Trân trọng.");
+            
+            // Gửi đến Owner qua email mà ReadingService đã cung cấp
+            await _emailService.SendEmailAsync(message.RecipientEmail, subject, emailBody.ToString()); 
+
+            // --- 2. LƯU DB (Lưu cho Owner) ---
+            var anomalyType = (message.IsElectricAnomaly ? "Điện" : "") + (message.IsWaterAnomaly ? (message.IsElectricAnomaly ? " & Nước" : "Nước") : "");
+            var dbMessage = $"Cảnh báo Tiêu thụ Bất thường ({anomalyType}) từ khách hàng ID: {message.TenantId}. Điện: {message.ElectricUsage}, Nước: {message.WaterUsage}.";
+
+            await repository.AddAsync(new Notification
+            {
+                UserId = message.TenantId, // Hoặc lưu Owner ID, tùy thuộc vào cách bạn muốn hiển thị (thường lưu cho người nhận thông báo - Owner)
+                Message = dbMessage,
+                Type = NotificationType.ReadingAnomaly
+            });
+            
+            Console.WriteLine($"[DB] Saved Anomaly Notification for Owner (via Tenant {message.TenantId})");
+        }
         public override void Dispose()
         {
             _channel?.Dispose();
@@ -245,4 +305,6 @@ namespace NotificationService.Services
             base.Dispose();
         }
     }
+
+
 }

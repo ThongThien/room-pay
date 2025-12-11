@@ -13,6 +13,7 @@ namespace NotificationService.Models.Enums
         RemindPayment,
 
         // 3. Nhắc nộp chỉ số điện nước (ReadingService -> Khách có monthlyReading mới nhất chưa có điện nước)
-        RemindSubmission 
+        RemindSubmission,
+        ReadingAnomaly
     }
 }

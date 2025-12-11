@@ -4,9 +4,9 @@ using ReadingService.Models;
 using ReadingService.Services;
 using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle; 
-using ReadingService.Features.MonthlyReading.DTOs; 
 using ReadingService.Features.Property; 
 using ReadingService.Features.Property.DTOs;
+using ReadingService.Services;
 using System.Linq;
 
 namespace ReadingService.Features.MonthlyReading;
@@ -22,6 +22,8 @@ public class MonthlyReadingService : IMonthlyReadingService
     //  Dependency MỚI: Dùng Service để lấy chu kỳ đọc
     private readonly IReadingCycleService _cycleService;
 
+    private readonly IMessageProducer _messageProducer; // RabbitMQ producer
+
     public MonthlyReadingService(
         ApplicationDbContext context,
         IS3Service s3Service,
@@ -30,7 +32,8 @@ public class MonthlyReadingService : IMonthlyReadingService
         IInvoiceHttpClient invoiceHttpClient,
         //  Thêm Dependency cho ReadingCycleService
         IReadingCycleService cycleService,
-        IPropertyService propertyService
+        IPropertyService propertyService,
+        IMessageProducer messageProducer
          )
     {
         _context = context;
@@ -40,6 +43,7 @@ public class MonthlyReadingService : IMonthlyReadingService
         _invoiceHttpClient = invoiceHttpClient;
         _cycleService = cycleService; //  Gán
         _propertyService = propertyService; //  Gán
+        _messageProducer = messageProducer; // Gán
     }
 
     public async Task<List<MonthlyReadingResponseDto>> GetAllAsync()
@@ -305,9 +309,8 @@ public class MonthlyReadingService : IMonthlyReadingService
     {
         try
         {
-            // Tìm MonthlyReading theo CycleId
             var reading = await _context.MonthlyReadings
-                .Include(r => r.ReadingCycle) // Include để lấy UserId
+                .Include(r => r.ReadingCycle)
                 .FirstOrDefaultAsync(r => r.CycleId == cycleId);
 
             if (reading == null)
@@ -315,23 +318,19 @@ public class MonthlyReadingService : IMonthlyReadingService
                 throw new InvalidOperationException("Không tìm thấy MonthlyReading cho CycleId này");
             }
 
-            // Lấy userId, nếu null thì throw ngoại lệ để bảo đảm logic tiếp theo
-            var userId = reading.ReadingCycle?.UserId 
-                        ?? throw new InvalidOperationException("Không tìm thấy User ID trong Reading Cycle.");
-            
-            // Log để debug
-            _logger.LogInformation($"SubmitAsync - CycleId: {cycleId}, UserId: {userId}, ElectricOld (from DB): {reading.ElectricOld}, ElectricNew (from user): {dto.ElectricNew}, WaterOld (from DB): {reading.WaterOld}, WaterNew (from user): {dto.WaterNew}");
+            var tenantUserId = reading.ReadingCycle?.UserId 
+                ?? throw new InvalidOperationException("Không tìm thấy User ID trong Reading Cycle.");
+
+            _logger.LogInformation($"SubmitAsync - CycleId: {cycleId}, UserId: {tenantUserId}, ElectricOld (from DB): {reading.ElectricOld}, ElectricNew (from user): {dto.ElectricNew}, WaterOld (from DB): {reading.WaterOld}, WaterNew (from user): {dto.WaterNew}");
 
             // --- BƯỚC MỚI: ĐẢM BẢO GÁN TENANT CONTRACT ID ---
-            // Chỉ gán nếu nó chưa có giá trị (null)
             if (reading.TenantContractId == null)
             {
-                _logger.LogInformation("TenantContractId hiện đang NULL. Tiến hành tra cứu Active Contract ID cho User {UserId}.", userId);
+                _logger.LogInformation("TenantContractId hiện đang NULL. Tiến hành tra cứu Active Contract ID cho User {UserId}.", tenantUserId);
                 
                 try
                 {
-                    // Gọi Property Service Client
-                    var activeContractId = await _propertyService.GetActiveContractIdByUserIdAsync(userId);
+                    var activeContractId = await _propertyService.GetActiveContractIdByUserIdAsync(tenantUserId);
                     
                     if (activeContractId.HasValue)
                     {
@@ -340,13 +339,12 @@ public class MonthlyReadingService : IMonthlyReadingService
                     }
                     else
                     {
-                        _logger.LogWarning("⚠️ Không tìm thấy Active Contract ID cho User {UserId} khi nộp MonthlyReading. TenantContractId sẽ vẫn NULL.", userId);
+                        _logger.LogWarning("⚠️ Không tìm thấy Active Contract ID cho User {UserId} khi nộp MonthlyReading. TenantContractId sẽ vẫn NULL.", tenantUserId);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, " Lỗi khi gọi PropertyService lấy Active Contract ID cho User {UserId}.", userId);
-                    // reading.TenantContractId vẫn là null
+                    _logger.LogError(ex, " Lỗi khi gọi PropertyService lấy Active Contract ID cho User {UserId}.", tenantUserId);
                 }
             }
             else
@@ -355,66 +353,121 @@ public class MonthlyReadingService : IMonthlyReadingService
             }
             // ---------------------------------------------------
 
-            // Upload ảnh điện lên S3
+            // Upload ảnh... (Giữ nguyên)
             if (dto.ElectricPhoto != null)
             {
-                // Xóa ảnh cũ nếu có
-                if (!string.IsNullOrEmpty(reading.ElectricPhotoUrl))
-                {
-                    await _s3Service.DeleteFileAsync(reading.ElectricPhotoUrl);
-                }
-                reading.ElectricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, $"{userId}/electric-meter-photos");
+                 if (!string.IsNullOrEmpty(reading.ElectricPhotoUrl))
+                 {
+                     await _s3Service.DeleteFileAsync(reading.ElectricPhotoUrl);
+                 }
+                 reading.ElectricPhotoUrl = await _s3Service.UploadFileAsync(dto.ElectricPhoto, $"{tenantUserId}/electric-meter-photos");
             }
 
-            // Upload ảnh nước lên S3
             if (dto.WaterPhoto != null)
             {
-                // Xóa ảnh cũ nếu có
-                if (!string.IsNullOrEmpty(reading.WaterPhotoUrl))
-                {
-                    await _s3Service.DeleteFileAsync(reading.WaterPhotoUrl);
-                }
-                reading.WaterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, $"{userId}/water-meter-photos");
+                 if (!string.IsNullOrEmpty(reading.WaterPhotoUrl))
+                 {
+                     await _s3Service.DeleteFileAsync(reading.WaterPhotoUrl);
+                 }
+                 reading.WaterPhotoUrl = await _s3Service.UploadFileAsync(dto.WaterPhoto, $"{tenantUserId}/water-meter-photos");
             }
 
-            // Cập nhật thông tin
+            // Cập nhật thông tin và Status
             reading.ElectricNew = dto.ElectricNew;
             reading.WaterNew = dto.WaterNew;
-            reading.Status = ReadingStatus.Confirmed; // Cập nhật trạng thái thành Confirmed
+            reading.Status = ReadingStatus.Confirmed; 
             reading.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
-            // Automatically create invoice after submitting monthly reading
+            // Tính toán mức sử dụng
             var electricUsage = (reading.ElectricNew ?? 0) - (reading.ElectricOld ?? 0);
             var waterUsage = (reading.WaterNew ?? 0) - (reading.WaterOld ?? 0);
+            
+            var cycleMonth = reading.ReadingCycle?.CycleMonth ?? 0;
+            var cycleYear = reading.ReadingCycle?.CycleYear ?? 0;
 
-            if (electricUsage > 0 || waterUsage > 0)
+            // ----------------------------------------------------------------------
+            // ⭐️ BƯỚC 3: KIỂM TRA VÀ GỬI THÔNG BÁO BẤT THƯỜNG (ANOMALY CHECK) ⭐️
+            // ----------------------------------------------------------------------
+            
+            bool isElectricAnomaly = electricUsage > 500;
+            bool isWaterAnomaly = waterUsage > 30;
+
+            if (isElectricAnomaly || isWaterAnomaly)
             {
-                var cycleMonth = reading.ReadingCycle?.CycleMonth ?? 0;
-                var cycleYear = reading.ReadingCycle?.CycleYear ?? 0;
+                _logger.LogWarning("⚠️ ANOMALY DETECTED! Sending notification to Owner.");
                 
-                //  TRUYỀN CONTRACT ID KHI TẠO INVOICE (Chỉ khi nó có giá trị) 
-                var contractIdForInvoice = reading.TenantContractId; // Sử dụng ID vừa được gán (hoặc ID cũ)
-
+                // Chạy bất đồng bộ
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        // LƯU Ý: Phải đảm bảo IInvoiceHttpClient đã được cập nhật để nhận thêm tham số này
+                        // 1. Lấy Owner ID (Sử dụng endpoint mới GetOwnerIdByTenantIdAsync)
+                        var ownerId = await _userService.GetOwnerIdByTenantIdAsync(tenantUserId);
+
+                        if (string.IsNullOrEmpty(ownerId))
+                        {
+                            _logger.LogWarning("⚠️ Cannot find Owner ID for Tenant {TenantId}. Skipping anomaly notification.", tenantUserId);
+                            return;
+                        }
+                        
+                        // 2. Lấy Email Owner (Sử dụng endpoint mới GetEmailByUserIdAsync)
+                        var ownerEmail = await _userService.GetEmailByUserIdAsync(ownerId);
+                        
+                        if (string.IsNullOrEmpty(ownerEmail))
+                        {
+                            _logger.LogWarning("⚠️ Cannot find Email for Owner {OwnerId}. Skipping anomaly notification.", ownerId);
+                            return;
+                        }
+
+                        // 3. GỬI THÔNG BÁO QUA RABBITMQ
+                        var anomalyMessage = new 
+                        {
+                            Type = "ReadingAnomaly", // NotificationService sẽ lắng nghe type này
+                            RecipientEmail = ownerEmail,
+                            TenantId = tenantUserId,
+                            CycleMonth = cycleMonth,
+                            CycleYear = cycleYear,
+                            ElectricUsage = electricUsage,
+                            WaterUsage = waterUsage,
+                            IsElectricAnomaly = isElectricAnomaly,
+                            IsWaterAnomaly = isWaterAnomaly
+                        };
+
+                        _messageProducer.SendMessage(anomalyMessage, "notification_queue"); 
+                        
+                        _logger.LogInformation("🚀 Anomaly message sent to Owner {OwnerId} ({Email}).", ownerId, ownerEmail);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ Failed to send Anomaly Notification for cycle {CycleId}.", cycleId);
+                    }
+                });
+            }
+
+            // --- Logic tạo Invoice (Giữ nguyên) ---
+            if (electricUsage > 0 || waterUsage > 0)
+            {
+                var contractIdForInvoice = reading.TenantContractId;
+                
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
                         await _invoiceHttpClient.CreateInvoiceForMonthlyReadingAsync(
-                            userId,
+                            tenantUserId,
                             cycleId,
                             cycleMonth,
                             cycleYear,
                             electricUsage,
                             waterUsage,
-                            contractIdForInvoice //  TRUYỀN Contract ID 
+                            contractIdForInvoice
                         );
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, $"Failed to create invoice for user {userId}, cycle {cycleId}");
+                        _logger.LogError(ex, $"Failed to create invoice for user {tenantUserId}, cycle {cycleId}");
                     }
                 });
             }

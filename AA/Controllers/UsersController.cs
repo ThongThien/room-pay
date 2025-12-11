@@ -314,4 +314,42 @@ public class UsersController : ControllerBase
 
         return Ok(users);
     }
+
+    /// <summary>
+    /// Get Owner ID by Tenant ID (Service-to-service) ⭐️ HÀM MỚI ⭐️
+    /// </summary>
+    [HttpGet("tenant/{tenantId}/owner-id")] 
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(string), 200)] 
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetOwnerIdByTenantId(string tenantId)
+    {
+        // Validate service API key (Giống các hàm Service-to-Service khác)
+        var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+        var configuredApiKey = _configuration["ServiceApiKey"];
+        
+        if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+        {
+            _logger.LogWarning("Invalid or missing API key for GetOwnerIdByTenantId");
+            return Unauthorized(new { error = "Invalid or missing authentication" });
+        }
+
+        // 1. Tìm Tenant bằng ID
+        var tenant = await _userManager.FindByIdAsync(tenantId);
+        
+        if (tenant == null)
+        {
+            return NotFound(new { error = $"Tenant with ID {tenantId} not found" });
+        }
+
+        // 2. Trả về OwnerId
+        if (string.IsNullOrEmpty(tenant.OwnerId))
+        {
+            // Tenant này không có Owner (có thể là chính Owner hoặc Admin)
+            return NotFound(new { error = $"User {tenantId} is not a tenant (OwnerId is null)" }); 
+        }
+
+        // Trả về Owner ID dưới dạng string thuần
+        return Ok(tenant.OwnerId); 
+    }
 }

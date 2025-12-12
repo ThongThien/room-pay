@@ -148,7 +148,6 @@ services:
       RabbitMQ__Password: guest
       RabbitMQ__QueueName: notification_queue 
       
-      # Cấu hình JWT Settings nếu API có dùng [Authorize] (nên có)
       JwtSettings__Secret: ${JWT_SECRET}
       JwtSettings__Issuer: ${JWT_ISSUER}
       JwtSettings__Audience: ${JWT_AUDIENCE}
@@ -161,7 +160,6 @@ services:
       SmtpSettings_mailjet__SenderEmail: thien.nt.64cntt@ntu.edu.vn
       SmtpSettings_mailjet__SenderName: Payroom System
 
-      # Các giá trị NHẠY CẢM phải được tham chiếu từ .env
       SmtpSettings_mailjet__Username: ${MAILJET_SMTP_USERNAME} 
       SmtpSettings_mailjet__Password: ${MAILJET_SMTP_PASSWORD}
       ServiceApiKey: ${SERVICE_API_KEY}

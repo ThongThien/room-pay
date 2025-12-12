@@ -12,6 +12,21 @@ builder.Services.AddDbContext<NotificationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
+// Cấu hình CORS
+string[] allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string[]>() ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFE", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 // 2. Đăng ký Repository
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
@@ -29,7 +44,7 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // ... (UseSwagger, UseHttpsRedirection, etc.)
-
+app.UseCors("AllowFE");
 app.MapControllers();
 
 app.Run();

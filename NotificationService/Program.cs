@@ -36,6 +36,16 @@ builder.Services.AddTransient<IEmailService, EmailService>();
 // 4. Đăng ký RabbitMQWorker (Hosted Service)
 builder.Services.AddHostedService<RabbitMQWorker>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Cho phép Frontend truy cập
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

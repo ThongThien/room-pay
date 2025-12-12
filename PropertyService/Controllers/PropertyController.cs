@@ -91,4 +91,41 @@ public class PropertyController : ControllerBase
             return StatusCode(500, "Internal server error during contract lookup.");
         }
     }
+
+    // HÀM MỚI: Get Tenant Contract by ID for Service-to-Service
+    // URL: GET api/property/contracts/{contractId}
+    [HttpGet("contracts/{contractId}")]
+    [ProducesResponseType(typeof(PropertyService.DTOs.Contracts.ContractDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PropertyService.DTOs.Contracts.ContractDto>> GetTenantContractById(int contractId)
+    {
+        // KIỂM TRA API KEY CHO SERVICE-TO-SERVICE
+        var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+        var configuredApiKey = _configuration["ServiceApiKey"];
+        if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+        {
+            _logger.LogWarning("Unauthorized access attempt to GetTenantContractById without valid API key");
+            return Unauthorized("Invalid or missing service API key");
+        }
+
+        try
+        {
+            var contract = await _contractService.GetContractByIdAsync(contractId);
+
+            if (contract == null)
+            {
+                _logger.LogWarning("Contract with ID {ContractId} not found", contractId);
+                return NotFound();
+            }
+
+            _logger.LogInformation("Retrieved contract details for Contract ID: {ContractId}", contractId);
+            return Ok(contract);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting contract details for Contract ID {ContractId}", contractId);
+            return StatusCode(500, "Internal server error during contract lookup.");
+        }
+    }
 }

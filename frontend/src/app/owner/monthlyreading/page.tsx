@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { MonthlyReading, ReadingStatus } from "@/types/monthlyReading";
-import { getAllMonthlyReadings } from "@/services/monthlyReadingService";
+import { getAllMonthlyReadings, sendRemindSubmission, triggerNewCycleNotification } from "@/services/monthlyReadingService";
 import UtilityReadingDetailModal from "@/components/monthlyReading/UtilityReadingDetailModal";
 import ReadingStats from "@/components/monthlyReading/ReadingStats";
 import ReadingFilterBar from "@/components/monthlyReading/ReadingFilterBar";
 import ReadingTable from "@/components/monthlyReading/ReadingTable";
+import ConfirmModal from "@/components/common/ConfirmModal";
 
 export default function OwnerUtilitiesPage() {
   const [readings, setReadings] = useState<MonthlyReading[]>([]);
@@ -19,6 +20,10 @@ export default function OwnerUtilitiesPage() {
 
   const [selectedHouseName, setSelectedHouseName] = useState<string>("ALL");
   const [selectedReading, setSelectedReading] = useState<MonthlyReading | null>(null);
+
+  // State xử lý hành động (Nhắc nộp hoặc Tạo kỳ mới)
+  const [actionType, setActionType] = useState<"REMIND_SUBMISSION" | "NEW_CYCLE" | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // --- LOGIC: TẠO DANH SÁCH NĂM ĐỘNG ---
   const years = useMemo(() => {
@@ -35,30 +40,22 @@ export default function OwnerUtilitiesPage() {
   // --- Helper: Tính toán trạng thái (Confirmed / Pending / Overdue) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const calculateStatus = (item: any): ReadingStatus => {
-    // 1. Đã nộp
     if (item.status === 1 || item.status === "Confirmed" || item.status === "confirmed") {
       return "Confirmed";
     }
-
-    // 2. Tính toán Quá hạn
     const readingDate = new Date(item.createdAt || item.CreatedAt);
     const rMonth = readingDate.getMonth() + 1;
     const rYear = readingDate.getFullYear();
-
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
     const currentDay = now.getDate();
-    const DEADLINE_DAY = 20; // Hạn nộp là ngày 20 hàng tháng
+    const DEADLINE_DAY = 20;
 
-    // Nếu năm cũ -> Quá hạn
     if (rYear < currentYear) return "Overdue";
-    // Nếu năm nay nhưng tháng cũ -> Quá hạn
     if (rYear === currentYear && rMonth < currentMonth) return "Overdue";
-    // Nếu cùng tháng hiện tại nhưng đã qua ngày deadline -> Quá hạn
     if (rYear === currentYear && rMonth === currentMonth && currentDay > DEADLINE_DAY) return "Overdue";
 
-    // 3. Còn lại -> Chờ nộp (Pending)
     return "Pending";
   };
 
@@ -77,9 +74,7 @@ export default function OwnerUtilitiesPage() {
           floor: item.floor || item.Floor,
           tenantName: item.tenantName || item.TenantName,
           tenantContractId: item.tenantContractId || item.TenantContractId,
-
           status: calculateStatus(item),
-
           electricOld: item.electricOld || item.ElectricOld || 0,
           electricNew: item.electricNew || item.ElectricNew || 0,
           electricPhotoUrl: item.electricPhotoUrl || item.ElectricPhotoUrl,
@@ -117,10 +112,8 @@ export default function OwnerUtilitiesPage() {
         const date = new Date(reading.createdAt);
         const rMonth = date.getMonth() + 1;
         const rYear = date.getFullYear();
-
         const matchMonth = selectedMonth === "ALL" || rMonth === Number(selectedMonth);
         const matchYear = rYear === Number(selectedYear);
-
         matchDate = matchMonth && matchYear;
       }
       return matchStatus && matchHouse && matchDate;
@@ -130,14 +123,12 @@ export default function OwnerUtilitiesPage() {
   const stats = useMemo(() => {
     return {
       countConfirmed: filteredReadings.filter((i) => i.status === "Confirmed").length,
-      // Đếm tổng số chưa hoàn thành (Pending + Overdue) để hiển thị ở card
       countNotSubmitted: filteredReadings.filter((i) => i.status === "Pending" || i.status === "Overdue").length,
       countOverdue: filteredReadings.filter((i) => i.status === "Overdue").length,
       totalRooms: filteredReadings.length,
     };
   }, [filteredReadings]);
 
-  // --- Kiểm tra có phải tháng hiện tại không ---
   const isCurrentMonthView = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -145,51 +136,86 @@ export default function OwnerUtilitiesPage() {
     return Number(selectedMonth) === currentMonth && Number(selectedYear) === currentYear;
   }, [selectedMonth, selectedYear]);
 
-  // --- Xử lý nhắc nhở ---
-  const handleRemindAllPending = (e: React.MouseEvent<HTMLDivElement>) => {
+  // --- HANDLER: Mở Modal ---
+  
+  // Mở modal nhắc nộp (gắn vào Card thống kê)
+  const openRemindModal = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-
-    // Chặn nếu không phải tháng hiện tại
     if (!isCurrentMonthView) {
       alert("Bạn chỉ có thể gửi nhắc nhở cho kỳ thu tiền hiện tại.");
       return;
     }
+    if (stats.countNotSubmitted === 0) return;
+    setActionType("REMIND_SUBMISSION");
+  };
 
-    // Lấy danh sách chưa nộp (Pending + Overdue)
-    const recipients = filteredReadings.filter((r) => r.status === "Pending" || r.status === "Overdue");
-    if (recipients.length === 0) return;
+  // Mở modal báo kỳ mới 
+  const openNewCycleModal = () => {
+    setActionType("NEW_CYCLE");
+  };
 
-    if (
-      window.confirm(
-        `Gửi thông báo nhắc nộp ảnh đến ${recipients.length} phòng chưa nộp (bao gồm cả quá hạn)?`
-      )
-    ) {
-      alert(`Giả lập: Đã gửi thông báo đến ${recipients.length} phòng.`);
+  // --- HANDLER: Thực thi hành động ---
+  const handleConfirmAction = async () => {
+    if (!actionType) return;
+    setIsProcessing(true);
+
+    try {
+        let success = false;
+        
+        if (actionType === "REMIND_SUBMISSION") {
+            success = await sendRemindSubmission();
+            setActionType(null); // Đóng modal trước khi alert
+            if (success) alert(`Đã gửi thông báo nhắc nộp đến các phòng chưa hoàn thành.`);
+            else alert("Gửi thất bại. Vui lòng thử lại.");
+        } 
+        else if (actionType === "NEW_CYCLE") {
+            // Lấy tháng/năm hiện tại để gửi thông báo kỳ mới
+            const now = new Date();
+            success = await triggerNewCycleNotification(now.getMonth() + 1, now.getFullYear());
+            setActionType(null);
+            if (success) alert(`Đã phát động chu kỳ mới và gửi thông báo cho cư dân.`);
+            else alert("Có lỗi xảy ra (Có thể chu kỳ đã tồn tại).");
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert("Lỗi kết nối.");
+        setActionType(null);
+    } finally {
+        setIsProcessing(false);
     }
   };
 
   return (
     <div className="space-y-6 p-6 bg-gray-50 min-h-screen text-gray-800">
       <div className="flex flex-col gap-6">
-        {/* Header Title */}
-        <div className="flex justify-between items-start">
+        {/* Header Title & Manual Button */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Quản lý Chỉ số Điện Nước</h2>
             <p className="text-gray-500 text-sm">
               Thống kê tháng {selectedMonth === "ALL" ? "Tất cả" : selectedMonth}/{selectedYear}
             </p>
           </div>
+
+          {/* Nút Manual trigger New Cycle */}
+          <button
+            onClick={openNewCycleModal}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow flex items-center gap-2"
+          >
+            Nhắc thông báo kỳ mới
+          </button>
         </div>
 
         {/* Component Thống kê */}
         <ReadingStats
           stats={stats}
           isCurrentMonthView={isCurrentMonthView}
-          onRemindAllPending={handleRemindAllPending}
+          onRemindAllPending={openRemindModal} // Mở modal thay vì alert
+          isLoading={isProcessing && actionType === "REMIND_SUBMISSION"} // Hiển thị loading nếu đang nhắc nộp
         />
       </div>
 
-      {/* Component Bộ lọc */}
       <ReadingFilterBar
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
@@ -203,17 +229,31 @@ export default function OwnerUtilitiesPage() {
         years={years}
       />
 
-      {/* Component Bảng dữ liệu */}
       <ReadingTable
         loading={loading}
         readings={filteredReadings}
         onSelectReading={setSelectedReading}
       />
 
-      {/* Modal chi tiết */}
       {selectedReading && (
         <UtilityReadingDetailModal reading={selectedReading} onClose={() => setSelectedReading(null)} />
       )}
+
+      {/* Modal Xác Nhận Chung */}
+      <ConfirmModal
+        isOpen={!!actionType}
+        onClose={() => !isProcessing && setActionType(null)}
+        onConfirm={handleConfirmAction}
+        isLoading={isProcessing}
+        title={actionType === "NEW_CYCLE" ? "Nhắc kỳ mới" : "Nhắc nộp chỉ số"}
+        message={
+            actionType === "NEW_CYCLE" 
+            ? `Bạn có chắc chắn muốn tạo chu kỳ mới cho tháng hiện tại và gửi thông báo đến tất cả?`
+            : `Gửi nhắc nhở đến ${stats.countNotSubmitted} phòng chưa nộp chỉ số?`
+        }
+        confirmText="Xác nhận gửi"
+        cancelText="Hủy bỏ"
+      />
     </div>
   );
 }

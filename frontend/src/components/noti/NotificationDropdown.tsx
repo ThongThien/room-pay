@@ -153,7 +153,7 @@ export default function NotificationDropdown() {
                                             <p className={`text-sm truncate w-full ${!item.isRead ? 'text-gray-900 font-bold' : 'text-gray-600'}`} title={item.message}>
                                                 {item.message}
                                             </p>
-                                            {!item.isRead && <span className="w-2 h-2 min-w-[8px] rounded-full bg-blue-600 mt-1.5 shadow-sm flex-shrink-0"></span>}
+                                            {!item.isRead && <span className="w-2 h-2 min-w-2 rounded-full bg-blue-600 mt-1.5 shadow-sm shrink-0"></span>}
                                         </div>
                                         <span className="text-xs text-gray-400 mt-1 block text-right font-medium">
                                             {formatTime(item.createdAt)}

@@ -12,6 +12,21 @@ builder.Services.AddDbContext<NotificationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
+// Cấu hình CORS
+string[] allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string[]>() ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFE", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 // 2. Đăng ký Repository
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
@@ -21,25 +36,13 @@ builder.Services.AddTransient<IEmailService, EmailService>();
 // 4. Đăng ký RabbitMQWorker (Hosted Service)
 builder.Services.AddHostedService<RabbitMQWorker>();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000") // Cho phép Frontend truy cập
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// ... (UseSwagger, UseHttpsRedirection, etc.)
-app.UseCors("AllowFrontend");
+app.UseCors("AllowFE");
 app.MapControllers();
 
 app.Run();

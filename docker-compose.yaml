@@ -253,6 +253,54 @@ services:
     networks:
       - app-network
 
+  notification-service:
+    image: ${ECR_REGISTRY}/intern2025/notification-service:latest
+    container_name: notification-service
+    ports:
+      - "5297:8080" 
+    environment:
+      ConnectionStrings__DefaultConnection: ${NOTIFICATION_DB_CONNECTION_STRING}
+      
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      RabbitMQ__QueueName: notification_queue 
+      
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: ${JWT_ISSUER}
+      JwtSettings__Audience: ${JWT_AUDIENCE}
+      JwtSettings__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES}
+      
+      # Cấu hình cho Email Service 
+      SmtpSettings_mailjet__Host: in-v3.mailjet.com
+      SmtpSettings_mailjet__Port: 465
+      SmtpSettings_mailjet__EnableSsl: true
+      SmtpSettings_mailjet__SenderEmail: thien.nt.64cntt@ntu.edu.vn
+      SmtpSettings_mailjet__SenderName: Payroom System
+
+      SmtpSettings_mailjet__Username: ${MAILJET_SMTP_USERNAME} 
+      SmtpSettings_mailjet__Password: ${MAILJET_SMTP_PASSWORD}
+      ServiceApiKey: ${SERVICE_API_KEY}
+      
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"   
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - default
+
 networks:
   app-network:
     driver: bridge

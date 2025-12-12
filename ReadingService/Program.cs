@@ -33,14 +33,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
-// Cấu hình CORS
-string[] allowedOrigins = builder.Configuration
+// Add Cors
+string allowedOrigins = builder.Configuration
                              .GetSection("Cors:AllowedOrigins")
-                             .Get<string[]>() ?? Array.Empty<string>();
-
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFE", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
@@ -156,7 +155,7 @@ app.UseSwaggerUI();
 app.UseHttpsRedirection();
 app.UseRouting();
 
-app.UseCors("AllowFE");
+app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -14,8 +14,7 @@ services:
       
       ServiceApiKey: ${SERVICE_API_KEY}
       
-      Cors__AllowedOrigins__0: http://frontend:80
-      Cors__AllowedOrigins__1: ${FRONTEND_URL_2}
+      Cors__AllowedOrigins: ${FRONTEND_URL}
     volumes:
       - dataprotection-keys:/root/.aspnet/DataProtection-Keys
     restart: unless-stopped
@@ -28,16 +27,16 @@ services:
     ports:
       - "${IMAGE_SCAN_SERVICE_PORT}:5000"
     environment:
-      PORT: 5000
+      PORT: ${IMAGE_SCAN_SERVICE_PORT}
       FLASK_ENV: ${FLASK_ENV}
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB}
-      PRESERVE_UPLOADS: ${PRESERVE_UPLOADS}
+      PRESERVE_UPLOADS: "${PRESERVE_UPLOADS}"
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL}
       GEMINI_TIMEOUT: ${GEMINI_TIMEOUT}
-      ELECTRIC_METER_PROMPT: ${ELECTRIC_METER_PROMPT}
-      WATER_METER_PROMPT: ${WATER_METER_PROMPT}
+      ELECTRIC_METER_PROMPT: "${ELECTRIC_METER_PROMPT}"
+      WATER_METER_PROMPT: "${WATER_METER_PROMPT}"
     restart: unless-stopped
     networks:
       - app-network
@@ -58,19 +57,18 @@ services:
       ServiceApiKey: ${SERVICE_API_KEY}
       
       AuthService__BaseUrl: http://aa-service:8080
-      AuthService__ApiKey: ${SERVICE_API_KEY}
+      AuthService__ApiKey: ${AUTH_SERVICE_API_KEY}
       
       PropertyService__BaseUrl: http://property-service:8080
-      PropertyService__ApiKey: ${SERVICE_API_KEY}
+      PropertyService__ApiKey: ${PROPERTY_SERVICE_API_KEY}
       
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: ${RABBITMQ_PORT}
       RabbitMQ__UserName: ${RABBITMQ_USER}
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
-      RabbitMQ__QueueName: ${RABBITMQ_QUEUE_NAME}
+      RabbitMQ__QueueName: ${RABBITMQ_QUEUE}
       
-      Cors__AllowedOrigins__0: http://frontend:80
-      Cors__AllowedOrigins__1: ${FRONTEND_URL_2}
+      Cors__AllowedOrigins: ${FRONTEND_URL}
     volumes:
       - dataprotection-keys:/root/.aspnet/DataProtection-Keys
     restart: unless-stopped
@@ -96,12 +94,11 @@ services:
     image: ${ECR_REGISTRY}/intern2025/notification-service:latest
     container_name: notification-service
     ports:
-      - "${NOTIFICATION_SERVICE_PORT}:8080"
+      - "${NOTIFICATION_SERVICE_PORT}:8080" 
     environment:
       ConnectionStrings__DefaultConnection: ${NOTIFICATION_DB_CONNECTION_STRING}
 
-      Cors__AllowedOrigins__0: ${FRONTEND_URL}
-      Cors__AllowedOrigins__1: ${FRONTEND_URL_2}
+      Cors__AllowedOrigins: ${FRONTEND_URL}
 
       JwtSettings__Secret: ${JWT_SECRET}
       JwtSettings__Issuer: ${JWT_ISSUER}
@@ -112,26 +109,27 @@ services:
       RabbitMQ__Port: ${RABBITMQ_PORT}
       RabbitMQ__UserName: ${RABBITMQ_USER}
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
-      RabbitMQ__QueueName: ${RABBITMQ_QUEUE_NAME}
-
+      RabbitMQ__QueueName: ${RABBITMQ_QUEUE}
+      
       SmtpSettings_mailjet__Host: ${SMTP_HOST}
       SmtpSettings_mailjet__Port: ${SMTP_PORT}
-      SmtpSettings_mailjet__EnableSsl: ${SMTP_ENABLE_SSL}
+      SmtpSettings_mailjet__EnableSsl: "${SMTP_ENABLE_SSL}"
       SmtpSettings_mailjet__SenderEmail: ${SMTP_SENDER_EMAIL}
       SmtpSettings_mailjet__SenderName: ${SMTP_SENDER_NAME}
       SmtpSettings_mailjet__Username: ${SMTP_USERNAME}
       SmtpSettings_mailjet__Password: ${SMTP_PASSWORD}
-
+      
       InvoiceService__BaseUrl: http://invoice-service:8080
-      InvoiceService__ApiKey: ${SERVICE_API_KEY}
+      InvoiceService__ApiKey: ${INTERNAL_SERVICE_API_KEY}
 
       ReadingService_BaseUrl: http://reading-service:8080
-      ReadingService_ApiKey: ${SERVICE_API_KEY}
+      ReadingService_ApiKey: ${INTERNAL_SERVICE_API_KEY}
 
       ServiceUrls__AAService: http://aa-service:8080
-      ServiceUrls__AAServiceKey: ${SERVICE_API_KEY}
+      ServiceUrls__AAServiceKey: ${INTERNAL_SERVICE_API_KEY}
 
-      ServiceApiKey: ${SERVICE_API_KEY}
+      ServiceApiKey: ${INTERNAL_SERVICE_API_KEY}
+
     volumes:
       - dataprotection-keys:/root/.aspnet/DataProtection-Keys
     restart: unless-stopped
@@ -151,10 +149,9 @@ services:
       SePay__AccountName: ${SEPAY_ACCOUNT_NAME}
       
       InvoiceService__BaseUrl: http://invoice-service:8080
-      InvoiceService__ApiKey: ${SERVICE_API_KEY}
+      InvoiceService__ApiKey: ${INTERNAL_SERVICE_API_KEY}
       
-      Cors__AllowedOrigins__0: http://frontend:80
-      Cors__AllowedOrigins__1: ${FRONTEND_URL_2}
+      Cors__AllowedOrigins: ${FRONTEND_URL}
     volumes:
       - dataprotection-keys:/root/.aspnet/DataProtection-Keys
     restart: unless-stopped
@@ -165,24 +162,23 @@ services:
     image: ${ECR_REGISTRY}/intern2025/property-service:latest
     container_name: property-service
     ports:
-      - "5018:8080"
+      - "${PROPERTY_SERVICE_PORT}:8080"
     environment:
       ConnectionStrings__DefaultConnection: ${PROPERTY_DB_CONNECTION_STRING}
       
-      JwtSettings__Secret: ${JWT_SECRET}
-      JwtSettings__Issuer: ${JWT_ISSUER}
-      JwtSettings__Audience: ${JWT_AUDIENCE}
-      JwtSettings__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES}
+      JwtSettings__Secret: YourSuperSecretKeyForJWTAuthenticationThatIsAtLeast32CharactersLong
+      JwtSettings__Issuer: PayroomAPI
+      JwtSettings__Audience: PayroomClient
+      JwtSettings__ExpirationMinutes: 1440
       
-      ServiceApiKey: ${SERVICE_API_KEY}
+      ServiceApiKey: ${INTERNAL_SERVICE_API_KEY}
       
       PropertyService__BaseUrl: http://property-service:8080
-      PropertyService__ApiKey: ${SERVICE_API_KEY}
+      PropertyService__ApiKey: ${INTERNAL_SERVICE_API_KEY}
       
       ServiceUrls__AA: http://aa-service:8080
       
-      Cors__AllowedOrigins__0: http://frontend:80
-      Cors__AllowedOrigins__1: ${FRONTEND_URL_2}
+      Cors__AllowedOrigins: ${FRONTEND_URL}
     volumes:
       - dataprotection-keys:/root/.aspnet/DataProtection-Keys
     restart: unless-stopped
@@ -207,27 +203,26 @@ services:
       JwtSettings__Secret: ${JWT_SECRET}
       JwtSettings__Issuer: ${JWT_ISSUER}
       JwtSettings__Audience: ${JWT_AUDIENCE}
-      JwtSettings__ExpiresInMinutes: ${JWT_EXPIRATION_MINUTES}
+      JwtSettings__ExpiresInMinutes: ${JWT_EXPIRES_IN_MINUTES}
       
       Services__InvoiceService__BaseUrl: http://invoice-service:8080
-      Services__InvoiceService__ApiKey: ${SERVICE_API_KEY}
+      Services__InvoiceService__ApiKey: ${INTERNAL_SERVICE_API_KEY}
       
       PropertyService__BaseUrl: http://property-service:8080
-      PropertyService__ApiKey: ${SERVICE_API_KEY}
+      PropertyService__ApiKey: ${INTERNAL_SERVICE_API_KEY}
       
       AuthService__BaseUrl: http://aa-service:8080
-      AuthService__ApiKey: ${SERVICE_API_KEY}
+      AuthService__ApiKey: ${INTERNAL_SERVICE_API_KEY}
       
-      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__HostName: ${RABBITMQ_HOSTNAME}
       RabbitMQ__Port: ${RABBITMQ_PORT}
-      RabbitMQ__UserName: ${RABBITMQ_USER}
+      RabbitMQ__UserName: ${RABBITMQ_USERNAME}
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       RabbitMQ__QueueName: ${RABBITMQ_QUEUE_NAME}
       
-      ServiceApiKey: ${SERVICE_API_KEY}
-
-      Cors__AllowedOrigins__0: http://frontend:80
-      Cors__AllowedOrigins__1: ${FRONTEND_URL_2}
+      ServiceApiKey: ${INTERNAL_SERVICE_API_KEY}
+      
+      Cors__AllowedOrigins: ${FRONTEND_URL}
     volumes:
       - dataprotection-keys:/root/.aspnet/DataProtection-Keys
     restart: unless-stopped
@@ -238,7 +233,7 @@ services:
     image: ${ECR_REGISTRY}/intern2025/frontend:latest
     container_name: frontend
     ports:
-      - "80:3000"
+      - "${FRONTEND_PORT}:3000"
     environment:
       NODE_ENV: production
     restart: unless-stopped
@@ -253,53 +248,6 @@ services:
     networks:
       - app-network
 
-  notification-service:
-    image: ${ECR_REGISTRY}/intern2025/notification-service:latest
-    container_name: notification-service
-    ports:
-      - "5297:8080" 
-    environment:
-      ConnectionStrings__DefaultConnection: ${NOTIFICATION_DB_CONNECTION_STRING}
-      
-      RabbitMQ__HostName: rabbitmq
-      RabbitMQ__Port: 5672
-      RabbitMQ__UserName: guest
-      RabbitMQ__Password: guest
-      RabbitMQ__QueueName: notification_queue 
-      
-      JwtSettings__Secret: ${JWT_SECRET}
-      JwtSettings__Issuer: ${JWT_ISSUER}
-      JwtSettings__Audience: ${JWT_AUDIENCE}
-      JwtSettings__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES}
-      
-      # Cấu hình cho Email Service 
-      SmtpSettings_mailjet__Host: in-v3.mailjet.com
-      SmtpSettings_mailjet__Port: 465
-      SmtpSettings_mailjet__EnableSsl: true
-      SmtpSettings_mailjet__SenderEmail: thien.nt.64cntt@ntu.edu.vn
-      SmtpSettings_mailjet__SenderName: Payroom System
-
-      SmtpSettings_mailjet__Username: ${MAILJET_SMTP_USERNAME} 
-      SmtpSettings_mailjet__Password: ${MAILJET_SMTP_PASSWORD}
-      ServiceApiKey: ${SERVICE_API_KEY}
-      
-    restart: unless-stopped
-    depends_on:
-      - rabbitmq
-    networks:
-      - app-network
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    ports:
-      - "15672:15672"
-      - "5672:5672"   
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    networks:
-      - default
 
 networks:
   app-network:

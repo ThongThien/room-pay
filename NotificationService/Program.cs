@@ -13,9 +13,9 @@ builder.Services.AddDbContext<NotificationDbContext>(options =>
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
 // Add Cors
-string[] allowedOrigins = builder.Configuration
+string allowedOrigins = builder.Configuration
                              .GetSection("Cors:AllowedOrigins")
-                             .Get<string[]>() ?? Array.Empty<string>();
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>

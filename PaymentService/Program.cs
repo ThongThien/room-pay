@@ -31,9 +31,9 @@ builder.Services.AddScoped<ISePayService, SePayService>();
 builder.Services.AddHttpClient<IInvoiceServiceClient, InvoiceServiceClient>();
 
 // Add Cors
-string[] allowedOrigins = builder.Configuration
+string allowedOrigins = builder.Configuration
                              .GetSection("Cors:AllowedOrigins")
-                             .Get<string[]>() ?? Array.Empty<string>();
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>

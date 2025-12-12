@@ -1,12 +1,12 @@
 import { Notification } from "@/types/notification";
 
-const API_URL = process.env.NEXT_PUBLIC_NOTIFICATION_API_URL + '/notifications';
+const NOTIFICATION_API_URL = process.env.NEXT_PUBLIC_NOTIFICATION_API_URL;
 
 export const notificationService = {
     // 1. Lấy danh sách thông báo của User
     getByUserId: async (userId: string): Promise<Notification[]> => {
         try {
-            const res = await fetch(`${API_URL}/${userId}`, {
+            const res = await fetch(`${NOTIFICATION_API_URL}/notifications/${userId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -24,7 +24,7 @@ export const notificationService = {
     // 2. Đếm số lượng chưa đọc
     getUnreadCount: async (userId: string): Promise<number> => {
         try {
-            const res = await fetch(`${API_URL}/unread-count/${userId}`, {
+            const res = await fetch(`${NOTIFICATION_API_URL}/notifications/unread-count/${userId}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -39,7 +39,7 @@ export const notificationService = {
     // 3. Đánh dấu đã đọc
     markAsRead: async (notificationId: number, userId: string): Promise<boolean> => {
         try {
-            const res = await fetch(`${API_URL}/mark-as-read`, {
+            const res = await fetch(`${NOTIFICATION_API_URL}/notifications/mark-as-read`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notificationId, userId })

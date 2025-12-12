@@ -20,3 +20,11 @@ export interface Invoice {
     paidDate?: string;
     items: InvoiceItem[];
 }
+
+export interface InvoiceApiParams {
+    page: number;
+    pageSize: number;
+    status?: string;
+    year?: number;
+    month?: number;
+}

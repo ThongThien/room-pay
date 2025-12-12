@@ -1,10 +1,6 @@
-// src/services/invoiceService.ts
-
 import { Invoice } from "@/types/invoice";
-// 1. Import từ config
 import { API_URLS, getAuthHeaders } from "@/utils/config";
 
-// 2. Sử dụng API_URLS.INVOICE thay vì process.env
 const BASE_URL = `${API_URLS.INVOICE}/invoices`;
 
 export const getMyInvoices = async (params?: {
@@ -76,6 +72,26 @@ export const markInvoiceAsPaid = async (id: number): Promise<boolean> => {
         return true;
     } catch (error) {
         console.error("Lỗi mark paid:", error);
+        return false;
+    }
+};
+
+export const remindAllUnpaid = async (): Promise<boolean> => {
+    try {
+        // Gọi API: POST /api/invoices/remind-unpaid
+        const res = await fetch(`${BASE_URL}/remind-unpaid`, {
+            method: 'POST',
+            headers: getAuthHeaders(), 
+        });
+
+        if (!res.ok) {
+            // Log chi tiết lỗi nếu có (ví dụ 401, 500)
+            console.error(`Failed to remind unpaid invoices. Status: ${res.status}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error("Error calling remind API:", error);
         return false;
     }
 };

@@ -30,4 +30,6 @@ public interface IInvoiceService
     Task<UnpaidInvoicesResponseDto> GetUnpaidInvoicesByTenantIdAsync(Guid tenantId);
     Task<TotalPaidLastMonthDto> GetTotalPaidAmountLastMonthAsync(Guid tenantId);
     Task<IEnumerable<PendingInvoiceDto>> GetPendingInvoicesThisMonthAsync(string ownerId);
+
+    Task<List<MonthlyRevenueDataPoint>> GetMonthlyRevenueReportAsync(string ownerId, int lastMonths = 6);
 }

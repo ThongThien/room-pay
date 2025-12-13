@@ -4,6 +4,7 @@ using InvoiceService.Models;
 using InvoiceService.Features.Invoice;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InvoiceService.Features.Invoice.DTOs.Invoice;
 
 namespace InvoiceService.Controllers;
 
@@ -609,6 +610,26 @@ public class InvoicesController : ControllerBase
         {
             _logger.LogError(ex, "Error processing manual payment reminder for Owner {OwnerId}", ownerId);
             return StatusCode(StatusCodes.Status500InternalServerError, "Lỗi hệ thống khi gửi nhắc nhở.");
+        }
+    }
+
+    [HttpGet("monthly-revenue")]
+    [Authorize(Roles = "Owner")]
+    [ProducesResponseType(typeof(List<MonthlyRevenueDataPoint>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMonthlyRevenue()
+    {
+        var ownerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(ownerId)) return Unauthorized();
+
+        try
+        {
+            var report = await _invoiceService.GetMonthlyRevenueReportAsync(ownerId);
+            return Ok(report);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting monthly revenue report for owner {OwnerId}", ownerId);
+            return StatusCode(500, "Internal server error: Could not generate revenue report.");
         }
     }
 }

@@ -1,13 +1,5 @@
 import { OverdueInvoiceAPIResponse, OverdueInvoiceListItem } from '../types/dashboard';
 
-// Hàm chuyển đổi chuỗi tiền tệ (VNĐ) sang số (đơn vị Triệu VNĐ) để tính toán
-export const parseRevenueToNumber = (revenueStr: string): number => {
-    // Loại bỏ ' ₫', dấu cách, dấu phẩy, và chuyển đổi thành số
-    const cleanStr = revenueStr.replace(/[\s₫,]/g, '');
-    const numberValue = parseFloat(cleanStr) / 1000000; // Chia cho 1 triệu để lấy đơn vị Triệu VNĐ
-    return isNaN(numberValue) ? 0 : numberValue;
-};
-
 // Hàm tính số ngày quá hạn
 export const calculateOverdueDays = (dueDateStr: string, status?: string): number => {
     const dueDate = new Date(dueDateStr);

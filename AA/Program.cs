@@ -11,15 +11,18 @@ using AA.Features.Users;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Cors
+string allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        builder =>
-        {
-            builder.AllowAnyOrigin()
-                   .AllowAnyMethod()
-                   .AllowAnyHeader();
-        });
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 });
 
 // Add services to the container

@@ -70,14 +70,18 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Add CORS
+// Add Cors
+string allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowCredentials();
     });
 });
 

@@ -17,15 +17,19 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     ));
 
+// Add Cors
+string allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy =>
-        {
-            policy.AllowAnyOrigin() // Cho phép mọi nguồn (localhost:3000, mobile, v.v.)
-                  .AllowAnyMethod() // GET, POST, PUT, DELETE...
-                  .AllowAnyHeader(); // Authorization, Content-Type...
-        });
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 });
 
 // 2. JWT Authentication

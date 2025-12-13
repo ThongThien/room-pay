@@ -158,7 +158,7 @@ public class UserService : IUserService
             _logger.LogInformation("Calling AAService to retrieve all active Owner IDs.");
 
             // Endpoint này giả định được thiết kế để chỉ trả về danh sách Owner có Tenants đang Active
-            var response = await _httpClient.GetAsync("api/user/owners-with-active-contracts");
+            var response = await _httpClient.GetAsync("api/users/owners");
             
             if (response.IsSuccessStatusCode)
             {

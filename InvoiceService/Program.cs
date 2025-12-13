@@ -9,7 +9,7 @@ using InvoiceService.Repositories.Implementations;
 using InvoiceService.Features.Property;
 using System.Text;
 using InvoiceService.Services;
-// using RabbitMQ.Client;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Đọc JwtSettings từ cấu hình
@@ -57,8 +57,8 @@ builder.Services.AddScoped<IPricingService, PricingService>();
 builder.Services.AddHttpClient<InvoiceService.Services.IUserServiceClient, InvoiceService.Services.UserServiceClient>();
 builder.Services.AddHttpClient<IPropertyService, PropertyServiceClientImpl>();
 builder.Services.AddSingleton<InvoiceService.Services.PaymentWebSocketHandler>();
-// builder.Services.AddSingleton<IRabbitMQPublisher, RabbitMQPublisher>();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddScoped<IInvoiceReminderService, InvoiceReminderService>();
+builder.Services.AddScoped<IMessageProducer,RabbitMQProducer>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -70,14 +70,18 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Add CORS
+// Add Cors
+string allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowCredentials();
     });
 });
 

@@ -21,6 +21,7 @@ appsettings.*.json
 .env
 .env.local
 .env.*.local
+# docker-compose.yaml
 
 # Build output
 bin/
@@ -36,3 +37,7 @@ nginx/logs/
 # Python
 __pycache__/
 uploads/
+
+start-services.sh
+
+slack_alert.sh

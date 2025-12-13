@@ -1,23 +1,8 @@
 // Constants cho Owner Dashboard
 export const INVOICE_API_URL = process.env.NEXT_PUBLIC_INVOICE_API_URL;
+export const PROPERTY_API_URL = process.env.NEXT_PUBLIC_PROPERTY_API_URL;
+export const READING_API_URL = process.env.NEXT_PUBLIC_READING_API_URL;
 export const PENDING_INVOICES_API_URL = `${INVOICE_API_URL}/invoices/pending-this-month`;
-
-// Fake data cho development
-export const FAKE_PENDING_INVOICES: import('../types/dashboard').PendingInvoiceListItem[] = [
-    { id: 'P001', tenantName: 'Trần Văn C', roomNumber: 'C301', amount: '4,000,000 ₫', invoiceDate: '2025-12-01' },
-    { id: 'P002', tenantName: 'Phạm Thị D', roomNumber: 'D402', amount: '6,020,000 ₫', invoiceDate: '2025-12-15' },
-];
-
-export const FAKE_ABNORMAL_READINGS: import('../types/dashboard').AbnormalReadingListItem[] = [
-    { id: 'R001', tenantName: 'Hoàng Văn E', roomNumber: 'A201', houseName: 'Tòa A', type: 'Electricity', increasePercent: 55 },
-    { id: 'R002', tenantName: 'Đỗ Thị G', roomNumber: 'C305', houseName: 'Tòa C', type: 'Water', increasePercent: 40 },
-    { id: 'R003', tenantName: 'Mai Văn H', roomNumber: 'B102', houseName: 'Tòa B', type: 'Electricity', increasePercent: 35 },
-];
-
-export const FAKE_NEAR_EXPIRY_CONTRACTS: import('../types/dashboard').NearExpiryContractListItem[] = [
-    { id: 'C001', tenantName: 'Vũ Văn I', roomNumber: 'A102', houseName: 'Tòa A', endDate: '2026-01-01', remainingDays: 29 },
-    { id: 'C002', tenantName: 'Bùi Thị K', roomNumber: 'C405', houseName: 'Tòa C', endDate: '2026-01-15', remainingDays: 15 },
-];
 
 export const FAKE_BUILDING_PERFORMANCE: import('../types/dashboard').BuildingPerformance[] = [
     { buildingId: 'B01', buildingName: 'Tòa A - Sông Hàn', totalRooms: 150, occupiedRooms: 135, vacantRooms: 15, occupancyRate: '90%', currentMonthRevenue: '450,000,000 ₫' },
@@ -53,4 +38,6 @@ export const API_ENDPOINTS = {
     TICKET_SUMMARY: '/api/v1/ticket/owner/summary',
     CONTRACT_WARNING: '/api/v1/contract/warning/ending-count',
     UTILITY_WARNING: '/api/v1/utility-reading/warning/abnormal-count',
+    ABNORMAL_ELECTRIC: '/MonthlyReading/abnormal-electric?threshold=150',
+    ABNORMAL_WATER: '/MonthlyReading/abnormal-water?threshold=10',
 };

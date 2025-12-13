@@ -6,6 +6,7 @@ using InvoiceService.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore; // Cần cho ToListAsync, FirstOrDefaultAsync, SaveChangesAsync
 using System.Linq; 
 using System.Threading.Tasks; 
+using InvoiceService.Models.Enums;
 
 namespace InvoiceService.Repositories.Implementations
 {
@@ -69,6 +70,27 @@ namespace InvoiceService.Repositories.Implementations
             // Since we don't have direct relationship, we'll return all invoices
             // and filter in the service layer
             return await _context.Invoices.ToListAsync();
+        }
+
+        public async Task<List<Invoice>> GetUnpaidInvoicesByUserIdAsync(string userId)
+        {
+            // Lọc theo UserId và Status = "Unpaid" (hoặc Enum InvoiceStatus.Unpaid)
+            return await _context.Invoices
+                .Include(i => i.Items) // Tùy chọn: nếu bạn cần chi tiết item trong hóa đơn
+                .Where(i => i.UserId == userId && i.Status == InvoiceStatus.Unpaid.ToString())
+                // Hoặc nếu Status là Enum (như bạn đã định nghĩa)
+                // .Where(i => i.UserId == userId && i.Status == InvoiceStatus.Unpaid.ToString())
+                .ToListAsync();
+        }
+
+        public async Task<List<Invoice>> GetInvoicesForReportAsync(DateTime startDate)
+        {
+            // Lấy tất cả hóa đơn có InvoiceDate, DueDate, hoặc PaidDate nằm trong phạm vi báo cáo
+            return await _context.Invoices
+                .Where(i => i.InvoiceDate >= startDate || 
+                            (i.PaidDate.HasValue && i.PaidDate.Value >= startDate) ||
+                            i.DueDate >= startDate)
+                .ToListAsync();
         }
     }
 }

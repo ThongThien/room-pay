@@ -1,5 +1,4 @@
-// src/types/monthlyReading.ts
-
+export type ReadingStatus = "Pending" | "Confirmed" | "Overdue";
 export interface MonthlyReading {
   id: number;
   cycleId: number;
@@ -9,8 +8,7 @@ export interface MonthlyReading {
   tenantName?: string;
   tenantContractId?: number;
 
-  // Trạng thái: "Pending" | "Confirmed"
-  status: string;
+  status: string | number;
 
 
   electricOld: number;

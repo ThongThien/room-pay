@@ -1,7 +1,7 @@
 import { getAuthHeaders } from '../utils/config';
-import { INVOICE_API_URL, FAKE_PENDING_INVOICES, FAKE_ABNORMAL_READINGS, FAKE_NEAR_EXPIRY_CONTRACTS, FAKE_BUILDING_PERFORMANCE, FAKE_REVENUE_CHART_DATA, PENDING_INVOICES_API_URL } from '../constants/dashboard';
-import { OwnerDashboardData, OverdueInvoiceAPIResponse, OverdueInvoiceListItem } from '../types/dashboard';
-import { mapOverdueInvoiceAPIResponse, formatCurrencyInMillions } from '../utils/dashboard';
+import { INVOICE_API_URL, FAKE_BUILDING_PERFORMANCE, FAKE_REVENUE_CHART_DATA, PENDING_INVOICES_API_URL, PROPERTY_API_URL, READING_API_URL, API_ENDPOINTS } from '../constants/dashboard';
+import { OwnerDashboardData, OverdueInvoiceAPIResponse, OverdueInvoiceListItem, ContractAPIResponse, AbnormalReadingAPIResponse, AbnormalReadingListItem } from '../types/dashboard';
+import { mapOverdueInvoiceAPIResponse, formatCurrencyInMillions, calculateRemainingDays } from '../utils/dashboard';
 
 // Hàm tính tổng tiền hóa đơn quá hạn
 const calculateTotalOverdueAmount = (overdueInvoices: OverdueInvoiceListItem[]): number => {
@@ -102,11 +102,6 @@ const fetchPendingInvoices = async (): Promise<import('../types/dashboard').Pend
             headers: getAuthHeaders(),
         });
 
-        if (!response.ok) {
-            console.warn('Failed to fetch pending invoices, using fake data');
-            return FAKE_PENDING_INVOICES;
-        }
-
         const data = await response.json();
         console.log('Fetched pending invoices:', data);
 
@@ -120,7 +115,90 @@ const fetchPendingInvoices = async (): Promise<import('../types/dashboard').Pend
         }));
     } catch (error) {
         console.error('Error fetching pending invoices:', error);
-        return FAKE_PENDING_INVOICES;
+        return [];
+    }
+};
+
+// Hàm fetch near expiry contracts từ API
+const fetchNearExpiryContracts = async (): Promise<import('../types/dashboard').NearExpiryContractListItem[]> => {
+    try {
+        const response = await fetch(`${PROPERTY_API_URL}/contracts/expiring`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+        });
+
+        const apiResponse = await response.json();
+        console.log('Fetched near expiry contracts:', apiResponse);
+
+        // Map API response to frontend format
+        return apiResponse.data.map((contract: ContractAPIResponse) => ({
+            id: contract.id.toString(),
+            tenantName: contract.tenantName,
+            houseName: contract.houseName,
+            roomNumber: contract.roomNumber,
+            endDate: new Date(contract.endDate).toLocaleDateString('vi-VN'),
+            remainingDays: calculateRemainingDays(contract.endDate),
+        }));
+    } catch (error) {
+        console.error('Error fetching near expiry contracts:', error);
+        return [];
+    }
+};
+
+// Hàm fetch abnormal readings từ API
+const fetchAbnormalReadings = async (): Promise<AbnormalReadingListItem[]> => {
+    try {
+        // Fetch electric abnormal readings
+        const electricResponse = await fetch(`${READING_API_URL}${API_ENDPOINTS.ABNORMAL_ELECTRIC}`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+        });
+
+        // Fetch water abnormal readings
+        const waterResponse = await fetch(`${READING_API_URL}${API_ENDPOINTS.ABNORMAL_WATER}`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+        });
+
+        const electricData: AbnormalReadingAPIResponse[] = await electricResponse.json();
+        const waterData: AbnormalReadingAPIResponse[] = await waterResponse.json();
+
+        console.log('Fetched abnormal electric readings:', electricData);
+        console.log('Fetched abnormal water readings:', waterData);
+
+        // Map API response to frontend format
+        const electricItems = electricData.map((item) => {
+            const increase = item.electricNew - item.electricOld;
+            const increasePercent = item.electricOld > 0 ? Math.round((increase / item.electricOld) * 100) : 0;
+            return {
+                id: item.id.toString(),
+                tenantName: item.tenantName || 'Unknown',
+                roomNumber: item.roomName || 'Unknown',
+                houseName: item.houseName || 'Unknown',
+                type: 'Electricity' as const,
+                increasePercent,
+                increaseAmount: increase,
+            };
+        });
+
+        const waterItems = waterData.map((item) => {
+            const increase = item.waterNew - item.waterOld;
+            const increasePercent = item.waterOld > 0 ? Math.round((increase / item.waterOld) * 100) : 0;
+            return {
+                id: item.id.toString(),
+                tenantName: item.tenantName || 'Unknown',
+                roomNumber: item.roomName || 'Unknown',
+                houseName: item.houseName || 'Unknown',
+                type: 'Water' as const,
+                increasePercent,
+                increaseAmount: increase,
+            };
+        });
+
+        return [...electricItems, ...waterItems];
+    } catch (error) {
+        console.error('Error fetching abnormal readings:', error);
+        return [];
     }
 };
 
@@ -147,14 +225,6 @@ export const fetchOwnerDashboardData = async (): Promise<OwnerDashboardData> => 
         // Fallback data sẽ được set bên dưới
     }
 
-    // Nếu không có data từ API, sử dụng fake data
-    if (overdueList.length === 0) {
-        overdueList = [
-            { id: 'I001', tenantName: 'Nguyễn Văn A', roomNumber: 'A101', amount: '5,500,000 ₫', dueDate: '2025-11-20', overdueDays: 13 },
-            { id: 'I002', tenantName: 'Lê Thị B', roomNumber: 'B205', amount: '3,300,000 ₫', dueDate: '2025-11-25', overdueDays: 8 },
-        ];
-    }
-
     // Tính tổng tiền quá hạn từ overdueList
     const calculatedOverdueAmount = calculateTotalOverdueAmount(overdueList);
 
@@ -167,6 +237,12 @@ export const fetchOwnerDashboardData = async (): Promise<OwnerDashboardData> => 
 
     console.log(`Total pending amount: ${calculatedPendingAmount} VND`);
 
+    // Fetch near expiry contracts
+    const nearExpiryList = await fetchNearExpiryContracts();
+
+    // Fetch abnormal readings
+    const abnormalReadingList = await fetchAbnormalReadings();
+
     return {
         // Dữ liệu Tổng quan
         totalRooms: totalRooms,
@@ -175,8 +251,8 @@ export const fetchOwnerDashboardData = async (): Promise<OwnerDashboardData> => 
         pendingIncidents: 7,
 
         // Cảnh báo Count
-        endContractsCount: FAKE_NEAR_EXPIRY_CONTRACTS.length,
-        abnormalReadingCount: FAKE_ABNORMAL_READINGS.length,
+        endContractsCount: nearExpiryList.length,
+        abnormalReadingCount: abnormalReadingList.length,
 
         // Tài chính
         invoiceSummary: {
@@ -193,10 +269,7 @@ export const fetchOwnerDashboardData = async (): Promise<OwnerDashboardData> => 
         // DỮ LIỆU CHI TIẾT CHO MODAL
         overdueDetails: overdueList,
         pendingDetails: pendingList,
-        abnormalReadingDetails: FAKE_ABNORMAL_READINGS.map(item => ({
-            ...item,
-            type: item.type as 'Electricity' | 'Water'
-        })),
-        nearExpiryContractDetails: FAKE_NEAR_EXPIRY_CONTRACTS,
+        abnormalReadingDetails: abnormalReadingList,
+        nearExpiryContractDetails: nearExpiryList,
     };
 };

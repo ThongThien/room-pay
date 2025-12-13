@@ -81,7 +81,7 @@ namespace PropertyService.Migrations
                     b.ToTable("Rooms");
                 });
 
-            modelBuilder.Entity("PropertyService.Models.TenantContract", b =>
+            modelBuilder.Entity("PropertyService.Models.TenantContracts", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -133,7 +133,7 @@ namespace PropertyService.Migrations
                     b.Navigation("House");
                 });
 
-            modelBuilder.Entity("PropertyService.Models.TenantContract", b =>
+            modelBuilder.Entity("PropertyService.Models.TenantContracts", b =>
                 {
                     b.HasOne("PropertyService.Models.Room", "Room")
                         .WithMany()

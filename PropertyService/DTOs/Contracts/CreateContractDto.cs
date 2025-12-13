@@ -10,7 +10,7 @@ namespace PropertyService.DTOs.Contracts
         public int RoomId { get; set; }
 
         [Required]
-        public string TenantId { get; set; }
+        public required string TenantId { get; set; }
 
         [Required]
         public DateOnly StartDate { get; set; }

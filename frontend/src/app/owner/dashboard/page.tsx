@@ -30,7 +30,10 @@ const OverdueInvoiceList: React.FC<{ data: OverdueInvoiceListItem[] }> = ({ data
                                 </span>
                             </div>
                             <div className="text-sm text-gray-700 font-medium">
-                                 {item.tenantName}
+                                {item.houseName} - {item.roomNumber}
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                Khách hàng: {item.tenantName}
                             </div>
                         </div>
                         <div className="text-right">
@@ -78,7 +81,10 @@ const PendingInvoiceList: React.FC<{ data: PendingInvoiceListItem[] }> = ({ data
                                 </span>
                             </div>
                             <div className="text-sm text-gray-700 font-medium">
-                                 {item.tenantName}
+                                {item.roomNumber}
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                 Khách hàng: {item.tenantName}
                             </div>
                         </div>
                         <div className="text-right">
@@ -107,54 +113,6 @@ const PendingInvoiceList: React.FC<{ data: PendingInvoiceListItem[] }> = ({ data
     </div>
 );
 
-const AbnormalReadingList: React.FC<{ data: AbnormalReadingListItem[] }> = ({ data }) => (
-    <div className="space-y-4">
-        {data.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-                <div className="text-4xl mb-2">📊</div>
-                <p>Không có chỉ số tiêu thụ bất thường</p>
-            </div>
-        ) : (
-            data.map((item) => (
-                <div key={item.id} className="bg-orange-50 border border-orange-200 rounded-lg p-4 hover:bg-orange-100 transition-all duration-200 hover:shadow-md">
-                    <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-lg font-bold text-gray-800">Phòng {item.roomNumber}</span>
-                                <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
-                                    {item.type}
-                                </span>
-                            </div>
-                            <div className="text-sm text-gray-700 font-medium">
-                                {item.houseName} - Khách: {item.tenantName}
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className="text-xs text-gray-500 mb-1">Tăng tiêu thụ</div>
-                            <div className="text-lg font-bold text-red-600">+{item.increasePercent}%</div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-orange-600">
-                            <span className="text-sm">⚠️</span>
-                            <span className="text-sm font-semibold">Tiêu thụ bất thường</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <button className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
-                                Kiểm tra
-                            </button>
-                            <button className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
-                                Liên hệ
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ))
-        )}
-    </div>
-);
-
 const NearExpiryContractList: React.FC<{ data: NearExpiryContractListItem[] }> = ({ data }) => (
     <div className="space-y-4">
         {data.length === 0 ? (
@@ -170,11 +128,14 @@ const NearExpiryContractList: React.FC<{ data: NearExpiryContractListItem[] }> =
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="text-lg font-bold text-gray-800">Phòng {item.roomNumber}</span>
                                 <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                                    HẾT HẠN SẮP
+                                    SẮP HẾT HẠN HỢP ĐỒNG
                                 </span>
                             </div>
                             <div className="text-sm text-gray-700 font-medium">
-                                {item.houseName} - Khách: {item.tenantName}
+                                {item.houseName}
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                Khách hàng: {item.tenantName}
                             </div>
                         </div>
                         <div className="text-right">
@@ -202,6 +163,56 @@ const NearExpiryContractList: React.FC<{ data: NearExpiryContractListItem[] }> =
         )}
     </div>
 );
+
+const AbnormalReadingList: React.FC<{ data: AbnormalReadingListItem[] }> = ({ data }) => (
+    <div className="space-y-4">
+        {data.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+                <div className="text-4xl mb-2">📊</div>
+                <p>Không có chỉ số tiêu thụ bất thường</p>
+            </div>
+        ) : (
+            data.map((item) => (
+                <div key={`${item.id}-${item.type}`} className="bg-orange-50 border border-orange-200 rounded-lg p-4 hover:bg-orange-100 transition-all duration-200 hover:shadow-md">
+                    <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-lg font-bold text-gray-800">Phòng {item.roomNumber}</span>
+                                <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
+                                    {item.type === 'Electricity' ? 'Điện' : 'Nước'}
+                                </span>
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                                {item.houseName} - Khách: {item.tenantName}
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-xs text-gray-500 mb-1">Mức tăng</div>
+                            <div className="text-lg font-bold text-red-600">+{item.increaseAmount} {item.type === 'Electricity' ? 'kWh điện' : 'm³ nước'}</div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-orange-600">
+                            <span className="text-sm">⚠️</span>
+                            <span className="text-sm font-semibold">Tiêu thụ bất thường</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
+                                Kiểm tra
+                            </button>
+                            <button className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
+                                Liên hệ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ))
+        )}
+    </div>
+);
+
+
 
 
 // --- COMPONENTS CHART (Đã Cập nhật) ---
@@ -571,7 +582,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`⛔ Hóa đơn Quá hạn TT (${data.overdueDetails.length} Hóa đơn)`}
                     value={data.invoiceSummary.overdueAmount}
-                    apiEndpoint="/api/v1/invoice/summary/overdue-amount"
                     color="red"
                     onClick={() => openModal('overdue')}
                     isClickable={data.overdueDetails.length > 0}
@@ -581,7 +591,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`⏳ Hóa đơn Chờ TT Tháng này (${data.pendingDetails.length} Hóa đơn)`}
                     value={data.invoiceSummary.currentUnpaidAmount}
-                    apiEndpoint="/api/v1/invoice/summary/current-pending"
                     color="yellow"
                     onClick={() => openModal('pending')}
                     isClickable={data.pendingDetails.length > 0}
@@ -591,7 +600,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title="🛠️ Sự cố Đang chờ xử lý"
                     value={`${data.pendingIncidents} Sự cố`}
-                    apiEndpoint="/api/v1/ticket/owner/summary"
                     color="red"
                     onClick={() => router.push('/owner/ticket')}
                     isClickable={true}
@@ -601,7 +609,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`📄 HĐ Thuê Sắp hết hạn (${data.endContractsCount} Hợp đồng) - 30 ngày`}
                     value={`${data.endContractsCount} Phòng`}
-                    apiEndpoint="/api/v1/contract/warning/ending-count"
                     color="red"
                     onClick={() => openModal('contract')}
                     isClickable={data.endContractsCount > 0}
@@ -611,7 +618,6 @@ const OwnerDashboardPage: React.FC = () => {
                 <DashboardCard
                     title={`⚡ Tiêu thụ Điện/Nước Bất thường (${data.abnormalReadingCount})`}
                     value={`${data.abnormalReadingCount} Chỉ số`}
-                    apiEndpoint="/api/v1/utility-reading/warning/abnormal-count"
                     color="yellow"
                     onClick={() => openModal('abnormal')}
                     isClickable={data.abnormalReadingCount > 0}

@@ -16,7 +16,15 @@ export interface Invoice {
     invoiceDate: string;
     dueDate: string;
     totalAmount: number;
-    status: "Paid" | "Unpaid" | string; 
+    status: "Paid" | "Unpaid" | string;
     paidDate?: string;
     items: InvoiceItem[];
+}
+
+export interface InvoiceApiParams {
+    page: number;
+    pageSize: number;
+    status?: string;
+    year?: number;
+    month?: number;
 }

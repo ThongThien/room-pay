@@ -1,0 +1,67 @@
+name: Notification Service CI/CD
+
+on:
+  push:
+    branches: 
+      - main
+    paths:
+      - 'NotificationService/**'
+      - '.github/workflows/notification-cicd.yaml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-southeast-1 # Change to your AWS region
+  ECR_REPOSITORY: intern2025 # Change to your ECR repository name
+  IMAGE_NAME: notification-service
+  DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: true # Apply globally for all steps
+
+jobs:
+  main:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: NotificationService
+    steps:
+      - uses: actions/checkout@v4
+        with: 
+          fetch-depth: '0'
+      
+      - name: Generate version tag
+        id: version
+        run: echo "IMAGE_TAG=$(date +'%Y.%m.%d.%Hh%Mm%Ss')" >> $GITHUB_OUTPUT
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install dependencies
+        run: dotnet restore --locked-mode
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Publish
+        run: dotnet publish --no-build -c Release -o app/publish
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.version.outputs.IMAGE_TAG }}
+        working-directory: NotificationService
+        run: |
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest

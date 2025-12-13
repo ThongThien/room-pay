@@ -11,6 +11,8 @@ using Quartz;
 using InvoiceService.Jobs;
 using System.Text;
 using InvoiceService.Services;
+using Quartz;
+using InvoiceService.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +63,20 @@ builder.Services.AddHttpClient<IPropertyService, PropertyServiceClientImpl>();
 builder.Services.AddSingleton<InvoiceService.Services.PaymentWebSocketHandler>();
 builder.Services.AddScoped<IInvoiceReminderService, InvoiceReminderService>();
 builder.Services.AddScoped<IMessageProducer,RabbitMQProducer>();
+
+// Configure Quartz for scheduled jobs
+builder.Services.AddQuartz(q =>
+{
+    var jobKey = new JobKey("InvoiceVisibilityJob");
+    q.AddJob<InvoiceVisibilityJob>(opts => opts.WithIdentity(jobKey));
+
+    q.AddTrigger(opts => opts
+        .ForJob(jobKey)
+        .WithIdentity("InvoiceVisibilityTrigger")
+        .WithCronSchedule("0 0 3 25 * ?")); // Chạy vào ngày 25 hàng tháng lúc 3 giờ 00:00
+});
+
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

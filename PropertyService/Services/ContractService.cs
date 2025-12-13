@@ -175,7 +175,7 @@ public class ContractService : IContractService
             {
                 Id = c.Id,
                 RoomId = c.RoomId,
-                TenantId = Guid.Parse(c.TenantId),
+                TenantId = c.TenantId,
                 StartDate = c.StartDate,
                 EndDate = c.EndDate,
                 Price = c.Price,
@@ -238,7 +238,7 @@ public class ContractService : IContractService
     }
     // PropertyService/Services/Implementations/ContractService.cs
 
-    public async Task<ContractDto?> GetActiveContractByTenantIdAsync(Guid tenantId)
+    public async Task<ContractDto?> GetActiveContractByTenantIdAsync(string tenantId)
     {
         string tenantIdString = tenantId.ToString();
         // Lấy ngày hiện tại dưới dạng DateOnly
@@ -256,7 +256,7 @@ public class ContractService : IContractService
             {
                 Id = c.Id,
                 RoomId = c.RoomId,
-                TenantId = Guid.Parse(c.TenantId),
+                TenantId = c.TenantId,
                 StartDate = c.StartDate,
                 EndDate = c.EndDate,
                 Price = c.Price,
@@ -310,7 +310,7 @@ public class ContractService : IContractService
         {
             Id = c.Id,
             RoomId = c.RoomId,
-            TenantId = Guid.TryParse(c.TenantId, out var tenantGuid) ? tenantGuid : Guid.Empty,
+            TenantId = c.TenantId,
             TenantName = tenantDict.TryGetValue(c.TenantId, out var name) ? name : "Unknown",
             StartDate = c.StartDate,
             EndDate = c.EndDate,

@@ -62,27 +62,28 @@ public class PropertyController : ControllerBase
     {
         //  LƯU Ý BẢO MẬT: Bạn nên thêm cơ chế kiểm tra API Key/Header Service-to-Service tại đây.
         
-        if (!Guid.TryParse(userId, out var tenantId)) 
+        // Validate userId - allow custom formats, not just GUID
+        if (string.IsNullOrWhiteSpace(userId))
         {
-             _logger.LogWarning("Invalid User ID format received: {UserId}", userId);
-             return BadRequest("Invalid User ID format.");
+             _logger.LogWarning("Empty User ID received");
+             return BadRequest("User ID cannot be empty.");
         }
         
         try
         {
             // 1. Gọi hàm Service đã có
             // Lưu ý: Hàm này trả về ContractDto. Ta chỉ lấy Id.
-            var contract = await _contractService.GetActiveContractByTenantIdAsync(tenantId);
+            var contract = await _contractService.GetActiveContractByTenantIdAsync(userId);
             
             if (contract == null) 
             {
-                 _logger.LogInformation("No active contract found for user ID: {TenantId}", tenantId);
+                 _logger.LogInformation("No active contract found for user ID: {UserId}", userId);
                 // Trả về 204 No Content nếu không tìm thấy
                 return NoContent(); 
             }
             
             // 2. Trả về Contract ID đơn thuần (int)
-            _logger.LogInformation("Active Contract ID found: {ContractId} for user ID: {TenantId}", contract.Id, tenantId);
+            _logger.LogInformation("Active Contract ID found: {ContractId} for user ID: {UserId}", contract.Id, userId);
             return Ok(contract.Id); 
         }
         catch (Exception ex)

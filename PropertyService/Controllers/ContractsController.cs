@@ -143,7 +143,7 @@ namespace PropertyService.Controllers
                 else if (IsUserInRole("Tenant"))
                 {
                     
-                if (contract.TenantId != currentUserId) 
+                if (contract.TenantId != currentUserId.ToString()) 
                     {
                         return StatusCode(403, new { success = false, message = "Access denied: This is not your contract." });
                     }

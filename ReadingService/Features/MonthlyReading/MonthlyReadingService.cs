@@ -6,7 +6,6 @@ using ReadingService.Features.MonthlyReading.DTOs;
 using ReadingService.Features.ReadingCycle; 
 using ReadingService.Features.Property; 
 using ReadingService.Features.Property.DTOs;
-using ReadingService.Services;
 using System.Linq;
 
 namespace ReadingService.Features.MonthlyReading;
@@ -172,8 +171,7 @@ public class MonthlyReadingService : IMonthlyReadingService
             
             try
             {
-                // BƯỚC 1: Gọi User Service để lấy danh sách Tenant IDs thuộc Owner này
-                //  ĐÃ SỬA: Phải dùng tên hàm GetTenantIdsByOwnerIdAsync nếu đây là hàm bạn muốn dùng 
+                // Gọi User Service để lấy danh sách Tenant IDs thuộc Owner này
                 var tenantUserIds = await _userService.GetTenantIdsByOwnerAsync(userId); 
                 
                 if (!tenantUserIds.Any())
@@ -446,8 +444,8 @@ public class MonthlyReadingService : IMonthlyReadingService
                 });
             }
 
-            // --- Logic tạo Invoice (Giữ nguyên) ---
-            if (electricUsage > 0 || waterUsage > 0)
+            // --- Logic tạo Invoice ---
+            if (reading.Status != ReadingStatus.AutoInvoiced && (electricUsage > 0 || waterUsage > 0))
             {
                 var contractIdForInvoice = reading.TenantContractId;
                 
@@ -588,5 +586,78 @@ public class MonthlyReadingService : IMonthlyReadingService
             Status = newReading.Status.ToString(),
             CreatedAt = newReading.CreatedAt
         }; 
+    }
+
+    public async Task TriggerAutoInvoicesAsync(string ownerId)
+    {
+        var currentMonth = DateTime.Now.Month;
+        var currentYear = DateTime.Now.Year;
+
+        _logger.LogInformation("Manually triggering auto invoices for {Month}/{Year} by owner {OwnerId}", currentMonth, currentYear, ownerId);
+
+        // Get tenant IDs for this owner
+        var tenantIds = await _userService.GetTenantIdsByOwnerAsync(ownerId);
+        if (tenantIds == null || !tenantIds.Any())
+        {
+            _logger.LogInformation("No tenants found for owner {OwnerId}", ownerId);
+            return;
+        }
+
+        var readings = await _context.MonthlyReadings
+            .Include(r => r.ReadingCycle)
+            .Where(r => r.Status != ReadingStatus.Confirmed &&
+                        r.Status != ReadingStatus.AutoInvoiced &&
+                        r.ReadingCycle.CycleMonth == currentMonth &&
+                        r.ReadingCycle.CycleYear == currentYear &&
+                        tenantIds.Contains(r.ReadingCycle.UserId))
+            .ToListAsync();
+
+        _logger.LogInformation("Found {Count} readings to process for auto invoices", readings.Count);
+
+        foreach (var reading in readings)
+        {
+            try
+            {
+                var tenantUserId = reading.ReadingCycle?.UserId;
+                if (string.IsNullOrEmpty(tenantUserId))
+                {
+                    _logger.LogWarning("Skipping auto invoice for reading {ReadingId}: UserId is null", reading.Id);
+                    continue;
+                }
+
+                if (reading.TenantContractId == null)
+                {
+                    _logger.LogWarning("Skipping auto invoice for reading {ReadingId}: TenantContractId is null", reading.Id);
+                    continue;
+                }
+
+                var success = await _invoiceHttpClient.CreateInvoiceForMonthlyReadingAsync(
+                    tenantUserId,
+                    reading.CycleId,
+                    currentMonth,
+                    currentYear,
+                    0, // electricUsage
+                    0, // waterUsage
+                    reading.TenantContractId
+                );
+
+                if (success)
+                {
+                    _logger.LogInformation("Auto invoice created for user {UserId}, cycle {CycleId}", tenantUserId, reading.CycleId);
+
+                    // Đánh dấu đã tạo auto invoice
+                    reading.Status = ReadingStatus.AutoInvoiced;
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to create auto invoice for user {UserId}, cycle {CycleId}", tenantUserId, reading.CycleId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating auto invoice for cycle {CycleId}", reading.CycleId);
+            }
+        }
     }
 }

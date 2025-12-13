@@ -9,4 +9,6 @@ public interface IUserService
 
     Task<string?> GetEmailByUserIdAsync(string userId);
 
+    Task<List<string>> GetAllOwnerIdsAsync();
+
 }

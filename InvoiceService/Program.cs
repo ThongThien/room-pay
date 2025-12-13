@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using InvoiceService.Repositories.Interfaces; 
 using InvoiceService.Repositories.Implementations;
 using InvoiceService.Features.Property;
+using Quartz;
+using InvoiceService.Jobs;
 using System.Text;
 using InvoiceService.Services;
 using Quartz;
@@ -84,6 +86,33 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "API for managing invoices with tenant-based payment tracking"
     });
+});
+// ⭐️ CẤU HÌNH QUARTZ cho Invoice Service
+builder.Services.AddQuartz(q =>
+{
+    q.UseMicrosoftDependencyInjectionJobFactory();
+
+    // 1. Đăng ký Job Child: Payment Reminder
+    var paymentJobKey = new JobKey("PaymentReminderJob");
+    q.AddJob<PaymentReminderJob>(j => j.WithIdentity(paymentJobKey).StoreDurably());
+
+    // 2. Đăng ký Job Master: Invoice Reminder Scheduler
+    var masterJobKey = new JobKey("InvoiceReminderSchedulerJob");
+    q.AddJob<InvoiceReminderSchedulerJob>(j => j.WithIdentity(masterJobKey));
+
+    // 3. Lên lịch cho Job Master (Chạy mỗi phút để quét Owners và lên lịch lại)
+    q.AddTrigger(t => t
+        .ForJob(masterJobKey)
+        .WithIdentity("InvoiceReminderSchedulerTrigger")
+        .WithCronSchedule("0 0/1 * * * ?") // Chạy mỗi phút (hoặc theo lịch bạn muốn Master Job chạy)
+        .StartAt(DateTimeOffset.UtcNow.AddSeconds(10)) 
+    );
+});
+
+// ⭐️ THÊM HOSTED SERVICE QUARTZ
+builder.Services.AddQuartzHostedService(options =>
+{
+    options.WaitForJobsToComplete = true; // Đợi Job hoàn thành khi Shutdown
 });
 
 // Add Cors

@@ -352,4 +352,39 @@ public class UsersController : ControllerBase
         // Trả về Owner ID dưới dạng string thuần
         return Ok(tenant.OwnerId); 
     }
+
+    [HttpGet("owners")] 
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(List<string>), 200)]
+    public async Task<IActionResult> GetAllOwnerIds()
+    {
+        // 1. Validate service API key
+        var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+        var configuredApiKey = _configuration["ServiceApiKey"];
+        
+        if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+        {
+            _logger.LogWarning("Invalid or missing API key for GetAllOwnerIds");
+            return Unauthorized(new { error = "Invalid or missing authentication" });
+        }
+
+        try
+        {
+            // 2. Sử dụng UserManager để lấy tất cả người dùng thuộc vai trò 'Owner'
+            var owners = await _userManager.GetUsersInRoleAsync("Owner");
+
+            // 3. Chọn ra chỉ Id và trả về
+            var ownerIds = owners.Select(u => u.Id).ToList();
+            
+            _logger.LogInformation("Successfully retrieved {Count} Owner IDs.", ownerIds.Count);
+
+            // Trả về danh sách IDs (List<string>)
+            return Ok(ownerIds); 
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all Owner IDs.");
+            return StatusCode(500, new { error = "Internal server error when fetching Owner IDs" });
+        }
+    }
 }

@@ -36,11 +36,11 @@ export interface NearExpiryContractListItem {
     remainingDays: number;
 }
 
-export interface RevenueDataPoint {
-    month: string;
-    paidAmount: number; // Đã thanh toán (Triệu)
-    pendingAmount: number; // Chờ thanh toán (chưa quá hạn - Triệu)
-    overdueAmount: number; // Quá hạn (Overdue - Triệu)
+export interface MonthlyRevenueDataPoint {
+    monthYear: string;     
+    paidAmount: number;
+    pendingAmount: number;
+    overdueAmount: number;
 }
 
 export interface BuildingPerformance {
@@ -51,6 +51,7 @@ export interface BuildingPerformance {
     occupiedRooms: number;
     occupancyRate: string;
     currentMonthRevenue: string; // Chuỗi tiền tệ
+    rawRevenue: number;
 }
 
 export interface OwnerDashboardData {
@@ -73,7 +74,7 @@ export interface OwnerDashboardData {
     };
 
     // Dữ liệu Chart và Bảng
-    revenueChartData: RevenueDataPoint[];
+    revenueChartData: MonthlyRevenueDataPoint[];
     buildingPerformanceData: BuildingPerformance[];
 
     // Thêm các trường details để Modal truy cập
@@ -126,7 +127,7 @@ export interface DashboardCardProps {
 }
 
 export interface RevenueChartProps {
-    data: OwnerDashboardData['revenueChartData'];
+    data: MonthlyRevenueDataPoint[];
     annualTurnover: string;
 }
 

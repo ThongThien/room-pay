@@ -25,7 +25,7 @@ ChartJS.register(
 
 const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
     const chartData = {
-        labels: data.map(item => item.month),
+        labels: data.map(item => item.monthYear),
         datasets: [
             {
                 label: 'Số tiền đã thanh toán',

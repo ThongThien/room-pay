@@ -21,6 +21,7 @@ appsettings.*.json
 .env
 .env.local
 .env.*.local
+# docker-compose.yaml
 
 # Build output
 bin/

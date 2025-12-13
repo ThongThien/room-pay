@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, DashboardCard } from '@/components/dashboard';
 import { OwnerDashboardData, OverdueInvoiceListItem, PendingInvoiceListItem, AbnormalReadingListItem, NearExpiryContractListItem, BuildingPerformance } from '@/types/dashboard';
-import { parseRevenueToNumber } from '@/utils/dashboard';
 import { fetchOwnerDashboardData } from '@/services/dashboardService';
 
 // Lazy load chart components để cải thiện performance
@@ -321,24 +320,25 @@ const RoomOccupancyByBuildingPieChart: React.FC<{ data: BuildingPerformance[]; t
                 </div>
             </div>
 
-            <div className="mt-4 text-xs text-gray-400 text-right">API: /api/v1/property/summary/rooms-occupancy-by-house</div>
         </div>
     );
 };
 
-// NEW: Biểu đồ Phân bổ Doanh thu Theo Tòa Nhà
+// Biểu đồ Phân bổ Doanh thu Theo Tòa Nhà
 const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ data }) => {
-    // Tính toán tổng doanh thu và chuẩn bị dữ liệu cho biểu đồ
     const revenueSegments = useMemo(() => {
         const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6']; // Emerald, Blue, Amber, Pink, Purple
+        
+        // Dùng rawRevenue thay vì parse chuỗi
         const segments = data.map(item => ({
             ...item,
-            revenueValue: parseRevenueToNumber(item.currentMonthRevenue),
+            revenueValue: item.rawRevenue || 0, 
         }));
 
         const totalRevenue = segments.reduce((sum, item) => sum + item.revenueValue, 0);
 
         return segments.reduce((acc, item, index) => {
+            // Nếu tổng = 0 thì gán 0 để tránh lỗi NaN
             const proportion = totalRevenue > 0 ? item.revenueValue / totalRevenue : 0;
             const angle = proportion * 360;
             const startAngle = acc.length > 0 ? acc[acc.length - 1].startAngle + acc[acc.length - 1].angle : 0;
@@ -349,7 +349,8 @@ const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ 
                 angle,
                 startAngle,
                 color: colors[index % colors.length],
-                formattedRevenue: item.currentMonthRevenue,
+                // Giữ nguyên chuỗi hiển thị cho tooltip/legend
+                formattedRevenue: item.currentMonthRevenue, 
             });
 
             return acc;
@@ -365,7 +366,9 @@ const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ 
 
     const totalRevenueDisplay = useMemo(() => {
         const total = revenueSegments.reduce((sum, item) => sum + item.revenueValue, 0);
-        return `${total.toFixed(1)} T.VNĐ`;
+        // Format tổng tiền (Triệu VNĐ)
+        const totalInMillions = total / 1000000;
+        return `${totalInMillions.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} T.VNĐ`;
     }, [revenueSegments]);
 
     return (
@@ -374,42 +377,46 @@ const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ 
 
             <div className="flex flex-col sm:flex-row items-center justify-start h-full">
 
-                {/* Chart: Dùng SVG để vẽ Pie Chart */}
+                {/* Chart */}
                 <div className="w-40 h-40 shrink-0 relative mb-4 sm:mb-0">
                     <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                        {revenueSegments.map((segment) => {
-                            const radius = 50;
-                            const largeArcFlag = segment.angle > 180 ? 1 : 0;
-                            const endX = radius + radius * Math.cos((segment.startAngle + segment.angle) * Math.PI / 180);
-                            const endY = radius + radius * Math.sin((segment.startAngle + segment.angle) * Math.PI / 180);
-                            const startX = radius + radius * Math.cos(segment.startAngle * Math.PI / 180);
-                            const startY = radius + radius * Math.sin(segment.startAngle * Math.PI / 180);
+                        {/* Xử lý trường hợp không có doanh thu */}
+                        {revenueSegments.length === 0 || revenueSegments.every(s => s.revenueValue === 0) ? (
+                             <circle cx="50" cy="50" r="50" fill="#E5E7EB" /> // Vòng tròn xám nếu 0 tiền
+                        ) : (
+                            revenueSegments.map((segment) => {
+                                const radius = 50;
+                                const largeArcFlag = segment.angle > 180 ? 1 : 0;
+                                const endX = radius + radius * Math.cos((segment.startAngle + segment.angle) * Math.PI / 180);
+                                const endY = radius + radius * Math.sin((segment.startAngle + segment.angle) * Math.PI / 180);
+                                const startX = radius + radius * Math.cos(segment.startAngle * Math.PI / 180);
+                                const startY = radius + radius * Math.sin(segment.startAngle * Math.PI / 180);
 
-                            const d = [
-                                `M ${radius} ${radius}`,
-                                `L ${startX} ${startY}`,
-                                `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}`,
-                                `Z`
-                            ].join(' ');
+                                // Logic vẽ SVG Arc
+                                const d = Math.abs(segment.angle - 360) < 0.01 
+                                    ? `M ${radius} ${radius} m -${radius}, 0 a ${radius},${radius} 0 1,0 ${radius * 2},0 a ${radius},${radius} 0 1,0 -${radius * 2},0` // Full circle
+                                    : [
+                                        `M ${radius} ${radius}`,
+                                        `L ${startX} ${startY}`,
+                                        `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}`,
+                                        `Z`
+                                    ].join(' ');
 
-                            return (
-                                <g key={segment.buildingId}>
-                                    <title>{`${segment.buildingName}: ${segment.formattedRevenue} (${(segment.proportion * 100).toFixed(1)}%)`}</title>
-                                    <path
-                                        d={d}
-                                        fill={segment.color}
-                                        className="hover:opacity-90 transition-opacity"
-                                    />
-                                </g>
-                            );
-                        })}
+                                return (
+                                    <g key={segment.buildingId}>
+                                        <title>{`${segment.buildingName}: ${segment.formattedRevenue} (${(segment.proportion * 100).toFixed(1)}%)`}</title>
+                                        <path d={d} fill={segment.color} className="hover:opacity-90 transition-opacity" />
+                                    </g>
+                                );
+                            })
+                        )}
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-green-700">
                         {totalRevenueDisplay}
                     </div>
                 </div>
 
-                {/* Details: Dùng để show chi tiết từng nhà */}
+                {/* Details */}
                 <div className="ml-0 sm:ml-6 space-y-3 text-sm flex-1 w-full sm:w-auto">
                     {revenueSegments.map((item) => (
                         <div key={item.buildingId} className="p-2 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
@@ -434,8 +441,6 @@ const RevenueByBuildingPieChart: React.FC<{ data: BuildingPerformance[] }> = ({ 
                     ))}
                 </div>
             </div>
-
-            <div className="mt-4 text-xs text-gray-400 text-right">API: /api/v1/finance/summary/revenue-by-house</div>
         </div>
     );
 };

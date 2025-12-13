@@ -22,5 +22,6 @@ namespace InvoiceService.Repositories.Interfaces
         // Task<Invoice?> GetOverdueInvoiceDetailsAsync(int id); // Lấy chi tiết hóa đơn quá hạn
 
         Task<List<Invoice>> GetUnpaidInvoicesByUserIdAsync(string userId);
+        Task<List<Invoice>> GetInvoicesForReportAsync(DateTime startDate);
     }
 }

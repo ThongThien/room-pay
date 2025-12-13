@@ -554,4 +554,86 @@ public class InvoiceServiceImpl : IInvoiceService
             return new List<PendingInvoiceDto>();
         }
     }
+
+public async Task<List<MonthlyRevenueDataPoint>> GetMonthlyRevenueReportAsync(string ownerId, int lastMonths = 6)
+    {
+        var now = DateTime.UtcNow;
+        
+        // 1. Tính toán khoảng thời gian (6 tháng gần nhất)
+        var startDate = now.AddMonths(-lastMonths + 1); 
+        startDate = new DateTime(startDate.Year, startDate.Month, 1); 
+
+        // 2. LẤY DANH SÁCH USER IDs VÀ LỌC HÓA ĐƠN
+        
+        // 2a. Gọi AA Service để lấy tất cả User IDs (Tenants) thuộc về Owner này
+        var tenantIds = await _userServiceClient.GetUserIdsByOwnerAsync(ownerId);
+        
+        if (tenantIds == null || !tenantIds.Any())
+        {
+            _logger.LogWarning("No tenant IDs found for owner {OwnerId}. Returning empty report.", ownerId);
+            return new List<MonthlyRevenueDataPoint>();
+        }
+
+        // 2b. Lấy dữ liệu thô từ Repository (đã cập nhật để không cần lọc OwnerId trong Repository)
+        var allInvoices = await _invoiceRepo.GetInvoicesForReportAsync(startDate);
+
+        // 2c. Lọc hóa đơn theo danh sách Tenant IDs
+        var filteredInvoices = allInvoices.Where(i => tenantIds.Contains(i.UserId)).ToList();
+
+
+        // 3. Chuẩn bị danh sách tháng (cho 6 tháng)
+        var monthsToInclude = Enumerable.Range(0, lastMonths)
+            .Select(i => now.AddMonths(-i))
+            .Select(d => new { Month = d.Month, Year = d.Year })
+            .Distinct()
+            .ToList();
+
+
+        // --- A. TÍNH TOÁN ĐÃ THANH TOÁN (Group by PaidDate) ---
+        var paidData = filteredInvoices // ⭐️ Dùng filteredInvoices
+            .Where(i => i.Status == InvoiceStatus.Paid.ToString() && i.PaidDate.HasValue)
+            .GroupBy(i => new { Month = i.PaidDate.Value.Month, Year = i.PaidDate.Value.Year })
+            .ToDictionary(g => new { g.Key.Month, g.Key.Year }, 
+                          g => g.Sum(i => i.TotalAmount)); // ⭐️ Khắc phục lỗi CS1061
+
+        // --- B. TÍNH TOÁN ĐANG CHỜ THANH TOÁN (Group by InvoiceDate, chưa quá hạn) ---
+        var pendingData = filteredInvoices // ⭐️ Dùng filteredInvoices
+            .Where(i => i.Status == InvoiceStatus.Unpaid.ToString() && i.DueDate >= now)
+            .GroupBy(i => new { Month = i.InvoiceDate.Month, Year = i.InvoiceDate.Year })
+            .ToDictionary(g => new { g.Key.Month, g.Key.Year }, 
+                          g => g.Sum(i => i.TotalAmount)); // ⭐️ Khắc phục lỗi CS1061
+        
+        // --- C. TÍNH TOÁN QUÁ HẠN (Group by DueDate - loại bỏ tháng hiện tại) ---
+        var overdueData = filteredInvoices // ⭐️ Dùng filteredInvoices
+            .Where(i => i.Status == InvoiceStatus.Unpaid.ToString() && i.DueDate < now)
+            .GroupBy(i => new { Month = i.DueDate.Month, Year = i.DueDate.Year })
+            .Where(g => g.Key.Month != now.Month || g.Key.Year != now.Year) 
+            .ToDictionary(g => new { g.Key.Month, g.Key.Year }, 
+                          g => g.Sum(i => i.TotalAmount)); // ⭐️ Khắc phục lỗi CS1061
+
+        // --- 4. HỢP NHẤT DỮ LIỆU ---
+        var finalReport = new List<MonthlyRevenueDataPoint>();
+        
+        // ... (Code hợp nhất dữ liệu giữ nguyên) ...
+        var allKeys = paidData.Keys.Union(pendingData.Keys).Union(overdueData.Keys)
+                                .Distinct()
+                                .OrderBy(k => k.Year).ThenBy(k => k.Month);
+        
+        foreach (var key in allKeys)
+        {
+            // Tránh thêm các tháng ngoài phạm vi 6 tháng nếu chúng xuất hiện do PaidDate/DueDate quá xa
+            if (new DateTime(key.Year, key.Month, 1) < startDate.AddMonths(-1)) continue; 
+
+            finalReport.Add(new MonthlyRevenueDataPoint
+            {
+                MonthYear = $"{key.Month:00}/{key.Year % 100}",
+                PaidAmount = paidData.GetValueOrDefault(key, 0),
+                PendingAmount = pendingData.GetValueOrDefault(key, 0),
+                OverdueAmount = overdueData.GetValueOrDefault(key, 0)
+            });
+        }
+        
+        // Đảm bảo trả về đúng 6 tháng, sắp xếp lại theo thứ tự thời gian tăng dần
+        return finalReport.OrderBy(d => d.MonthYear).ToList();
+    }
 }

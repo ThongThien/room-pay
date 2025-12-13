@@ -169,6 +169,7 @@ public class InvoiceServiceImpl : IInvoiceService
             TenantContractId = invoice.TenantContractId,
             InvoiceDate = invoice.InvoiceDate,
             DueDate = invoice.DueDate,
+            DisplayStatus = invoice.DisplayStatus,
             TotalAmount = invoice.TotalAmount,
             Status = invoice.Status,
             PaidDate = invoice.PaidDate,
@@ -452,7 +453,8 @@ public class InvoiceServiceImpl : IInvoiceService
             var unpaidInvoicesQuery = _invoiceRepo.Query()
                 .Where(i => i.UserId == tenantIdString) 
                 // Chỉ lọc theo trạng thái Unpaid (như trong DB)
-                .Where(i => i.Status == unpaidStatus); 
+                .Where(i => i.Status == unpaidStatus)
+                .Where(i => i.DisplayStatus == "Visible"); // Chỉ lấy hóa đơn có DisplayStatus là Visible 
 
             // 2. Calculate total unpaid amount (Server-side)
             decimal totalAmount = await unpaidInvoicesQuery.SumAsync(i => i.TotalAmount);

@@ -7,6 +7,7 @@ public class InvoiceResponse
     public string UserName { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
     public DateTime DueDate { get; set; }
+    public string DisplayStatus { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime? PaidDate { get; set; }

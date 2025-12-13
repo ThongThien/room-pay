@@ -15,6 +15,7 @@ export interface Invoice {
     roomName?: string;
     invoiceDate: string;
     dueDate: string;
+    displayStatus: string; // Thêm trường displayStatus
     totalAmount: number;
     status: "Paid" | "Unpaid" | string;
     paidDate?: string;

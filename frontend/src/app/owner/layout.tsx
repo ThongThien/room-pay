@@ -5,20 +5,19 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import RoleGuard from '@/components/auth/RoleGuard'
 import NotificationDropdown from "@/components/noti/NotificationDropdown"
+import ConfirmModal from "@/components/common/ConfirmModal"
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const router = useRouter()
 
-  const handleLogout = () => {
-    const isConfirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất không?");
-
-    if (!isConfirmed) return;
-    // Xóa toàn bộ thông tin đăng nhập
+  const performLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.clear()
     }
     router.push('/public/login')
+    setShowLogoutModal(false)
   }
 
   //Lấy tên user từ localStorage để hiển thị 
@@ -64,7 +63,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             </Link>
 
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutModal(true)}
               className="w-full text-left p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"
             >
               {isSidebarOpen && 'Đăng xuất'}
@@ -109,6 +108,15 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             {children}
           </main>
         </div>
+        <ConfirmModal 
+            isOpen={showLogoutModal}
+            onClose={() => setShowLogoutModal(false)}
+            onConfirm={performLogout}
+            title="Đăng xuất"
+            message="Bạn có chắc chắn muốn đăng xuất không?"
+            confirmText="Đăng xuất"
+            cancelText="Không"
+        />
       </div>
     </RoleGuard>
   )

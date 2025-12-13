@@ -119,10 +119,6 @@ export default function OwnerInvoicesPage() {
         }
     }
 
-    const handleRemindSingle = (id: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        alert(`Tính năng nhắc lẻ đang phát triển`);
-    };
 
     return (
         <div className="space-y-6 p-6 bg-gray-50 min-h-screen text-gray-800">
@@ -157,7 +153,6 @@ export default function OwnerInvoicesPage() {
                 invoices={filteredInvoices} 
                 loading={loading} 
                 onSelectInvoice={setSelectedInvoice} 
-                onRemindSingle={handleRemindSingle} 
             />
 
             <InvoicePagination
@@ -179,7 +174,7 @@ export default function OwnerInvoicesPage() {
                 onClose={() => !isRemindingAll && setShowConfirmModal(false)} // Không cho đóng khi đang loading
                 onConfirm={executeRemindAll}
                 title="Xác nhận nhắc thanh toán"
-                message={`Gửi email nhắc nhở thanh toán đến ${countRemindable} khách thuê?`}
+                message={`Gửi nhắc nhở thanh toán đến ${countRemindable} khách thuê?`}
                 isLoading={isRemindingAll}
                 confirmText="Gửi thông báo"
                 cancelText="Quay lại"

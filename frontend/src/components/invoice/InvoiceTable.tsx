@@ -6,10 +6,9 @@ interface InvoiceTableProps {
     invoices: Invoice[];
     loading: boolean;
     onSelectInvoice: (invoice: Invoice) => void;
-    onRemindSingle: (id: number, e: React.MouseEvent) => void;
 }
 
-export default function InvoiceTable({ invoices, loading, onSelectInvoice, onRemindSingle }: InvoiceTableProps) {
+export default function InvoiceTable({ invoices, loading, onSelectInvoice }: InvoiceTableProps) {
     
     // Helpers format
     const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -62,12 +61,7 @@ export default function InvoiceTable({ invoices, loading, onSelectInvoice, onRem
                                 <td className="p-4 text-center">{getStatusBadge(inv.status)}</td>
                                 <td className="p-4 text-center">
                                     {inv.status !== "Paid" ? (
-                                        <button
-                                            onClick={(e) => onRemindSingle(inv.id, e)}
-                                            className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-blue-700 transition shadow-sm whitespace-nowrap"
-                                        >
-                                            Nhắc thanh toán
-                                        </button>
+                                        <span className="text-xs text-gray-400 italic">-</span>
                                     ) : (
                                         <span className="text-xs text-gray-400 italic">Hoàn tất</span>
                                     )}

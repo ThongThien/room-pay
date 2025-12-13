@@ -44,7 +44,7 @@ namespace PropertyService.Controllers
             }
             
             // 1. Gọi Service để lấy Hợp đồng đang hoạt động
-            var contract = await _contractService.GetActiveContractByTenantIdAsync(tenantId);
+            var contract = await _contractService.GetActiveContractByTenantIdAsync(tenantId.ToString());
 
             if (contract == null)
             {

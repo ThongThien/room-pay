@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ReadingService.Data;
 using ReadingService.Services;
@@ -7,12 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
+using Quartz;
 
 namespace ReadingService.Jobs;
 
-public class AutoInvoiceJob : BackgroundService
+public class AutoInvoiceJob : IJob
 {
     private readonly ILogger<AutoInvoiceJob> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -25,24 +24,15 @@ public class AutoInvoiceJob : BackgroundService
         _invoiceHttpClient = invoiceHttpClient;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task Execute(IJobExecutionContext context)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
-            {
-                await ProcessAutoInvoicesAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in AutoInvoiceJob");
-            }
-
-            // Chạy hàng ngày lúc 0h
-            var now = DateTime.Now;
-            var nextRun = now.Date.AddDays(1);
-            var delay = nextRun - now;
-            await Task.Delay(delay, stoppingToken);
+            await ProcessAutoInvoicesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in AutoInvoiceJob");
         }
     }
 
@@ -53,9 +43,6 @@ public class AutoInvoiceJob : BackgroundService
 
         var currentMonth = DateTime.Now.Month;
         var currentYear = DateTime.Now.Year;
-        var currentDay = DateTime.Now.Day;
-
-        if (currentDay < 25) return; // Chỉ chạy từ ngày 25 trở đi
 
         _logger.LogInformation("Processing auto invoices for {Month}/{Year}", currentMonth, currentYear);
 
@@ -73,12 +60,13 @@ public class AutoInvoiceJob : BackgroundService
         {
             try
             {
-                var tenantUserId = reading.ReadingCycle?.UserId;
-                if (string.IsNullOrEmpty(tenantUserId))
+                if (reading.ReadingCycle == null || string.IsNullOrEmpty(reading.ReadingCycle.UserId))
                 {
-                    _logger.LogWarning("Skipping auto invoice for reading {ReadingId}: UserId is null", reading.Id);
+                    _logger.LogWarning("Skipping auto invoice for reading {ReadingId}: ReadingCycle or UserId is null", reading.Id);
                     continue;
                 }
+
+                var tenantUserId = reading.ReadingCycle.UserId;
 
                 if (reading.TenantContractId == null)
                 {

@@ -128,8 +128,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Register Background Jobs
-builder.Services.AddHostedService<ReadingService.Jobs.AutoInvoiceJob>();
+// Configure Quartz for scheduled jobs
+builder.Services.AddQuartz(q =>
+{
+    var jobKey = new JobKey("AutoInvoiceJob");
+    q.AddJob<AutoInvoiceJob>(opts => opts.WithIdentity(jobKey));
+
+    q.AddTrigger(opts => opts
+        .ForJob(jobKey)
+        .WithIdentity("AutoInvoiceTrigger")
+        .WithCronSchedule("0 0 0 25 * ?")); // Chạy vào ngày 25 hàng tháng lúc 00:00
+});
+
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 var app = builder.Build();
 

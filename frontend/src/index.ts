@@ -9,6 +9,3 @@ export * from './utils/dashboard';
 
 // Export all services
 export * from './services/dashboardService';
-
-// Export all constants
-export * from './constants/dashboard';

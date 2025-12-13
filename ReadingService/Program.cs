@@ -9,23 +9,18 @@ using ReadingService.Repositories.Implementations;
 using Quartz;
 using ReadingService.Jobs;
 
-using Microsoft.EntityFrameworkCore; // Microsoft Usings
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
-using Amazon.S3; // Third-party Usings
+using Amazon.S3;
 using Amazon.Runtime;
 using Amazon;
 
 using System.Text;
-using System; // System Usings (thường đặt trên cùng, nhưng tôi đặt lại để nhóm các usings)
-// --- Khởi tạo Builder ---
+using System; 
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ====================================================================
-//                             1. ĐĂNG KÝ DỊCH VỤ (builder.Services.Add...)
-// ====================================================================
 
 // Cấu hình Database Context
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -46,6 +41,53 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowCredentials();
     });
+});
+
+// Thêm Quartz.NET
+builder.Services.AddQuartz(q =>
+{
+    q.UseMicrosoftDependencyInjectionJobFactory();
+
+    // ⭐️ Thay thế UsePersistentStore bằng q.UseInMemoryStore();
+    q.UseInMemoryStore();
+
+    // ------------------------------------------------------------------
+    // A. JOB TẠO CYCLE (STATIC - Ngày 20)
+    // CÁC STATIC JOB VÀ TRIGGER NÀY VẪN ĐƯỢC QUARTZ TỰ TẠO LẠI KHI KHỞI ĐỘNG
+    // ------------------------------------------------------------------
+    var cycleJobKey = new JobKey(nameof(AutoCreateReadingCycleJob));
+    q.AddJob<AutoCreateReadingCycleJob>(opts => opts.WithIdentity(cycleJobKey));
+    
+    q.AddTrigger(opts => opts
+        .ForJob(cycleJobKey)
+        .WithIdentity("AutoCreateCycle-Trigger-20th")
+        .WithCronSchedule("0 0 2 20 * ?")); // 02:00 AM ngày 20 hàng tháng
+
+    // ------------------------------------------------------------------
+    // B. MASTER SCHEDULER (STATIC - Chạy hàng ngày)
+    // ------------------------------------------------------------------
+    var schedulerJobKey = new JobKey(nameof(ReminderSchedulerJob));
+    q.AddJob<ReminderSchedulerJob>(opts => opts.WithIdentity(schedulerJobKey));
+    
+    q.AddTrigger(opts => opts
+        .ForJob(schedulerJobKey)
+        .WithIdentity("DynamicReminder-Scheduler-Trigger")
+        // .WithCronSchedule("0 30 1 * * ?")); // 01:30 AM hàng ngày
+        .StartNow() // Bắt đầu ngay khi Service chạy
+        .WithSimpleSchedule(x => x
+        .WithRepeatCount(0) // Chỉ chạy 1 lần
+        .WithIntervalInSeconds(5))); // Sau 5 giây
+
+    // ------------------------------------------------------------------
+    // C. CHILD JOB (DYNAMIC - Job Nhắc Nộp Chỉ Số)
+    // ------------------------------------------------------------------
+    q.AddJob<ReadingReminderJob>(opts => opts.WithIdentity(nameof(ReadingReminderJob)).StoreDurably());
+});
+
+// Thêm dịch vụ Quartz để chạy Scheduler
+builder.Services.AddQuartzHostedService(options =>
+{
+    options.WaitForJobsToComplete = true; 
 });
 
 // Cấu hình AWS S3 Service

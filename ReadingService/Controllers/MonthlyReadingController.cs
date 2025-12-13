@@ -564,4 +564,33 @@ public class MonthlyReadingController : ControllerBase
             return StatusCode(500, new { message = "Có lỗi xảy ra khi gửi nhắc nhở." });
         }
     }
+
+    /// <summary>
+    /// Trigger auto invoice creation for current month (for testing purposes)
+    /// Only creates invoices for tenants belonging to the calling owner
+    /// </summary>
+    [Authorize(Roles = "Owner")]
+    [HttpPost("trigger-auto-invoice")]
+    public async Task<IActionResult> TriggerAutoInvoice()
+    {
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+                     ?? User.FindFirstValue("sub") 
+                     ?? User.FindFirstValue("userId");
+        
+        if (string.IsNullOrEmpty(ownerId))
+        {
+            return Unauthorized(new { message = "Owner ID not found" });
+        }
+
+        try
+        {
+            await _monthlyReadingService.TriggerAutoInvoicesAsync(ownerId);
+            return Ok(new { message = "Auto invoice trigger completed for your tenants. Check logs for details." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error triggering auto invoice");
+            return StatusCode(500, new { message = "Error triggering auto invoice", error = ex.Message });
+        }
+    }
 }

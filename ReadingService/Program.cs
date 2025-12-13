@@ -128,6 +128,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Register Background Jobs
+builder.Services.AddHostedService<ReadingService.Jobs.AutoInvoiceJob>();
+
 var app = builder.Build();
 
 // Tự động tạo database và apply migrations (Tốt nhất nên chạy ngay sau app.Build())

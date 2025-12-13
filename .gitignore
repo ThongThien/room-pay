@@ -38,5 +38,3 @@ __pycache__/
 uploads/
 
 start-services.sh
-
-slack_alert.sh

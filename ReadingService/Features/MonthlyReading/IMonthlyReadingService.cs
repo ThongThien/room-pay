@@ -19,5 +19,6 @@ public interface IMonthlyReadingService
     Task<List<MonthlyReadingResponseDto>> GetAllAsync();
     
     Task<MonthlyReadingDto> CreateEmptyAsync(int cycleId, int tenantContractId);
+    Task TriggerAutoInvoicesAsync(string ownerId);
 }
 

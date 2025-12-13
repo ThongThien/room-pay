@@ -82,5 +82,15 @@ namespace InvoiceService.Repositories.Implementations
                 // .Where(i => i.UserId == userId && i.Status == InvoiceStatus.Unpaid.ToString())
                 .ToListAsync();
         }
+
+        public async Task<List<Invoice>> GetInvoicesForReportAsync(DateTime startDate)
+        {
+            // Lấy tất cả hóa đơn có InvoiceDate, DueDate, hoặc PaidDate nằm trong phạm vi báo cáo
+            return await _context.Invoices
+                .Where(i => i.InvoiceDate >= startDate || 
+                            (i.PaidDate.HasValue && i.PaidDate.Value >= startDate) ||
+                            i.DueDate >= startDate)
+                .ToListAsync();
+        }
     }
 }

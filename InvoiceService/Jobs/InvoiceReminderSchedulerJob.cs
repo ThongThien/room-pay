@@ -49,17 +49,37 @@ public class InvoiceReminderSchedulerJob : IJob
         }
 
         // 2. TẠO CẤU HÌNH LỊCH TRÌNH DYNAMIC (Ví dụ: 1 phút sau)
-        var now = DateTime.Now;
-        var remindMinutePayment = (now.Minute + 1) % 60; 
-        var remindHour = now.Hour; 
+        // var now = DateTime.Now;
+        // var remindMinutePayment = (now.Minute + 1) % 60; 
+        // var remindHour = now.Hour; 
+
+        // // 3. LÊN LỊCH DYNAMIC TRIGGER CHO TỪNG OWNER
+        // foreach (var ownerId in ownerIds)
+        // {
+        //     await ScheduleReminderJob(scheduler, ownerId, 
+        //                              "PaymentReminderJob", // Tên Job Child
+        //                              now.Day, remindHour, remindMinutePayment, 
+        //                              "Payment");
+        // }
+
+        const int remindMinute = 0;   // Phút 0
+        const int remindHour = 3;     // 3 giờ sáng (AM)
+        
+        // Biểu thức Cron: Bắt đầu từ ngày 1 và lặp lại 3 ngày một lần
+        const string dayOfMonthExpression = "1/3"; 
+
+        _logger.LogInformation("Scheduled Payment Reminder Jobs to run at {Hour}:{Minute} every 3 days (Production Config).", 
+                                remindHour, remindMinute, dayOfMonthExpression);
 
         // 3. LÊN LỊCH DYNAMIC TRIGGER CHO TỪNG OWNER
         foreach (var ownerId in ownerIds)
         {
             await ScheduleReminderJob(scheduler, ownerId, 
-                                     "PaymentReminderJob", // Tên Job Child
-                                     now.Day, remindHour, remindMinutePayment, 
-                                     "Payment");
+                                    "PaymentReminderJob", // Tên Job Child
+                                    dayOfMonthExpression, // ⭐️ Truyền biểu thức "1/3"
+                                    remindHour, 
+                                    remindMinute, 
+                                    "Payment");
         }
         
         _logger.LogInformation("🛠️ [END] Dynamic Invoice Reminder Scheduler Job Completed.");
@@ -67,13 +87,15 @@ public class InvoiceReminderSchedulerJob : IJob
     
     // Hàm ScheduleReminderJob (Giữ nguyên)
     private async Task ScheduleReminderJob(
-        IScheduler scheduler, string ownerId, string jobName, int day, int hour, int minute, string type)
+        IScheduler scheduler, string ownerId, string jobName, 
+    string dayOfMonthExpression, // ⭐️ Cần phải là string
+    int hour, int minute, string type)
     {
         var triggerKey = new TriggerKey($"{type}ReminderTrigger-{ownerId}");
         var jobKey = new JobKey(jobName); 
 
         // Cron format: [second] [minute] [hour] [day of month] [month] [day of week]
-        string cronExpression = $"0 {minute} {hour} {day} * ?"; 
+        string cronExpression = $"0 {minute} {hour} {dayOfMonthExpression} * ?";
 
         var trigger = TriggerBuilder.Create()
             .WithIdentity(triggerKey)

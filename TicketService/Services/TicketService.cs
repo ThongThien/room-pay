@@ -23,9 +23,9 @@ namespace TicketService.Services
         {
             var ticket = new Ticket
             {
-                // Giả sử DTO của bạn đã có các trường này
-                TenantId = dto.TenantId ?? 0, // Xử lý null nếu cần
-                RoomId = dto.RoomId ?? 0,
+                TenantId = dto.TenantId ?? string.Empty, 
+                
+                RoomId = dto.RoomId ?? 0, // RoomId vẫn là int nên giữ nguyên số 0
                 Title = dto.Title,
                 Description = dto.Description,
                 Status = "pending",

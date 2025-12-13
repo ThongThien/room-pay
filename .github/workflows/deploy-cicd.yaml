@@ -32,15 +32,15 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ec2-user@47.129.169.174 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ec2-user@54.169.194.130 << 'EOF'
             set -e
 
             aws ecr get-login-password --region ap-southeast-1 \
               | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY}}
 
-            docker-compose pull
+            docker compose pull
 
-            docker-compose up -d
+            docker compose up -d
 
             docker image prune -f
           EOF

@@ -40,13 +40,15 @@ export default function TenantBillsPage() {
     }, []);
 
     // logic lọc
-    const filteredInvoices = invoices.filter(inv => {
-        if (filter === "ALL") return true;
-        if (filter === "UNPAID") return inv.status === "Unpaid"; 
-        if (filter === "OVERDUE") return inv.status === "Overdue";
-        if (filter === "PAID") return inv.status === "Paid";
-        return true;
-    });
+    const filteredInvoices = invoices
+        .filter(inv => inv.displayStatus === "Visible") // Chỉ hiển thị hóa đơn có DisplayStatus là Visible
+        .filter(inv => {
+            if (filter === "ALL") return true;
+            if (filter === "UNPAID") return inv.status === "Unpaid"; 
+            if (filter === "OVERDUE") return inv.status === "Overdue";
+            if (filter === "PAID") return inv.status === "Paid";
+            return true;
+        });
 
     // Pagination logic
     const totalPages = Math.ceil(filteredInvoices.length / invoicesPerPage);

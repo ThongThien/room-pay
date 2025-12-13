@@ -8,9 +8,8 @@ namespace TicketService.Models
     {
         [Key]
         public int Id { get; set; }
+        public string? TenantId { get; set; } 
 
-        public int TenantId { get; set; }
-        
         public int RoomId { get; set; }
 
         [Required]

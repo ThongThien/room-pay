@@ -6,19 +6,19 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import RoleGuard from '@/components/auth/RoleGuard'
 import NotificationDropdown from '@/components/noti/NotificationDropdown'
+import ConfirmModal from '@/components/common/ConfirmModal'
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const router = useRouter()
 
-  const handleLogout = () => {
-    const isConfirmed = window.confirm('Bạn có chắc chắn muốn đăng xuất không?')
-    if (!isConfirmed) return
-
+  const performLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.clear()
     }
     router.push('/public/login')
+    setShowLogoutModal(false)
   }
 
   const userFullName =
@@ -72,14 +72,8 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               {isSidebarOpen && 'Yêu cầu sửa chữa'}
             </Link>
 
-            {/*
-            <Link href="/owner/notification" className="block p-2 hover:bg-gray-700 rounded">
-              {isSidebarOpen && 'Thông báo'}
-            </Link>
-            */}
-
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutModal(true)}
               className="w-full text-left p-2 hover:bg-red-600 text-red-200 hover:text-white rounded mt-4"
             >
               {isSidebarOpen && 'Đăng xuất'}
@@ -126,6 +120,16 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             {children}
           </main>
         </div>
+
+        <ConfirmModal
+          isOpen={showLogoutModal}
+          onClose={() => setShowLogoutModal(false)}
+          onConfirm={performLogout}
+          title="Đăng xuất"
+          message="Bạn có chắc chắn muốn đăng xuất không?"
+          confirmText="Đăng xuất"
+          cancelText="Không"
+        />
       </div>
     </RoleGuard>
   )

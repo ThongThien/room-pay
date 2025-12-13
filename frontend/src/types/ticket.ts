@@ -1,6 +1,6 @@
 export interface Ticket {
   id: number;
-  tenantId: number;
+  tenantId: string;
   roomId: number;
   title: string;
   description: string;
@@ -10,7 +10,7 @@ export interface Ticket {
 }
 
 export interface CreateTicketDto {
-  tenantId: number;
+  tenantId: string;
   roomId: number;
   title: string;
   description: string;

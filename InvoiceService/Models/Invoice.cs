@@ -6,6 +6,7 @@ public class Invoice
     public string UserId { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
     public DateTime DueDate { get; set; }
+    public string DisplayStatus { get; set; } = "Invisible"; // Hiển thị hoặc không hiển thị
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Unpaid"; // Unpaid, Paid, Cancelled, Overdue
     public DateTime? PaidDate { get; set; }

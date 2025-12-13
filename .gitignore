@@ -1,43 +1,72 @@
+# ======================
 # macOS
+# ======================
 .DS_Store
 .AppleDouble
 .LSOverride
 ._*
 
+# ======================
 # Windows
+# ======================
 Thumbs.db
 Desktop.ini
 
-# IDEs
+# ======================
+# IDEs / Editors
+# ======================
 .vscode/
 .idea/
 .vs/
 
-# Sensitive configuration files
+# ======================
+# Environment & Secrets
+# ======================
+.env
+.env.local
+.env.*.local
+
 appsettings.Development.json
 appsettings.*.json
 !appsettings.json
 !appsettings.Example.json
-.env
-.env.local
-.env.*.local
-# docker-compose.yaml
 
-# Build output
+# ======================
+# .NET Build Output
+# ======================
 bin/
 obj/
 *.dll
 *.exe
 *.pdb
 
+# ======================
 # Logs
-nginx/logs/
+# ======================
 *.log
+nginx/logs/
 
-# Python
-__pycache__/
+# ======================
+# Uploads / Temp
+# ======================
 uploads/
+__pycache__/
 
+# ======================
+# Node / NextJS
+# ======================
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+.next/
+out/
+dist/
+
+# ======================
+# Scripts
+# ======================
 start-services.sh
-
 slack_alert.sh

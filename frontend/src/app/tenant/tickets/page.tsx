@@ -1,260 +1,299 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Ticket, CreateTicketDto } from "@/types/ticket";
-import { ticketService } from "@/services/ticket.service";
-// FIX 1: Đã xóa "Search" khỏi dòng import này
-import {
-  Loader2, CalendarDays, Plus, MapPin, X, Pencil
-} from "lucide-react";
+import { useState, useEffect } from 'react';
+import { ticketService } from "@/services/ticketService";
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import TicketDetailModal from '@/components/ticket/TicketDetailModal';
+import { Ticket } from '@/types/ticket';
 
-export default function TenantTicketPage() {
-  const router = useRouter();
-  
+const statusLabels = {
+  0: 'Chờ xử lý',
+  1: 'Đang xử lý',
+  2: 'Hoàn thành'
+};
+
+const statusColors = {
+  0: 'bg-yellow-100 text-yellow-800',
+  1: 'bg-blue-100 text-blue-800',
+  2: 'bg-green-100 text-green-800'
+};
+
+// Validation limits
+const TITLE_MAX_LENGTH = 100;
+const DESCRIPTION_MAX_LENGTH = 500;
+
+export default function TenantTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
-  
-  // State lưu ID động
-  const [currentTenantId, setCurrentTenantId] = useState<string>("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', description: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ title?: string; description?: string }>({});
 
-  // Pagination & Filter
-  const [currentPage, setCurrentPage] = useState(1);
-  const ticketsPerPage = 10;
-  const [filter, setFilter] = useState<"ALL" | "PENDING" | "DONE">("ALL");
-  
-  // Modal & Edit
-  const [showModal, setShowModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); 
-  const [editingId, setEditingId] = useState<number | null>(null);
+  useEffect(() => {
+    fetchTickets();
+  }, []);
 
-  // Form Data
-  const [formData, setFormData] = useState<CreateTicketDto>({
-    tenantId: "", 
-    roomId: 0,
-    title: "",
-    description: "",
-  });
-
-  // Hàm fetch data
-  const fetchMyTickets = async (tenantId: string) => {
+  const fetchTickets = async () => {
     try {
-      const allTickets = await ticketService.getAll();
-      // Chỉ lấy vé của tenantId đang đăng nhập
-      const myTickets = allTickets.filter((t: Ticket) => t.tenantId === tenantId);
-      setTickets(myTickets.reverse());
-    } catch (error) { console.error(error); } 
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { 
-      setIsMounted(true); 
-
-      // 1. Lấy tenantId mà trang Login vừa lưu
-      const storedId = localStorage.getItem("tenantId");
-
-      // 2. Kiểm tra chặt chẽ
-      if (!storedId) {
-          // Nếu không tìm thấy ID -> Chưa đăng nhập -> Đẩy về login
-          router.push("/login");
-          return;
-      }
-      
-      // 3. Nếu có ID -> Set state và gọi API
-      setCurrentTenantId(storedId);
-      fetchMyTickets(storedId); 
-  }, [router]);
-
-  // --- LOGIC LỌC ---
-  const filteredTickets = tickets.filter(t => {
-    if (filter === "ALL") return true;
-    if (filter === "PENDING") return !t.status || t.status === "pending"; 
-    if (filter === "DONE") return t.status === "done";
-    return true;
-  });
-
-  // FIX 2: Đã xóa dòng tính 'totalPages' vì chưa dùng đến trong giao diện
-  const startIndex = (currentPage - 1) * ticketsPerPage;
-  const paginatedTickets = filteredTickets.slice(startIndex, startIndex + ticketsPerPage);
-
-  const handleFilterChange = (newFilter: "ALL" | "PENDING" | "DONE") => {
-    setFilter(newFilter);
-    setCurrentPage(1);
-  };
-
-  // --- FORM HANDLERS ---
-  const openCreateForm = () => {
-    setIsEditing(false);
-    setEditingId(null);
-    setFormData({ 
-        tenantId: currentTenantId, // Dùng ID thật
-        roomId: 0, 
-        title: "", 
-        description: "" 
-    });
-    setShowModal(true);
-  };
-
-  const openEditForm = (ticket: Ticket) => {
-    if (ticket.status === 'done') {
-        alert("Không thể sửa yêu cầu đã hoàn thành!");
-        return;
+      const data = await ticketService.getMyTickets();
+      setTickets(data);
+    } catch (error) {
+      console.error('Failed to fetch tickets:', error);
+    } finally {
+      setLoading(false);
     }
-    setIsEditing(true);
-    setEditingId(ticket.id);
-    
-    setFormData({
-        tenantId: ticket.tenantId || currentTenantId,
-        roomId: ticket.roomId, 
-        title: ticket.title || "",
-        description: ticket.description || ""
-    });
-    setShowModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (!formData.roomId) {
-          alert("Vui lòng nhập số phòng!");
-          return;
-      }
-      // Gán ID thật vào data gửi đi
-      const dataToSend = { ...formData, tenantId: currentTenantId };
 
-      if (isEditing && editingId) {
-        await ticketService.updateContent(editingId, dataToSend);
-        alert("Cập nhật thành công!");
-      } else {
-        await ticketService.create(dataToSend);
-        alert("Gửi yêu cầu thành công!");
-      }
-      
-      setShowModal(false);
-      fetchMyTickets(currentTenantId); // Load lại với ID thật
-    } catch (_error) { 
-        // FIX 3: Đổi tên thành _error để tránh warning 'unused variable'
-        console.error(_error);
-        alert("Có lỗi xảy ra!"); 
+    if (!validateForm()) {
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await ticketService.create(createForm);
+      setCreateForm({ title: '', description: '' });
+      setIsCreateDialogOpen(false);
+      setValidationErrors({});
+      fetchTickets(); // Refresh the list
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('vi-VN');
+  const handleCloseTicket = async (ticketId: number) => {
+    try {
+      await ticketService.close(ticketId);
+      fetchTickets(); // Refresh the list
+    } catch (error) {
+      console.error('Error closing ticket:', error);
+    }
+  };
 
-  if (!isMounted) return null;
+  const handleTicketClick = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setIsDetailModalOpen(true);
+  };
 
-  return (
-    <div className="space-y-6 p-6 min-h-screen bg-slate-50 text-slate-800">
-      
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Yêu cầu sửa chữa</h2>
-          <p className="text-gray-500 text-sm">
-            Xin chào, bạn đang đăng nhập với mã cư dân: <b>#{currentTenantId}</b>
-          </p>
+  const validateForm = () => {
+    const errors: { title?: string; description?: string } = {};
+
+    if (!createForm.title.trim()) {
+      errors.title = 'Tiêu đề không được để trống';
+    } else if (createForm.title.length > TITLE_MAX_LENGTH) {
+      errors.title = `Tiêu đề không được vượt quá ${TITLE_MAX_LENGTH} ký tự`;
+    }
+
+    if (!createForm.description.trim()) {
+      errors.description = 'Mô tả không được để trống';
+    } else if (createForm.description.length > DESCRIPTION_MAX_LENGTH) {
+      errors.description = `Mô tả không được vượt quá ${DESCRIPTION_MAX_LENGTH} ký tự`;
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleInputChange = (field: 'title' | 'description', value: string) => {
+    // Enforce max length
+    const maxLength = field === 'title' ? TITLE_MAX_LENGTH : DESCRIPTION_MAX_LENGTH;
+    const truncatedValue = value.slice(0, maxLength);
+
+    setCreateForm(prev => ({ ...prev, [field]: truncatedValue }));
+
+    // Clear validation error when user starts typing
+    if (validationErrors[field]) {
+      setValidationErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    // Check if it's the default DateTime value from C# (0001-01-01)
+    const date = new Date(dateString);
+    if (date.getFullYear() === 1 && date.getMonth() === 0 && date.getDate() === 1) {
+      return '';
+    }
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Quản lý yêu cầu</h2>
+            <p className="text-gray-500 text-sm">Xem và tạo yêu cầu hỗ trợ</p>
+          </div>
         </div>
-        
-        <button 
-          onClick={openCreateForm}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-all"
-        >
-          <Plus className="w-4 h-4" /> Báo hỏng mới
-        </button>
-      </div>
-
-      {/* FILTER */}
-      <div className="flex bg-white p-1 rounded-lg shadow-sm border border-slate-200 overflow-x-auto w-full md:w-fit">
-        <button onClick={() => handleFilterChange("ALL")} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${filter === "ALL" ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-50"}`}>Tất cả</button>
-        <button onClick={() => handleFilterChange("PENDING")} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${filter === "PENDING" ? "bg-orange-100 text-orange-700" : "text-gray-600 hover:bg-gray-50"}`}>Chờ tiếp nhận</button>
-        <button onClick={() => handleFilterChange("DONE")} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${filter === "DONE" ? "bg-green-100 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>Đã xong</button>
-      </div>
-
-      {/* TABLE */}
-      {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-blue-500"/></div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-semibold">
+              <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                 <tr>
-                  <th className="p-4 border-b w-20">Mã</th>
-                  <th className="p-4 border-b w-24">Phòng</th> 
-                  <th className="p-4 border-b">Vấn đề & Mô tả</th>
-                  <th className="p-4 border-b w-40">Ngày tạo</th>
-                  <th className="p-4 border-b w-32 text-center">Trạng thái</th>
-                  <th className="p-4 border-b w-20 text-center">Hành động</th>
+                  <th className="p-4 border-b">Tiêu đề</th>
+                  <th className="p-4 border-b">Trạng thái</th>
+                  <th className="p-4 border-b">Ngày tạo</th>
+                  <th className="p-4 border-b text-center">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="text-sm divide-y divide-slate-100">
-                {paginatedTickets.length > 0 ? paginatedTickets.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4"><span className="font-bold text-slate-700">#{t.id}</span></td>
+              <tbody className="text-sm">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index} className="border-b last:border-0">
                     <td className="p-4">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                            <MapPin className="w-3 h-3" /> {t.roomId}
-                        </span>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
                     </td>
                     <td className="p-4">
-                        <div className="max-w-md">
-                            <div className="font-bold text-slate-900 mb-1">{t.title}</div>
-                            <div className="text-slate-500 text-xs line-clamp-1">{t.description}</div>
-                        </div>
+                      <div className="h-6 bg-gray-200 rounded-full animate-pulse w-20"></div>
                     </td>
-                    <td className="p-4 text-slate-600 whitespace-nowrap">
-                        <div className="flex items-center gap-2 text-xs font-medium"><CalendarDays className="w-3.5 h-3.5 text-slate-400" />{formatDate(t.createdAt)}</div>
+                    <td className="p-4">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
                     </td>
                     <td className="p-4 text-center">
-                        {t.status === "done" ? <span className="text-xs font-medium bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full border border-green-200">Đã xong</span> : 
-                        (t.status === "processing" ? <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">Đang xử lý</span> : 
-                        <span className="text-xs font-medium bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full border border-orange-200">Chờ tiếp nhận</span>)}
-                    </td>
-                    <td className="p-4 text-center">
-                        {t.status !== 'done' && (
-                            <button onClick={() => openEditForm(t)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                        )}
+                      <div className="h-8 bg-gray-200 rounded animate-pulse w-24 mx-auto"></div>
                     </td>
                   </tr>
-                )) : (
-                  <tr><td colSpan={6} className="p-10 text-center text-slate-500">Không tìm thấy yêu cầu nào.</td></tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* MODAL FORM */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-xl animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center border-b border-slate-100 px-6 py-4">
-                    <h3 className="text-lg font-bold text-slate-800">{isEditing ? `Sửa yêu cầu #${editingId}` : "Báo hỏng thiết bị"}</h3>
-                    <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-full"><X className="w-5 h-5" /></button>
-                </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phòng số <span className="text-red-500">*</span></label>
-                        <input type="number" className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Nhập số phòng..." value={formData.roomId || ''} onChange={(e) => setFormData({ ...formData, roomId: Number(e.target.value) })} required />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tiêu đề <span className="text-red-500">*</span></label>
-                        <input className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Ví dụ: Hỏng đèn..." value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mô tả <span className="text-red-500">*</span></label>
-                        <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm h-32 resize-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Mô tả chi tiết..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} required />
-                    </div>
-                    <div className="pt-2 flex gap-3">
-                        <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-50">Hủy</button>
-                        <button type="submit" className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md">{isEditing ? "Lưu" : "Gửi"}</button>
-                    </div>
-                </form>
-            </div>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Quản lý yêu cầu</h2>
+          <p className="text-gray-500 text-sm">Xem và tạo yêu cầu hỗ trợ</p>
         </div>
-      )}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>Tạo yêu cầu mới</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tạo yêu cầu mới</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateTicket} className="space-y-4">
+              <div>
+                <Label htmlFor="title">Tiêu đề</Label>
+                <Input
+                  id="title"
+                  value={createForm.title}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('title', e.target.value)}
+                  required
+                  maxLength={TITLE_MAX_LENGTH}
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span className={validationErrors.title ? 'text-red-500' : ''}>
+                    {validationErrors.title}
+                  </span>
+                  <span>{createForm.title.length}/{TITLE_MAX_LENGTH}</span>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="description">Mô tả</Label>
+                <Textarea
+                  id="description"
+                  value={createForm.description}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('description', e.target.value)}
+                  required
+                  maxLength={DESCRIPTION_MAX_LENGTH}
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span className={validationErrors.description ? 'text-red-500' : ''}>
+                    {validationErrors.description}
+                  </span>
+                  <span>{createForm.description.length}/{DESCRIPTION_MAX_LENGTH}</span>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Hủy
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? 'Đang tạo...' : 'Tạo yêu cầu'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
+          {tickets.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              Chưa có yêu cầu nào.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 text-gray-600 uppercase text-xs">
+                  <TableHead className="p-4 border-b">Tiêu đề</TableHead>
+                  <TableHead className="p-4 border-b">Trạng thái</TableHead>
+                  <TableHead className="p-4 border-b">Ngày tạo</TableHead>
+                  <TableHead className="p-4 border-b text-center">Hành động</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="text-sm">
+                {tickets.map((ticket) => (
+                  <TableRow
+                    key={ticket.id}
+                    className="border-b last:border-0 cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleTicketClick(ticket)}
+                  >
+                    <TableCell className="p-4 font-medium">{ticket.title}</TableCell>
+                    <TableCell className="p-4">
+                      <Badge className={statusColors[ticket.status as keyof typeof statusColors]}>
+                        {statusLabels[ticket.status as keyof typeof statusLabels]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="p-4">{formatDate(ticket.createdAt)}</TableCell>
+                    <TableCell className="p-4 text-center">
+                      {ticket.status !== 2 && (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCloseTicket(ticket.id);
+                          }}
+                          variant="outline"
+                        >
+                          Đóng yêu cầu
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
+
+      <TicketDetailModal
+        ticket={selectedTicket}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        onCloseTicket={handleCloseTicket}
+      />
     </div>
   );
 }

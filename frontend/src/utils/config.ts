@@ -4,6 +4,7 @@ export const API_URLS = {
   PROPERTY: process.env.NEXT_PUBLIC_PROPERTY_API_URL,
   READING: process.env.NEXT_PUBLIC_READING_API_URL,
   IMAGE: process.env.NEXT_PUBLIC_IMAGE_SCAN_API_URL,
+  TICKET: process.env.NEXT_PUBLIC_TICKET_API_URL,
 };
 
 export const getAuthHeaders = (): Record<string, string> => {

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-// Đảm bảo file types/ticket.ts của bạn đã có
-import { Ticket } from "@/types/ticket"; 
+import { useCallback, useEffect, useState } from "react";
+import { Ticket } from "@/types/ticket"; // Import Type chuẩn
 import { ticketService } from "@/services/ticket.service";
 import {
   CheckCircle, AlertCircle, Loader2, CalendarDays, Trash2, 
@@ -57,41 +56,39 @@ export default function TicketPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8; 
 
-  // --- 1. HÀM CHUẨN HÓA DỮ LIỆU (QUAN TRỌNG NHẤT) ---
-  // Hàm này xử lý việc DB trả về "Title" nhưng code cần "title"
-  const mapData = (rawData: any[]): Ticket[] => {
-    if (!Array.isArray(rawData)) return [];
-    
-    return rawData.map((item: any) => ({
-      // Dùng toán tử || để lấy giá trị dù backend trả về hoa hay thường
-      id: item.id || item.Id,
-      title: item.title || item.Title || "Không có tiêu đề",
-      description: item.description || item.Description || "",
-      roomId: item.roomId || item.RoomId || "N/A",
-      tenantId: item.tenantId || item.TenantId || "Guest",
-      // Đưa hết Status về chữ thường để dễ lọc (Pending -> pending)
-      status: (item.status || item.Status || "pending").toLowerCase(),
-      createdAt: item.createdAt || item.CreatedAt || new Date().toISOString()
-    }));
-  };
-
-  // --- 2. FETCH DATA ---
-  const fetchTickets = async () => {
+  // --- 1. FETCH DATA (Dùng useCallback để sửa lỗi missing dependency) ---
+  const fetchTickets = useCallback(async () => {
     try {
       setLoading(true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res: any = await ticketService.getAll();
 
       // Debug: In ra để xem dữ liệu thô
       console.log("🔥 Raw API Data:", res);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let rawList: any[] = [];
+      
       // Xử lý các dạng trả về khác nhau của API
       if (Array.isArray(res)) rawList = res;
       else if (res && Array.isArray(res.data)) rawList = res.data;
       else if (res && Array.isArray(res.result)) rawList = res.result;
 
-      // Map dữ liệu về chuẩn chung
-      const cleanList = mapData(rawList);
+      // Map dữ liệu về chuẩn Interface Ticket
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cleanList: Ticket[] = rawList.map((item: any) => ({
+        id: item.id || item.Id,
+        title: item.title || item.Title || "Không có tiêu đề",
+        description: item.description || item.Description || "",
+        // Đảm bảo roomId là number
+        roomId: Number(item.roomId || item.RoomId || 0),
+        // Đảm bảo tenantId là string
+        tenantId: String(item.tenantId || item.TenantId || "Guest"),
+        // Chuẩn hóa status về chữ thường
+        status: String(item.status || item.Status || "pending").toLowerCase(),
+        createdAt: item.createdAt || item.CreatedAt || new Date().toISOString(),
+        updatedAt: item.updatedAt || item.UpdatedAt
+      }));
       
       setTickets(cleanList.reverse()); 
 
@@ -101,17 +98,22 @@ export default function TicketPage() {
     } finally { 
         setLoading(false); 
     }
-  };
+  }, []); // Dependency array rỗng vì hàm này không phụ thuộc props bên ngoài
 
-  useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => { 
+    fetchTickets(); 
+  }, [fetchTickets]); // Đã thêm fetchTickets vào dependency
 
   // Actions
   const handleStatusChange = async (id: number) => {
     if(confirm("Xác nhận đã xử lý xong yêu cầu này?")) {
         try {
-            await ticketService.updateStatus(id, 'done'); // Gửi status 'done'
+            await ticketService.updateStatus(id, 'done');
             fetchTickets();
-        } catch (e) { alert("Lỗi cập nhật trạng thái"); }
+        } catch (error) { 
+            console.error(error); // Log lỗi để không bị cảnh báo unused var
+            alert("Lỗi cập nhật trạng thái"); 
+        }
     }
   };
 
@@ -120,19 +122,22 @@ export default function TicketPage() {
       try {
           await ticketService.delete(id);
           fetchTickets();
-      } catch (e) { alert("Lỗi khi xóa"); }
+      } catch (error) { 
+          console.error(error);
+          alert("Lỗi khi xóa"); 
+      }
     }
   };
 
   // --- LOGIC LỌC ---
   const filteredTickets = tickets.filter(t => {
     const sTitle = t.title ? t.title.toLowerCase() : "";
+    // roomId là number, cần convert sang string để search
     const sRoom = t.roomId ? t.roomId.toString() : "";
     
     const matchesSearch = sTitle.includes(searchTerm.toLowerCase()) || 
                           sRoom.includes(searchTerm);
 
-    // Vì status đã được lowercase ở hàm mapData nên so sánh rất dễ
     const matchesStatus = filterStatus === "all" || t.status === filterStatus;
     
     return matchesSearch && matchesStatus;
@@ -156,7 +161,6 @@ export default function TicketPage() {
   };
 
   const renderStatusBadge = (status: string) => {
-    // Status ở đây đã chắc chắn là chữ thường do hàm mapData xử lý rồi
     if (status === "done") 
       return <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20"><CheckCircle className="h-3 w-3"/> Đã xong</span>;
     if (status === "processing") 
@@ -255,7 +259,6 @@ export default function TicketPage() {
                     </td>
                     <td className={styles.td}>
                       <div className="flex flex-col max-w-xs">
-                        {/* Hiển thị Title */}
                         <span className="font-medium text-slate-900 truncate" title={t.title}>{t.title}</span>
                         <span className="text-xs text-slate-500 truncate" title={t.description}>{t.description}</span>
                       </div>
@@ -266,11 +269,11 @@ export default function TicketPage() {
                            <User className="h-4 w-4" />
                         </div>
                         <div className={styles.userInfo}>
-                          {/* Hiển thị TenantId đã được xử lý thành string */}
-                          <span className={styles.userName}>
-                            Tenant #{t.tenantId.toString().slice(0, 8)}...
+                          {/* tenantId là string */}
+                          <span className="font-medium text-slate-900">
+                            Tenant #{t.tenantId.slice(0, 8)}...
                           </span>
-                          <span className={styles.userSub}>Phòng {t.roomId}</span>
+                          <span className="text-xs text-slate-500">Phòng {t.roomId}</span>
                         </div>
                       </div>
                     </td>
@@ -285,7 +288,6 @@ export default function TicketPage() {
                     </td>
                     <td className={styles.td}>
                       <div className="flex items-center gap-2">
-                        {/* Nút hoàn thành */}
                         {(t.status !== 'done') && (
                           <button 
                             onClick={() => handleStatusChange(t.id)} 
@@ -295,7 +297,6 @@ export default function TicketPage() {
                             <CheckCircle className="h-4 w-4" />
                           </button>
                         )}
-                        {/* Nút xóa */}
                         <button 
                           onClick={() => handleDelete(t.id)} 
                           className={styles.deleteBtn} 

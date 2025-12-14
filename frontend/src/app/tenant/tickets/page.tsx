@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // [QUAN TRỌNG] Import router
+import { useRouter } from "next/navigation";
 import { Ticket, CreateTicketDto } from "@/types/ticket";
 import { ticketService } from "@/services/ticket.service";
+// FIX 1: Đã xóa "Search" khỏi dòng import này
 import {
-  Loader2, CalendarDays, Plus, Search, MapPin, X, Pencil
+  Loader2, CalendarDays, Plus, MapPin, X, Pencil
 } from "lucide-react";
 
 export default function TenantTicketPage() {
@@ -73,7 +74,7 @@ export default function TenantTicketPage() {
     return true;
   });
 
-  const totalPages = Math.ceil(filteredTickets.length / ticketsPerPage);
+  // FIX 2: Đã xóa dòng tính 'totalPages' vì chưa dùng đến trong giao diện
   const startIndex = (currentPage - 1) * ticketsPerPage;
   const paginatedTickets = filteredTickets.slice(startIndex, startIndex + ticketsPerPage);
 
@@ -132,7 +133,11 @@ export default function TenantTicketPage() {
       
       setShowModal(false);
       fetchMyTickets(currentTenantId); // Load lại với ID thật
-    } catch (error) { alert("Có lỗi xảy ra!"); }
+    } catch (_error) { 
+        // FIX 3: Đổi tên thành _error để tránh warning 'unused variable'
+        console.error(_error);
+        alert("Có lỗi xảy ra!"); 
+    }
   };
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('vi-VN');
@@ -180,7 +185,7 @@ export default function TenantTicketPage() {
                   <th className="p-4 border-b">Vấn đề & Mô tả</th>
                   <th className="p-4 border-b w-40">Ngày tạo</th>
                   <th className="p-4 border-b w-32 text-center">Trạng thái</th>
-                  <th className="p-4 border-b w-20 text-center">Sửa</th>
+                  <th className="p-4 border-b w-20 text-center">Hành động</th>
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-slate-100">

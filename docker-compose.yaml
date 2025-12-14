@@ -75,21 +75,33 @@ services:
     networks:
       - app-network
 
+  # rabbitmq:
+  #   image: rabbitmq:3-management
+  #   container_name: rabbitmq
+  #   ports:
+  #     - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+  #     - "${RABBITMQ_PORT}:5672"
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+  #     RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+  #   volumes:
+  #     - rabbitmq-data:/var/lib/rabbitmq
+  #   restart: unless-stopped
+  #   networks:
+  #     - app-network
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
-      - "${RABBITMQ_PORT}:5672"
+      - "15672:15672"
+      - "5672:5672"   
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    restart: unless-stopped
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     networks:
-      - app-network
-
+      - default
+      
   notification-service:
     image: ${ECR_REGISTRY}/intern2025/notification-service:latest
     container_name: notification-service

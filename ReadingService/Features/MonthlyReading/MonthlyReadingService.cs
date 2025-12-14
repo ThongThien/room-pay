@@ -447,8 +447,6 @@ public class MonthlyReadingService : IMonthlyReadingService
             // --- Logic tạo Invoice ---
             if (reading.Status != ReadingStatus.AutoInvoiced && (electricUsage > 0 || waterUsage > 0))
             {
-                reading.Status = ReadingStatus.AutoInvoiced;
-                await _context.SaveChangesAsync();
                 var contractIdForInvoice = reading.TenantContractId;
                 
                 _ = Task.Run(async () =>

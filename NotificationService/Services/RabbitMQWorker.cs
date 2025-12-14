@@ -152,98 +152,120 @@ namespace NotificationService.Services
         // === HÀM XỬ LÝ RIÊNG BIỆT CHO TỪNG LOẠI THÔNG BÁO ===
 
         private async Task HandlePaymentReminder(InvoiceNotificationMessage message, INotificationRepository repository)
-        {
-            if (message?.TenantsToNotify == null) return;
+        {
+            if (message?.TenantsToNotify == null) return;
 
-            var culture = new CultureInfo("vi-VN");
+            var culture = new CultureInfo("vi-VN");
 
-            foreach (var tenant in message.TenantsToNotify)
-            {
-                var tenantInfo = tenant.TenantInfo;
-                var totalAmount = tenant.UnpaidInvoices.Sum(i => i.AmountDue);
-                
-                // --- 1. Gửi Email (Plain Text Inline) ---
-                string emailSubject = $"[NHẮC THANH TOÁN] Bạn có {tenant.UnpaidInvoices.Count} hóa đơn chưa thanh toán.";
-                
-                var emailBody = new StringBuilder();
-                emailBody.AppendLine($"Kính gửi khách hàng \"thân yêu\" của tôi: {tenantInfo.FullName},");
-                emailBody.AppendLine($"Quản lý gửi thông báo này để nhắc nhở bạn về {tenant.UnpaidInvoices.Count} hóa đơn chưa thanh toán.");
-                emailBody.AppendLine("Vui lòng kiểm tra chi tiết dưới đây và hoàn tất thanh toán trước ngày đáo hạn:");
-                emailBody.AppendLine("---");
-                foreach(var inv in tenant.UnpaidInvoices)
-                {
-                    emailBody.AppendLine($"- ID Hóa đơn: {inv.InvoiceId}, Số tiền: {inv.AmountDue.ToString("N0", culture)} VND, Ngày đáo hạn: {inv.DueDate:dd/MM/yyyy}");
-                }
-                emailBody.AppendLine("---");
-                emailBody.AppendLine($"Tổng số tiền cần thanh toán: {totalAmount.ToString("N0", culture)} VND.");
-                emailBody.AppendLine("Xin cảm ơn và trân trọng, Quản lý trọ");
+            foreach (var tenant in message.TenantsToNotify)
+            {
+                var tenantInfo = tenant.TenantInfo;
+                var totalAmount = tenant.UnpaidInvoices.Sum(i => i.AmountDue);
+                
+                // --- 1. Gửi Email (HTML Format) ---
+                string emailSubject = $"[NHẮC THANH TOÁN] Bạn có {tenant.UnpaidInvoices.Count} hóa đơn chưa thanh toán.";
+                
+                var invoiceTable = new StringBuilder();
+                invoiceTable.AppendLine("<table style='width: 100%; border-collapse: collapse; margin-top: 15px;'>");
+                invoiceTable.AppendLine("<thead><tr style='background-color: #f2f2f2;'>");
+                invoiceTable.AppendLine("<th style='border: 1px solid #ddd; padding: 8px; text-align: left;'>ID Hóa đơn</th>");
+                invoiceTable.AppendLine("<th style='border: 1px solid #ddd; padding: 8px; text-align: right;'>Số tiền (VND)</th>");
+                invoiceTable.AppendLine("<th style='border: 1px solid #ddd; padding: 8px; text-align: left;'>Ngày đáo hạn</th>");
+                invoiceTable.AppendLine("</tr></thead><tbody>");
 
-                await _emailService.SendEmailAsync(tenantInfo.Email, emailSubject, emailBody.ToString()); 
+                foreach(var inv in tenant.UnpaidInvoices)
+                {
+                    invoiceTable.AppendLine("<tr>");
+                    invoiceTable.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>{inv.InvoiceId}</td>");
+                    invoiceTable.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px; text-align: right;'>{inv.AmountDue.ToString("N0", culture)}</td>");
+                    invoiceTable.AppendLine($"<td style='border: 1px solid #ddd; padding: 8px;'>{inv.DueDate:dd/MM/yyyy}</td>");
+                    invoiceTable.AppendLine("</tr>");
+                }
+                invoiceTable.AppendLine("</tbody></table>");
+                
+                var emailBodyHtml = new StringBuilder();
+                emailBodyHtml.AppendLine("<html><body>");
+                emailBodyHtml.AppendLine($"<p>Kính gửi khách hàng: <strong>{tenantInfo.FullName}</strong>,</p>");
+                emailBodyHtml.AppendLine($"<p>Quản lý gửi thông báo này để nhắc nhở bạn về <strong>{tenant.UnpaidInvoices.Count} hóa đơn</strong> chưa thanh toán.</p>");
+                emailBodyHtml.AppendLine("<p>Vui lòng kiểm tra chi tiết dưới đây và hoàn tất thanh toán trước ngày đáo hạn:</p>");
+                
+                emailBodyHtml.AppendLine(invoiceTable.ToString()); // Thêm bảng hóa đơn
+                
+                emailBodyHtml.AppendLine($"<h3 style='color: #007bff;'>Tổng số tiền cần thanh toán: {totalAmount.ToString("N0", culture)} VND.</h3>");
+                emailBodyHtml.AppendLine("<p>Xin cảm ơn và trân trọng,<br/>Quản lý trọ</p>");
+                emailBodyHtml.AppendLine("</body></html>");
 
-                // --- 2. LƯU DB ---
-                var dbMessage = $"Nhắc thanh toán {tenant.UnpaidInvoices.Count} hóa đơn. Tổng: {totalAmount.ToString("N0", culture)} VND.";
+                await _emailService.SendEmailAsync(tenantInfo.Email, emailSubject, emailBodyHtml.ToString(), isHtml: true); // ⭐️ THÊM isHtml: true ⭐️
 
-                await repository.AddAsync(new Notification
-                {
-                    UserId = tenantInfo.Id,
-                    Message = dbMessage,
-                    Type = NotificationType.RemindPayment
-                });
-                
-                Console.WriteLine($"[DB] Saved payment reminder for User {tenantInfo.Id}");
-            }
-        }
+                // --- 2. LƯU DB (Giữ nguyên) ---
+                var dbMessage = $"Nhắc thanh toán {tenant.UnpaidInvoices.Count} hóa đơn. Tổng: {totalAmount.ToString("N0", culture)} VND.";
+
+                await repository.AddAsync(new Notification
+                {
+                    UserId = tenantInfo.Id,
+                    Message = dbMessage,
+                    Type = NotificationType.RemindPayment
+                });
+                
+                Console.WriteLine($"[DB] Saved payment reminder for User {tenantInfo.Id}");
+            }
+        }
 
         private async Task HandleReadingNotification(ReadingNotificationMessage message, INotificationRepository repository)
-        {
-            if (message?.CustomersToNotify == null) return;
+        {
+            if (message?.CustomersToNotify == null) return;
 
-            foreach (var customer in message.CustomersToNotify)
-            {
-                string emailSubject;
-                string dbMessage;
-                string emailBody;
+            foreach (var customer in message.CustomersToNotify)
+            {
+                string emailSubject;
+                string dbMessage;
+                string emailBodyHtml;
 
-                if (message.Type == NotificationType.NewCycle)
-                {
-                    emailSubject = "[THÔNG BÁO] Chu kỳ đọc chỉ số mới đã bắt đầu.";
-                    dbMessage = $"Chu kỳ đọc chỉ số mới (ID: {message.ReadingCycleId}) đã được mở. Vui lòng chuẩn bị nộp chỉ số.";
-                    
-                    // Plain Text Body cho New Cycle
-                    emailBody = $"Kính gửi  khách hàng \"thân yêu\" của tôi: {customer.FullName}." +
-                                $"Chúng tôi xin thông báo rằng chu kỳ đọc chỉ số tiêu thụ điện nước mới đã chính thức bắt đầu (ngày 20 hàng tháng)!" +
-                                $"Chi tiết chu kỳ: Tháng {message.CycleMonth} năm {message.CycleYear}.\n\n" +
-                                $"Vui lòng truy cập website để nộp chỉ số điện nước của phòng bạn. Xin cảm ơn! Quản lý trọ";
-                }
-                else // RemindSubmission
-                {
-                    emailSubject = $"[NHẮC NHỞ] Nộp chỉ số điện nước Chu kỳ {message.CycleMonth}/{message.CycleYear}."; 
-            
-                    dbMessage = $"Bạn chưa nộp chỉ số điện nước cho chu kỳ {message.CycleMonth}/{message.CycleYear}. Vui lòng nộp sớm.";
-            
-                    // Plain Text Body cho Remind Submission
-                    emailBody = $"Kính gửi khách hàng \"thân yêu\" của tôi: {customer.FullName}." +
-                                $"Bạn vẫn chưa nộp chỉ số tiêu thụ điện nước cho tháng hiện tại: {message.CycleMonth} năm {message.CycleYear}." +
-                                $"Vui lòng nộp chỉ số sớm nhất có thể. Hạn cuối là ngày 25 của tháng." +
-                                $"Nếu chỉ số không được nộp đúng hạn, chỉ số sẽ được tính vào tháng sau và phụ thu thêm phí nộp trễ." +
-                                $"Trân trọng cảm ơn." +
-                                $"Quản lý trọ.";
-                }
-            
-                // 1. Gửi Email (Sử dụng Plain Text Body)
-                await _emailService.SendEmailAsync(customer.Email, emailSubject, emailBody); 
+                if (message.Type == NotificationType.NewCycle)
+                {
+                    emailSubject = "[THÔNG BÁO] Chu kỳ đọc chỉ số mới đã bắt đầu.";
+                    dbMessage = $"Chu kỳ đọc chỉ số mới (ID: {message.ReadingCycleId}) đã được mở. Vui lòng chuẩn bị nộp chỉ số.";
+                    
+                    // HTML Body cho New Cycle
+                    emailBodyHtml = $"<html><body>" +
+                                    $"<p>Kính gửi khách hàng: <strong>{customer.FullName}</strong>,</p>" +
+                                    $"<p>Chúng tôi xin thông báo rằng chu kỳ đọc chỉ số tiêu thụ điện nước mới đã chính thức bắt đầu (ngày 20 hàng tháng)!</p>" +
+                                    $"<p style='padding: 10px; background-color: #e6f7ff; border-left: 5px solid #007bff;'><strong>Chi tiết chu kỳ:</strong> Tháng {message.CycleMonth} năm {message.CycleYear}.</p>" +
+                                    $"<p>Vui lòng <a href='[LINK_DEN_TRANG_NOP_CHI_SO]' style='color: #28a745; font-weight: bold;'>truy cập website</a> để nộp chỉ số điện nước của phòng bạn.</p>" +
+                                    $"<p>Xin cảm ơn và trân trọng,<br/>Quản lý trọ</p>" +
+                                    $"</body></html>";
+                }
+                else // RemindSubmission
+                {
+                    emailSubject = $"[NHẮC NHỞ] Nộp chỉ số điện nước Chu kỳ {message.CycleMonth}/{message.CycleYear}."; 
+                
+                    dbMessage = $"Bạn chưa nộp chỉ số điện nước cho chu kỳ {message.CycleMonth}/{message.CycleYear}. Vui lòng nộp sớm.";
+                
+                    // HTML Body cho Remind Submission
+                    emailBodyHtml = $"<html><body>" +
+                                    $"<p>Kính gửi khách hàng: <strong>{customer.FullName}</strong>,</p>" +
+                                    $"<p style='color: #dc3545; font-weight: bold;'>Bạn vẫn chưa nộp chỉ số tiêu thụ điện nước cho tháng hiện tại: {message.CycleMonth} năm {message.CycleYear}.</p>" +
+                                    $"<p>Vui lòng nộp chỉ số sớm nhất có thể. <strong>Hạn cuối là ngày 25 của tháng.</strong></p>" +
+                                    $"<p>Lưu ý: Nếu chỉ số không được nộp đúng hạn, chỉ số sẽ được tính vào tháng sau và có thể phụ thu thêm phí nộp trễ theo quy định.</p>" +
+                                    $"<p>Trân trọng cảm ơn.</p>" +
+                                    $"<p>Quản lý trọ.</p>" +
+                                    $"</body></html>";
+                }
+            
+                // 1. Gửi Email (Sử dụng HTML Body)
+                await _emailService.SendEmailAsync(customer.Email, emailSubject, emailBodyHtml, isHtml: true); // ⭐️ THÊM isHtml: true ⭐️
 
-                // 2. LƯU DB
-                await repository.AddAsync(new Notification
-                {
-                    UserId = customer.Id,
-                    Message = dbMessage,
-                    Type = message.Type
-                });
-                
-                Console.WriteLine($"[DB] Saved {message.Type} for User {customer.Id}");
-            }
-        }
+                // 2. LƯU DB (Giữ nguyên)
+                await repository.AddAsync(new Notification
+                {
+                    UserId = customer.Id,
+                    Message = dbMessage,
+                    Type = message.Type
+                });
+                
+                Console.WriteLine($"[DB] Saved {message.Type} for User {customer.Id}");
+            }
+        }
 
         private async Task HandleReadingAnomaly(AnomalyNotificationMessage message, INotificationRepository repository)
         {
@@ -252,46 +274,51 @@ namespace NotificationService.Services
             var culture = new CultureInfo("vi-VN");
             var subject = "[CẢNH BÁO] Tiêu thụ BẤT THƯỜNG - Phòng/Khách hàng cần kiểm tra gấp!";
             
-            // --- 1. Soạn Email cho Owner ---
-            var emailBody = new StringBuilder();
-            emailBody.AppendLine("Kính gửi Quản lý trọ,");
-            emailBody.AppendLine($"Hệ thống phát hiện mức tiêu thụ điện nước bất thường cho một khách hàng:");
-            emailBody.AppendLine("---");
-            emailBody.AppendLine($"* Khách hàng ID: {message.TenantId}");
-            emailBody.AppendLine($"* Chu kỳ: {message.CycleMonth}/{message.CycleYear}");
+            // --- 1. Soạn Email cho Owner (HTML Format) ---
+            var emailBodyHtml = new StringBuilder();
+            emailBodyHtml.AppendLine("<html><body>");
+            emailBodyHtml.AppendLine("<h2 style='color: #dc3545;'>CẢNH BÁO TIÊU THỤ BẤT THƯỜNG ĐÃ ĐƯỢC PHÁT HIỆN</h2>");
+            emailBodyHtml.AppendLine("<p>Kính gửi Quản lý trọ,</p>");
+            emailBodyHtml.AppendLine("<p>Hệ thống phát hiện mức tiêu thụ điện nước bất thường cho một khách hàng, cần được kiểm tra ngay:</p>");
+            
+            emailBodyHtml.AppendLine("<ul style='list-style-type: none; padding: 10px; border: 1px solid #ccc; background-color: #fff3cd;'>");
+            emailBodyHtml.AppendLine($"<li><strong>Khách hàng ID:</strong> {message.TenantId}</li>");
+            emailBodyHtml.AppendLine($"<li><strong>Chu kỳ:</strong> {message.CycleMonth}/{message.CycleYear}</li>");
 
             if (message.IsElectricAnomaly)
             {
-                emailBody.AppendLine($"* ⚡️ **ĐIỆN BẤT THƯỜNG:** {message.ElectricUsage.ToString("N0", culture)} kWh (Ngưỡng > 500)");
+                emailBodyHtml.AppendLine($"<li style='color: #dc3545; font-weight: bold;'>⚡️ ĐIỆN BẤT THƯỜNG: {message.ElectricUsage.ToString("N0", culture)} kWh (Ngưỡng > 500)</li>");
             }
             else
             {
-                emailBody.AppendLine($"* ⚡️ Điện bình thường: {message.ElectricUsage.ToString("N0", culture)} kWh");
+                emailBodyHtml.AppendLine($"<li>⚡️ Điện bình thường: {message.ElectricUsage.ToString("N0", culture)} kWh</li>");
             }
 
             if (message.IsWaterAnomaly)
             {
-                emailBody.AppendLine($"* 💧 **NƯỚC BẤT THƯỜNG:** {message.WaterUsage} m³ (Ngưỡng > 30)");
+                emailBodyHtml.AppendLine($"<li style='color: #dc3545; font-weight: bold;'>💧 NƯỚC BẤT THƯỜNG: {message.WaterUsage} m³ (Ngưỡng > 30)</li>");
             }
             else
             {
-                emailBody.AppendLine($"* 💧 Nước bình thường: {message.WaterUsage} m³");
+                emailBodyHtml.AppendLine($"<li>💧 Nước bình thường: {message.WaterUsage} m³</li>");
             }
 
-            emailBody.AppendLine("---");
-            emailBody.AppendLine("Vui lòng kiểm tra ngay lập tức để xác nhận tính chính xác của chỉ số hoặc tìm nguyên nhân rò rỉ/sử dụng quá mức.");
-            emailBody.AppendLine("Trân trọng.");
+            emailBodyHtml.AppendLine("</ul>");
+            
+            emailBodyHtml.AppendLine("<p style='margin-top: 20px;'><strong>HÀNH ĐỘNG CẦN THIẾT:</strong> Vui lòng kiểm tra ngay lập tức để xác nhận tính chính xác của chỉ số hoặc tìm nguyên nhân rò rỉ/sử dụng quá mức.</p>");
+            emailBodyHtml.AppendLine("<p>Trân trọng.</p>");
+            emailBodyHtml.AppendLine("</body></html>");
             
             // Gửi đến Owner qua email mà ReadingService đã cung cấp
-            await _emailService.SendEmailAsync(message.RecipientEmail, subject, emailBody.ToString()); 
+            await _emailService.SendEmailAsync(message.RecipientEmail, subject, emailBodyHtml.ToString(), isHtml: true); // ⭐️ THÊM isHtml: true ⭐️
 
-            // --- 2. LƯU DB (Lưu cho Owner) ---
+            // --- 2. LƯU DB (Giữ nguyên) ---
             var anomalyType = (message.IsElectricAnomaly ? "Điện" : "") + (message.IsWaterAnomaly ? (message.IsElectricAnomaly ? " & Nước" : "Nước") : "");
             var dbMessage = $"Cảnh báo Tiêu thụ Bất thường ({anomalyType}) từ khách hàng ID: {message.TenantId}. Điện: {message.ElectricUsage}, Nước: {message.WaterUsage}.";
 
             await repository.AddAsync(new Notification
             {
-                UserId = message.TenantId, // Hoặc lưu Owner ID, tùy thuộc vào cách bạn muốn hiển thị (thường lưu cho người nhận thông báo - Owner)
+                UserId = message.TenantId, 
                 Message = dbMessage,
                 Type = NotificationType.ReadingAnomaly
             });

@@ -5,44 +5,38 @@ using System.Text;
 using TicketService.Data;
 using TicketService.Services;
 
-// --- TẤT CẢ CODE LOGIC PHẢI NẰM DƯỚI CÁC DÒNG USING Ở TRÊN ---
-
 var builder = WebApplication.CreateBuilder(args);
 
 // ==============================================
 // 1. CẤU HÌNH DỊCH VỤ (SERVICES)
 // ==============================================
 
-// Thêm Controllers
 builder.Services.AddControllers();
-
-// Cấu hình Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// [QUAN TRỌNG - MỚI THÊM] Cấu hình CORS (Cho phép Frontend gọi vào)
+// --- CẤU HÌNH CORS (Cho phép Frontend truy cập) ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()  // Cho phép mọi nguồn (React, Vue, Mobile...)
-              .AllowAnyMethod()  // Cho phép mọi hành động (GET, POST, PUT, DELETE)
-              .AllowAnyHeader(); // Cho phép mọi Header
+        policy.AllowAnyOrigin()   // Chấp nhận mọi nguồn (React, Vue...)
+              .AllowAnyMethod()   // Chấp nhận GET, POST, PUT...
+              .AllowAnyHeader();  // Chấp nhận mọi Header
     });
 });
 
-// Cấu hình kết nối Database MySQL
+// Cấu hình Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
-// ĐĂNG KÝ SERVICE
+// Đăng ký Service
 builder.Services.AddScoped<ITicketService, TicketService.Services.TicketService>();
 
-// Cấu hình AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-// Cấu hình Authentication (JWT)
+// Cấu hình Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -56,7 +50,7 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = false,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SecretKeyTu16KyTuTroLenNheBan!!!!")) 
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SecretKeyTu16KyTuTroLenNheBan!!!!"))
     };
 });
 
@@ -72,9 +66,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// ⚠️ QUAN TRỌNG: Comment dòng này lại khi chạy Local
+// Lý do: Nếu Frontend gọi http:// mà Backend ép chuyển sang https:// 
+// nhưng máy bạn chưa cài chứng chỉ SSL -> Sẽ bị lỗi "Refused to connect"
+// app.UseHttpsRedirection(); 
 
-// [QUAN TRỌNG - MỚI THÊM] Kích hoạt CORS (Phải đặt trước Auth)
+// ✅ Kích hoạt CORS (Phải đặt TRƯỚC Auth & StaticFiles)
 app.UseCors("AllowAll");
 
 app.UseAuthentication();

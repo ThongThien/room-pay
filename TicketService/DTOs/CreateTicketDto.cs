@@ -6,7 +6,7 @@ namespace TicketService.Dtos
     {
         // Thêm 2 dòng này để sửa lỗi CS1061
         public string? TenantId { get; set; }  
-        public int RoomId { get; set; }
+        public int? RoomId { get; set; }
 
         [Required(ErrorMessage = "Tiêu đề không được để trống")]
         public string Title { get; set; } = string.Empty;

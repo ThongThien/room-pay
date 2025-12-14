@@ -1,39 +1,45 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using PropertyService.Data;
-using System.Text;
-using PropertyService.Services;
-using PropertyService.Services.Interfaces;
-using PropertyService.Repositories;
-using PropertyService.Services.Clients;
 using PropertyService.Models;
+using PropertyService.Repositories;
+using PropertyService.Services;
+using PropertyService.Services.Clients;
+using PropertyService.Services.Interfaces;
+using System.Text;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Database
+// =====================
+// 1. DATABASE
+// =====================
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
-    ));
+    )
+);
 
-// Add Cors
-string allowedOrigins = builder.Configuration
-                             .GetSection("Cors:AllowedOrigins")
-                             .Get<string>() ?? string.Empty;
+// =====================
+// 2. CORS (AN TOÀN, DEV DỄ CHẠY)
+// =====================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
-// 2. JWT Authentication
+// =====================
+// 3. JWT AUTHENTICATION
+// =====================
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -45,58 +51,70 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtSettings["Issuer"],
             ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!))
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSettings["Secret"]!)
+            )
         };
     });
 
-// 3. Swagger + JWT support
+// =====================
+// 4. SWAGGER
+// =====================
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition("Bearer", new()
+    c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header
+        Title = "Property Service API",
+        Version = "v1"
     });
 
-    c.AddSecurityRequirement(new()
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Nhập token theo format: Bearer {token}"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            new OpenApiSecurityScheme
             {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                Reference = new OpenApiReference
                 {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
-builder.Services.AddAutoMapper(typeof(Program));
-builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
+// =====================
+// 5. DEPENDENCY INJECTION
+// =====================
+builder.Services.AddAutoMapper(typeof(Program));
+
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
-builder.Services.AddScoped<IGenericRepository<House>, GenericRepository<House>>();
-builder.Services.AddScoped<IGenericRepository<Room>, GenericRepository<Room>>();
 builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
-// Trong PropertyService/Program.cs (hoặc Startup.cs)
 
+// HTTP Client → AA Service
 builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
 {
-    //  SỬA LỖI: Đổi key từ "AAService" thành "AA" 
-    var aaServiceUrl = builder.Configuration["ServiceUrls:AA"]; // <--- ĐÃ SỬA THÀNH "AA"
-    
+    var aaServiceUrl = builder.Configuration["ServiceUrls:AA"];
+
     if (string.IsNullOrEmpty(aaServiceUrl))
     {
-        // Bạn có thể cần kiểm tra cấu hình lại
-        throw new InvalidOperationException("AA Service URL not configured in appsettings.");
+        aaServiceUrl = "http://localhost:5001"; // fallback dev
     }
+
     client.BaseAddress = new Uri(aaServiceUrl);
 });
 
@@ -104,9 +122,14 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-app.UseSwagger();
-app.UseSwaggerUI();
+// =====================
+// 6. PIPELINE
+// =====================
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseCors("AllowAll");
 

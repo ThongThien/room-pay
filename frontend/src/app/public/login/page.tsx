@@ -25,27 +25,32 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // API
+      // Gọi API Login
       const result = await loginAPI(formData.email, formData.password);
 
       if (result.success) {
-        // Lưu Token và thông tin User
+        // 1. Lưu Token
         if (result.token) {
           localStorage.setItem("accessToken", result.token);
         }
 
-        // Lưu thông tin user để hiển thị
+        // 2. Lưu thông tin user
         if (result.user) {
           localStorage.setItem("userRole", result.user.role);
           localStorage.setItem("userFullName", result.user.fullName);
-          localStorage.setItem("userId", result.user.id);
+          localStorage.setItem("userId", result.user.id); // Giữ cái này cho logic chung
+          
+          // [THÊM MỚI] Lưu riêng tenantId để trang Ticket dễ lấy
+          localStorage.setItem("tenantId", result.user.id); 
         }
 
-        // Điều hướng
+        // 3. Điều hướng
         if (result.user?.role === "Owner") {
           router.push("/owner/dashboard");
         } else if (result.user?.role === "Tenant") {
-          router.push("/tenant/dashboard");
+          // [LƯU Ý] Nếu bạn muốn vào thẳng trang ticket thì đổi thành /tenant/tickets
+          // Nếu không thì cứ để dashboard
+          router.push("/tenant/dashboard"); 
         } else {
           router.push("/");
         }
@@ -73,7 +78,6 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Input Email */}
           <div>
             <label className="block mb-1 font-medium text-gray-700">Email</label>
             <input
@@ -86,7 +90,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Input Password */}
           <div>
             <label className="block mb-1 font-medium text-gray-700">Mật khẩu</label>
             <input

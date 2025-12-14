@@ -1,11 +1,12 @@
 'use client'
+
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import RoleGuard from '@/components/auth/RoleGuard'
-import NotificationDropdown from "@/components/noti/NotificationDropdown"
-import ConfirmModal from "@/components/common/ConfirmModal"
+import NotificationDropdown from '@/components/noti/NotificationDropdown'
+import ConfirmModal from '@/components/common/ConfirmModal'
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -20,71 +21,83 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     setShowLogoutModal(false)
   }
 
-  //Lấy tên user từ localStorage để hiển thị 
-  const userFullName = typeof window !== 'undefined' ? localStorage.getItem('userFullName') : 'Owner'
+  const userFullName =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('userFullName')
+      : 'Owner'
 
   return (
-    //Bọc RoleGuard chỉ cho phép Owner truy cập
     <RoleGuard allowedRoles={['Owner']}>
       <div className="flex h-screen bg-gray-100">
-        {/*SIDEBAR*/}
-        <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-gray-800 text-white transition-all duration-300 flex flex-col`}>
+        {/* SIDEBAR */}
+        <aside
+          className={`${
+            isSidebarOpen ? 'w-64' : 'w-20'
+          } bg-gray-800 text-white transition-all duration-300 flex flex-col`}
+        >
           <div className="p-4 border-b border-gray-700 font-bold text-center truncate">
             {isSidebarOpen ? 'Trang quản lý' : 'Admin'}
           </div>
 
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <Link href="/owner/dashboard" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/dashboard" className="block p-2 hover:bg-gray-700 rounded">
               {isSidebarOpen && 'Tổng quan'}
             </Link>
 
-            <Link href="/owner/houses" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/houses" className="block p-2 hover:bg-gray-700 rounded">
               {isSidebarOpen && 'Quản lý nhà'}
             </Link>
 
-            <Link href="/owner/rooms" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/rooms" className="block p-2 hover:bg-gray-700 rounded">
               {isSidebarOpen && 'Quản lý phòng'}
             </Link>
 
-            <Link href="/owner/tenants" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/tenants" className="block p-2 hover:bg-gray-700 rounded">
               {isSidebarOpen && 'Quản lý khách thuê'}
             </Link>
 
-            <Link href="/owner/contracts" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/contracts" className="block p-2 hover:bg-gray-700 rounded">
               {isSidebarOpen && 'Hợp đồng thuê'}
             </Link>
 
-            <Link href="/owner/monthlyreading" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/monthlyreading" className="block p-2 hover:bg-gray-700 rounded">
               {isSidebarOpen && 'Quản lý nộp chỉ số'}
             </Link>
 
-            <Link href="/owner/invoices" className="w-full p-2 hover:bg-gray-700 rounded flex items-center gap-2">
+            <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded">
               {isSidebarOpen && 'Quản lý hóa đơn'}
+            </Link>
+
+            <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded">
+              {isSidebarOpen && 'Yêu cầu sửa chữa'}
             </Link>
 
             <button
               onClick={() => setShowLogoutModal(true)}
-              className="w-full text-left p-2 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center gap-2 mt-4"
+              className="w-full text-left p-2 hover:bg-red-600 text-red-200 hover:text-white rounded mt-4"
             >
               {isSidebarOpen && 'Đăng xuất'}
             </button>
           </nav>
 
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-4 bg-gray-900 text-center hover:bg-gray-700">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-4 bg-gray-900 text-center hover:bg-gray-700"
+          >
             {isSidebarOpen ? 'Thu gọn' : '>'}
           </button>
         </aside>
 
-        {/*MAIN CONTENT*/}
+        {/* MAIN CONTENT */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="bg-white shadow p-4 flex justify-between items-center">
             <h1 className="font-bold text-gray-950 text-xl">Khu vực chủ nhà</h1>
+
             <div className="flex items-center gap-4">
-              
-              {/* Thay thế nút chuông cũ bằng Component NotificationDropdown */}
               <NotificationDropdown />
 
               <div className="h-6 w-px bg-gray-300"></div>
+
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <p className="text-sm font-bold text-gray-800">{userFullName}</p>
@@ -103,19 +116,19 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             </div>
           </header>
 
-          {/* CHILD */}
           <main className="flex-1 overflow-auto p-6 bg-gray-50">
             {children}
           </main>
         </div>
-        <ConfirmModal 
-            isOpen={showLogoutModal}
-            onClose={() => setShowLogoutModal(false)}
-            onConfirm={performLogout}
-            title="Đăng xuất"
-            message="Bạn có chắc chắn muốn đăng xuất không?"
-            confirmText="Đăng xuất"
-            cancelText="Không"
+
+        <ConfirmModal
+          isOpen={showLogoutModal}
+          onClose={() => setShowLogoutModal(false)}
+          onConfirm={performLogout}
+          title="Đăng xuất"
+          message="Bạn có chắc chắn muốn đăng xuất không?"
+          confirmText="Đăng xuất"
+          cancelText="Không"
         />
       </div>
     </RoleGuard>

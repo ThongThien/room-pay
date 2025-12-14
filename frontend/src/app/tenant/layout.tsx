@@ -15,24 +15,27 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
 
     // Đăng xuất
     const performLogout = () => {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
             localStorage.clear()
         }
-        router.push('/public/login')
+        router.push("/public/login")
         setShowLogoutModal(false)
     }
 
     // Lấy tên người thuê
-    const userFullName = typeof window !== 'undefined' ? localStorage.getItem('userFullName') : 'Tenant'
+    const userFullName =
+        typeof window !== "undefined"
+            ? localStorage.getItem("userFullName")
+            : "Tenant"
 
     return (
-        // Bọc RoleGuard quyền Tenant
-        <RoleGuard allowedRoles={['Tenant']}>
+        <RoleGuard allowedRoles={["Tenant"]}>
             <div className="flex h-screen bg-gray-100">
                 {/* SIDEBAR */}
                 <aside
-                    className={`${isSidebarOpen ? "w-64" : "w-20"
-                        } bg-gray-800 text-white transition-all duration-300 flex flex-col`}
+                    className={`${
+                        isSidebarOpen ? "w-64" : "w-20"
+                    } bg-gray-800 text-white transition-all duration-300 flex flex-col`}
                 >
                     <div className="p-4 border-b border-gray-700 font-bold text-center truncate">
                         {isSidebarOpen ? "Cổng cư dân" : "Cư dân"}
@@ -55,11 +58,15 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                             {isSidebarOpen && "Lịch sử nộp chỉ số"}
                         </Link>
 
+                        <Link href="/tenant/tickets" className="block p-2 hover:bg-gray-700 rounded">
+                            {isSidebarOpen && "Yêu cầu sửa chữa"}
+                        </Link>
+
                         <button
                             onClick={() => setShowLogoutModal(true)}
                             className="w-full text-left block p-2 hover:bg-red-600 text-red-200 hover:text-white rounded mt-4"
                         >
-                            {isSidebarOpen && 'Đăng xuất'}
+                            {isSidebarOpen && "Đăng xuất"}
                         </button>
                     </nav>
 
@@ -74,17 +81,20 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                 {/* MAIN CONTENT */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <header className="bg-white shadow p-4 flex justify-between items-center">
-                        <h1 className="font-bold text-gray-700 text-xl">Khu vực người thuê</h1>
+                        <h1 className="font-bold text-gray-700 text-xl">
+                            Khu vực người thuê
+                        </h1>
 
                         <div className="flex items-center gap-4">
-                            {/* Thay thế nút chuông cũ bằng Component này */}
                             <NotificationDropdown />
 
                             <div className="h-6 w-px bg-gray-300"></div>
 
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
-                                    <p className="text-sm font-bold text-gray-800">{userFullName}</p>
+                                    <p className="text-sm font-bold text-gray-800">
+                                        {userFullName}
+                                    </p>
                                     <p className="text-xs text-gray-500">Người thuê</p>
                                 </div>
 
@@ -100,8 +110,11 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                         </div>
                     </header>
 
-                    <main className="flex-1 overflow-auto p-6 bg-gray-50">{children}</main>
+                    <main className="flex-1 overflow-auto p-6 bg-gray-50">
+                        {children}
+                    </main>
                 </div>
+
                 <ConfirmModal 
                     isOpen={showLogoutModal}
                     onClose={() => setShowLogoutModal(false)}

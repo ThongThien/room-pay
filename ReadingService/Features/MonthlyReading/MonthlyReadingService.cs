@@ -377,7 +377,7 @@ public class MonthlyReadingService : IMonthlyReadingService
             reading.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-
+            
             // Tính toán mức sử dụng
             var electricUsage = (reading.ElectricNew ?? 0) - (reading.ElectricOld ?? 0);
             var waterUsage = (reading.WaterNew ?? 0) - (reading.WaterOld ?? 0);
@@ -447,6 +447,8 @@ public class MonthlyReadingService : IMonthlyReadingService
             // --- Logic tạo Invoice ---
             if (reading.Status != ReadingStatus.AutoInvoiced && (electricUsage > 0 || waterUsage > 0))
             {
+                reading.Status = ReadingStatus.AutoInvoiced;
+                await _context.SaveChangesAsync();
                 var contractIdForInvoice = reading.TenantContractId;
                 
                 _ = Task.Run(async () =>

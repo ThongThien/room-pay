@@ -48,40 +48,42 @@ public class InvoiceReminderSchedulerJob : IJob
             return;
         }
 
-        // 2. TẠO CẤU HÌNH LỊCH TRÌNH DYNAMIC (Ví dụ: 1 phút sau)
         // var now = DateTime.Now;
-        // var remindMinutePayment = (now.Minute + 1) % 60; 
-        // var remindHour = now.Hour; 
+        //     var remindMinutePayment = (now.Minute + 1) % 60; 
+        //     var remindHour = now.Hour; 
+        //     var remindDay = now.Day; // Chạy trong ngày hôm nay
+            
+        //     _logger.LogInformation("Scheduled Payment Reminder Jobs to run at {Hour}:{Minute} on day {Day} (DEMO Config).", 
+        //                             remindHour, remindMinutePayment, remindDay);
 
-        // // 3. LÊN LỊCH DYNAMIC TRIGGER CHO TỪNG OWNER
-        // foreach (var ownerId in ownerIds)
-        // {
-        //     await ScheduleReminderJob(scheduler, ownerId, 
-        //                              "PaymentReminderJob", // Tên Job Child
-        //                              now.Day, remindHour, remindMinutePayment, 
-        //                              "Payment");
-        // }
+        //     foreach (var ownerId in ownerIds)
+        //     {
+        //         await ScheduleReminderJob(scheduler, ownerId, 
+        //                                 "PaymentReminderJob", 
+        //                                 remindDay.ToString(), // Chuyển int sang string
+        //                                 remindHour, 
+        //                                 remindMinutePayment, 
+        //                                 "Payment");
+        //     }
 
+        // ⭐️ LOGIC PRODUCTION: Lên lịch cho Ngày 25
+    
         const int remindMinute = 0;   // Phút 0
-        const int remindHour = 3;     // 3 giờ sáng (AM)
+        const int remindHour = 8;     // 8 giờ sáng (AM)
+        const string remindDayPayment = "25"; // Ngày 25 hàng tháng
         
-        // Biểu thức Cron: Bắt đầu từ ngày 1 và lặp lại 3 ngày một lần
-        const string dayOfMonthExpression = "1/3"; 
+        _logger.LogInformation("Scheduled Payment Reminder Jobs to run at {Hour}:{Minute} on day {Day} every month.", 
+                                remindHour, remindMinute, remindDayPayment);
 
-        _logger.LogInformation("Scheduled Payment Reminder Jobs to run at {Hour}:{Minute} every 3 days (Production Config).", 
-                                remindHour, remindMinute, dayOfMonthExpression);
-
-        // 3. LÊN LỊCH DYNAMIC TRIGGER CHO TỪNG OWNER
         foreach (var ownerId in ownerIds)
         {
             await ScheduleReminderJob(scheduler, ownerId, 
-                                    "PaymentReminderJob", // Tên Job Child
-                                    dayOfMonthExpression, // ⭐️ Truyền biểu thức "1/3"
+                                    "PaymentReminderJob", 
+                                    remindDayPayment, // "25"
                                     remindHour, 
                                     remindMinute, 
                                     "Payment");
         }
-        
         _logger.LogInformation("🛠️ [END] Dynamic Invoice Reminder Scheduler Job Completed.");
     }
     

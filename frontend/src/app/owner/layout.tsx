@@ -55,7 +55,11 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                         </Link>
 
                         <Link href="/owner/tenants" className="block p-2 hover:bg-gray-700 rounded">
-                            {isSidebarOpen && "Quản lý người thuê"}
+                            {isSidebarOpen && "Quản lý khách thuê"}
+                        </Link>
+
+                        <Link href="/owner/contracts" className="block p-2 hover:bg-gray-700 rounded">
+                            {isSidebarOpen && "Quản lý hợp đồng"}
                         </Link>
 
                         <Link href="/owner/invoices" className="block p-2 hover:bg-gray-700 rounded">
@@ -63,7 +67,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                         </Link>
 
                         <Link href="/owner/monthlyreading" className="block p-2 hover:bg-gray-700 rounded">
-                            {isSidebarOpen && "Quản lý chỉ số"}
+                            {isSidebarOpen && "Quản lý nộp chỉ số"}
                         </Link>
 
                         <Link href="/owner/tickets" className="block p-2 hover:bg-gray-700 rounded">

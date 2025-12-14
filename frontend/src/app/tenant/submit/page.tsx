@@ -13,7 +13,7 @@ export default function SubmitMeterPage() {
     const [cycle, setCycle] = useState<ReadingCycle | null>(null);
     const [uploadingElec, setUploadingElec] = useState(false);
     const [uploadingWater, setUploadingWater] = useState(false);
-    
+
     // File state
     const [electricFile, setElectricFile] = useState<File | null>(null);
     const [waterFile, setWaterFile] = useState<File | null>(null);
@@ -22,7 +22,7 @@ export default function SubmitMeterPage() {
     const [electric, setElectric] = useState<ReadingValue>({ old: 0, new: 0, img: "", status: "pending" });
     const [water, setWater] = useState<ReadingValue>({ old: 0, new: 0, img: "", status: "pending" });
     const [invoiceStatus, setInvoiceStatus] = useState<'pending' | 'created' | 'paid'>('pending');
-    
+
     // UI state
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [alertState, setAlertState] = useState<{ isOpen: boolean; title: string; message: string; type: 'error' | 'success' | 'warning'; }>({ isOpen: false, title: "", message: "", type: 'error' });
@@ -71,7 +71,7 @@ export default function SubmitMeterPage() {
     // 2️⃣ UPLOAD HANDLER
     async function handleUpload(type: "electric" | "water", file: File) {
         if (type === "electric") setUploadingElec(true); else setUploadingWater(true);
-        
+
         try {
             const data = await readingService.uploadImage(type, file);
             const aiValue = Number(data.reading);
@@ -83,7 +83,7 @@ export default function SubmitMeterPage() {
                 showAlert("Lỗi đọc ảnh", "Không đọc được chỉ số vui lòng upload lại hình ảnh.", 'error');
                 if (type === "electric") { setElectricFile(file); setElectric(p => ({ ...p, new: NaN, img: preview, status: "pending" })); }
                 else { setWaterFile(file); setWater(p => ({ ...p, new: NaN, img: preview, status: "pending" })); }
-            } 
+            }
             // Xử lý số đọc được
             else {
                 if (aiValue < currentOld) {
@@ -109,7 +109,9 @@ export default function SubmitMeterPage() {
 
     // 4️⃣ FINAL SUBMIT
     async function handleFinalSubmit() {
-        if (!cycle) return;
+        // Ngăn chặn double click ngay lập tức
+        if (!cycle || isInitialLoading) return;
+
         setShowConfirmModal(false);
         setIsInitialLoading(true);
 
@@ -120,19 +122,15 @@ export default function SubmitMeterPage() {
         if (waterFile) form.append("waterPhoto", waterFile);
 
         try {
+            // ⭐️ CHỈ GỌI MỘT ENDPOINT: LƯU CHỈ SỐ ⭐️
+            // (Và Server sẽ xử lý việc tạo hóa đơn)
             const res = await readingService.submitReadings(cycle.id, form);
+
             if (res.ok) {
-                // Cập nhật UI ngay lập tức
+                // Cập nhật UI thành công
                 setElectric(p => ({ ...p, status: "approved" }));
                 setWater(p => ({ ...p, status: "approved" }));
-                
-                // Tạo hóa đơn
-                await readingService.createInvoice({
-                    cycleId: cycle.id,
-                    electricUsage: electric.new - electric.old,
-                    waterUsage: water.new - water.old
-                });
-                
+
                 setInvoiceStatus('created');
             } else {
                 showAlert("Gửi thất bại", "Vui lòng thử lại.", 'error');
@@ -181,9 +179,9 @@ export default function SubmitMeterPage() {
                 <ReadingCard title="Chỉ số nước" icon="💧" oldValue={water.old} newValue={water.new} usedValue={water.new - water.old} status={water.status} imageUrl={water.img} isLoading={uploadingWater} onUpload={(f) => handleUpload("water", f)} />
             </div>
 
-            <ConfirmSubmitModal 
-                isOpen={showConfirmModal} 
-                onClose={() => setShowConfirmModal(false)} 
+            <ConfirmSubmitModal
+                isOpen={showConfirmModal}
+                onClose={() => setShowConfirmModal(false)}
                 onConfirm={handleFinalSubmit}
                 hasWarning={hasWarning}
                 isHighElec={isHighElec}
@@ -193,12 +191,12 @@ export default function SubmitMeterPage() {
                 limits={{ elec: LIMIT_ELEC, water: LIMIT_WATER }}
             />
 
-            <AlertModal 
-                isOpen={alertState.isOpen} 
-                title={alertState.title} 
-                message={alertState.message} 
-                type={alertState.type} 
-                onClose={() => setAlertState(p => ({ ...p, isOpen: false }))} 
+            <AlertModal
+                isOpen={alertState.isOpen}
+                title={alertState.title}
+                message={alertState.message}
+                type={alertState.type}
+                onClose={() => setAlertState(p => ({ ...p, isOpen: false }))}
             />
         </div>
     );

@@ -236,6 +236,12 @@ namespace AA.Features.Users
                     user.FullName = updateUserDto.FullName;
                 }
 
+
+                if (!string.IsNullOrEmpty(updateUserDto.PhoneNumber))
+                {
+                    user.PhoneNumber = updateUserDto.PhoneNumber;
+                }
+                
                 user.UpdatedAt = DateTime.UtcNow;
 
                 var updateResult = await _userManager.UpdateAsync(user);
@@ -263,6 +269,7 @@ namespace AA.Features.Users
                         };
                     }
                 }
+
 
                 // Cập nhật role nếu có
                 if (!string.IsNullOrEmpty(updateUserDto.Role))
@@ -294,6 +301,7 @@ namespace AA.Features.Users
                         Email = user.Email!,
                         FullName = user.FullName!,
                         OwnerId = user.OwnerId,
+                        PhoneNumber = user.PhoneNumber,
                         Roles = roles.ToList(),
                         CreatedAt = user.CreatedAt,
                         UpdatedAt = user.UpdatedAt

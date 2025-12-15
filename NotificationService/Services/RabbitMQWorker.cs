@@ -223,7 +223,7 @@ namespace NotificationService.Services
                 if (message.Type == NotificationType.NewCycle)
                 {
                     emailSubject = "[THÔNG BÁO] Chu kỳ đọc chỉ số mới đã bắt đầu.";
-                    dbMessage = $"Chu kỳ đọc chỉ số mới (ID: {message.ReadingCycleId}) đã được mở. Vui lòng chuẩn bị nộp chỉ số.";
+                    dbMessage = $"Chu kỳ đọc chỉ số mới đã được mở. Vui lòng chuẩn bị nộp chỉ số.";
                     
                     // HTML Body cho New Cycle
                     emailBodyHtml = $"<html><body>" +

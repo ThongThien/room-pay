@@ -8,6 +8,7 @@ import ReadingStats from "@/components/monthlyReading/ReadingStats";
 import ReadingFilterBar from "@/components/monthlyReading/ReadingFilterBar";
 import ReadingTable from "@/components/monthlyReading/ReadingTable";
 import ConfirmModal from "@/components/common/ConfirmModal";
+import { Info } from "lucide-react";
 
 export default function OwnerUtilitiesPage() {
   const [readings, setReadings] = useState<MonthlyReading[]>([]);
@@ -137,7 +138,7 @@ export default function OwnerUtilitiesPage() {
   }, [selectedMonth, selectedYear]);
 
   // --- HANDLER: Mở Modal ---
-  
+
   // Mở modal nhắc nộp (gắn vào Card thống kê)
   const openRemindModal = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -160,29 +161,29 @@ export default function OwnerUtilitiesPage() {
     setIsProcessing(true);
 
     try {
-        let success = false;
-        
-        if (actionType === "REMIND_SUBMISSION") {
-            success = await sendRemindSubmission();
-            setActionType(null); // Đóng modal trước khi alert
-            if (success) alert(`Đã gửi thông báo nhắc nộp đến các phòng chưa hoàn thành.`);
-            else alert("Gửi thất bại. Vui lòng thử lại.");
-        } 
-        else if (actionType === "NEW_CYCLE") {
-            // Lấy tháng/năm hiện tại để gửi thông báo kỳ mới
-            const now = new Date();
-            success = await triggerNewCycleNotification(now.getMonth() + 1, now.getFullYear());
-            setActionType(null);
-            if (success) alert(`Đã phát động chu kỳ mới và gửi thông báo cho cư dân.`);
-            else alert("Có lỗi xảy ra (Có thể chu kỳ đã tồn tại).");
-        }
+      let success = false;
+
+      if (actionType === "REMIND_SUBMISSION") {
+        success = await sendRemindSubmission();
+        setActionType(null); // Đóng modal trước khi alert
+        if (success) alert(`Đã gửi thông báo nhắc nộp đến các phòng chưa hoàn thành.`);
+        else alert("Gửi thất bại. Vui lòng thử lại.");
+      }
+      else if (actionType === "NEW_CYCLE") {
+        // Lấy tháng/năm hiện tại để gửi thông báo kỳ mới
+        const now = new Date();
+        success = await triggerNewCycleNotification(now.getMonth() + 1, now.getFullYear());
+        setActionType(null);
+        if (success) alert(`Đã phát động chu kỳ mới và gửi thông báo cho cư dân.`);
+        else alert("Có lỗi xảy ra (Có thể chu kỳ đã tồn tại).");
+      }
 
     } catch (error) {
-        console.error(error);
-        alert("Lỗi kết nối.");
-        setActionType(null);
+      console.error(error);
+      alert("Lỗi kết nối.");
+      setActionType(null);
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   };
 
@@ -198,13 +199,23 @@ export default function OwnerUtilitiesPage() {
             </p>
           </div>
 
-          {/* Nút Manual trigger New Cycle */}
-          <button
-            onClick={openNewCycleModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow flex items-center gap-2"
-          >
-            Nhắc thông báo kỳ mới
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="relative group flex items-center h-full">
+              <Info className="w-5 h-6 text-gray-500 cursor-pointer hover:text-gray-700 transition" />
+
+              <div className="absolute left-1/2 bottom-full transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-60"> {/* Tăng z-index lên 60 */}
+                <p className="font-semibold text-yellow-300 mb-1">Lưu ý khi tạo chu kỳ mới (*)</p>
+                <p>Nếu như tháng này các khách đã được tạo bản nộp chỉ số thì sẽ được bỏ qua.</p>
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-gray-800"></div>
+              </div>
+            </div>
+            <button
+              onClick={openNewCycleModal}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow flex items-center gap-2"
+            >
+              Tạo kỳ thu tiền mới
+            </button>
+          </div>
         </div>
 
         {/* Component Thống kê */}
@@ -247,7 +258,7 @@ export default function OwnerUtilitiesPage() {
         isLoading={isProcessing}
         title={actionType === "NEW_CYCLE" ? "Nhắc kỳ mới" : "Nhắc nộp chỉ số"}
         message={
-            actionType === "NEW_CYCLE" 
+          actionType === "NEW_CYCLE"
             ? `Bạn có chắc chắn muốn tạo chu kỳ mới cho tháng hiện tại và gửi thông báo đến tất cả?`
             : `Gửi nhắc nhở đến ${stats.countNotSubmitted} phòng chưa nộp chỉ số?`
         }

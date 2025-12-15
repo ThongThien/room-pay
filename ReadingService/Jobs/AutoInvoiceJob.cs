@@ -49,7 +49,6 @@ public class AutoInvoiceJob : IJob
         var readings = await _context.MonthlyReadings
             .Include(r => r.ReadingCycle)
             .Where(r => r.Status != ReadingStatus.Confirmed &&
-                        r.Status != ReadingStatus.AutoInvoiced &&
                         r.ReadingCycle.CycleMonth == currentMonth &&
                         r.ReadingCycle.CycleYear == currentYear)
             .ToListAsync();
@@ -89,7 +88,7 @@ public class AutoInvoiceJob : IJob
                     _logger.LogInformation("Auto invoice created for user {UserId}, cycle {CycleId}", tenantUserId, reading.CycleId);
 
                     // Đánh dấu đã tạo auto invoice
-                    reading.Status = ReadingStatus.AutoInvoiced;
+                    reading.Status = ReadingStatus.Confirmed;
                     await _context.SaveChangesAsync();
                 }
                 else

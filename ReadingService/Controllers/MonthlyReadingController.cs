@@ -486,7 +486,7 @@ public class MonthlyReadingController : ControllerBase
     }
 
     /// <summary>
-    /// API Owner sử dụng để nhắc các Tenant chưa nộp chỉ số điện nước cho chu kỳ MỚI NHẤT.
+    /// API Owner sử dụng để nhắc các Tenant chưa nộp chỉ số điện nước cho chu kỳ THÁNG HIỆN TẠI.
     /// Endpoint: POST api/MonthlyReading/remind-submission/latest
     /// </summary>
     [Authorize(Roles = "Owner")]
@@ -495,8 +495,8 @@ public class MonthlyReadingController : ControllerBase
     {
         // 1. TRÍCH XUẤT OWNER ID
         var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-                        ?? User.FindFirstValue("sub") 
-                        ?? User.FindFirstValue("userId");
+                            ?? User.FindFirstValue("sub") 
+                            ?? User.FindFirstValue("userId");
         
         if (string.IsNullOrEmpty(ownerId))
         {
@@ -505,62 +505,67 @@ public class MonthlyReadingController : ControllerBase
         
         try
         {
-            // 2. TÌM CYCLE MỚI NHẤT
-            // Hàm này trả về ReadingCycleDto của bản ghi ReadingCycle DO OWNER tạo ra 
-            var latestCycle = await _readingCycleService.GetLatestCycleByOwnerAsync(ownerId);
+            // 2. TÌM TẤT CẢ CÁC CYCLE/TENANT CẦN NHẮC NHỞ TRONG THÁNG HIỆN TẠI
+            // Hàm này trả về List<ReadingCycleDto> của các Tenant có MonthlyReading đang Pending.
+            var pendingCycles = await _readingCycleService.GetPendingSubmissionCyclesByOwnerAsync(ownerId);
             
-            if (latestCycle == null)
+            if (pendingCycles == null || !pendingCycles.Any())
             {
-                return NotFound(new { message = "Không tìm thấy chu kỳ đọc chỉ số mới nhất hoặc đang hoạt động." });
+                // Trả về OK nếu không có ai cần nhắc nhở
+                return Ok(new { message = "Thành công: Không có khách hàng nào chưa nộp chỉ số trong chu kỳ tháng hiện tại." });
             }
 
-            // ID này là ID của ReadingCycle bản ghi chung (thuộc Owner)
-            int ownerCycleId = latestCycle.Id; 
-
-            // 3. GỌI SERVICE LẤY DANH SÁCH KHÁCH HÀNG CHƯA NỘP CHỈ SỐ
-            var tenantsToRemind = await _readingCycleService.GetTenantsMissingReadingAsync(ownerCycleId);
+            // 3. TRÍCH XUẤT THÔNG TIN KHÁCH HÀNG (Tenant) VÀ NHÓM THEO ID
+            // Nhóm theo UserId để chỉ gửi 1 thông báo cho mỗi Tenant, ngay cả khi họ có nhiều Cycle Pending (trường hợp hiếm).
+            var tenantsToRemindCycle = pendingCycles
+                .GroupBy(c => c.UserId) 
+                .Select(g => g.First())
+                .ToList();
             
-            if (tenantsToRemind == null || !tenantsToRemind.Any())
+            // 4. Lấy thông tin UserInfo chi tiết của các Tenant
+            var tenantIds = tenantsToRemindCycle.Select(c => c.UserId).ToList();
+            var tenantsInfo = await _userService.GetUsersByIdsAsync(tenantIds); 
+            
+            if (tenantsInfo == null || !tenantsInfo.Any())
             {
-                return Ok(new { message = $"Thành công: Không có khách hàng nào chưa nộp chỉ số cho chu kỳ mới nhất (ID {ownerCycleId})." });
+                _logger.LogWarning($"Không tìm thấy thông tin chi tiết cho {tenantIds.Count} Tenant ID.");
+                return NotFound(new { message = "Không tìm thấy thông tin chi tiết của khách hàng cần nhắc nhở." });
             }
+            
+            // 5. CHUẨN BỊ VÀ GỬI MESSAGE QUA RABBITMQ
+            
+            // Cần lấy OwnerName thực tế nếu có thể
+            string ownerName = "Chủ nhà"; 
+            var firstCycle = tenantsToRemindCycle.First(); // Lấy thông tin chu kỳ từ bản ghi đầu tiên
 
-            // 4. CHUẨN BỊ VÀ GỬI MESSAGE QUA RABBITMQ
-            
-            // OwnerName cần được lấy từ UserService (giả định)
-            // Nếu chưa có UserService, tạm thời dùng Owner ID để tránh lỗi.
-            string ownerName = "Chủ nhà"; // Sửa lại: Lấy từ UserService nếu có
-            
-            var customersToNotify = tenantsToRemind.Select(t => new UserInfo // ⭐️ Sử dụng UserInfo đã được using
+            var customersToNotify = tenantsInfo.Select(t => new UserInfo 
             {
-                Id = t.Id, FullName = t.FullName, Email = t.Email, OwnerId = t.OwnerId 
+                Id = t.Id, FullName = t.FullName, Email = t.Email, OwnerId = ownerId 
             }).ToList();
 
             var message = new ReadingNotificationMessage 
             {
                 Type = NotificationType.RemindSubmission,
-                ReadingCycleId = ownerCycleId,
+                ReadingCycleId = 0, // Đặt là 0 hoặc null vì thông báo này áp dụng cho nhiều Cycle/Tenant
                 CustomersToNotify = customersToNotify,
                 OwnerName = ownerName,
-                CycleMonth = latestCycle.CycleMonth,
-                CycleYear = latestCycle.CycleYear
+                CycleMonth = firstCycle.CycleMonth,
+                CycleYear = firstCycle.CycleYear
             };
             
-            // ⭐️ Sửa lỗi CS1503/CS0828 (Giả định): đảm bảo SendMessage được gọi đúng cú pháp.
-            // Nếu lỗi vẫn còn, cần kiểm tra code chi tiết dòng 345, 349, 350.
             _producer.SendMessage(message, _config["RabbitMQ:QueueName"] ?? "notification_queue");
             
-            _logger.LogInformation($"Gửi nhắc nhở nộp chỉ số thành công cho {tenantsToRemind.Count()} khách hàng (Cycle ID: {ownerCycleId}).");
+            _logger.LogInformation($"Gửi nhắc nhở nộp chỉ số thành công cho {customersToNotify.Count} khách hàng.");
 
             return Ok(new 
             { 
-                message = $"Đã gửi nhắc nhở nộp chỉ số thành công đến {tenantsToRemind.Count()} khách hàng cho chu kỳ {latestCycle.CycleMonth}/{latestCycle.CycleYear}.",
-                RecipientsCount = tenantsToRemind.Count()
+                message = $"Đã gửi nhắc nhở nộp chỉ số thành công đến {customersToNotify.Count} khách hàng cho chu kỳ {firstCycle.CycleMonth}/{firstCycle.CycleYear}.",
+                RecipientsCount = customersToNotify.Count
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi khi xử lý RemindSubmission cho Cycle mới nhất");
+            _logger.LogError(ex, "Lỗi khi xử lý RemindSubmission theo Tenant Cycle");
             return StatusCode(500, new { message = "Có lỗi xảy ra khi gửi nhắc nhở." });
         }
     }

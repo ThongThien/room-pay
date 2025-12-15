@@ -170,85 +170,48 @@ public class ReadingCycleService : IReadingCycleService
                 && c.CycleYear == year);
     }
 
-    public async Task<ReadingCycleDto?> GetLatestCycleByOwnerAsync(string ownerId)
+    public async Task<IEnumerable<ReadingCycleDto>> GetPendingSubmissionCyclesByOwnerAsync(string ownerId)
     {
         // BƯỚC 1: Gọi dịch vụ bên ngoài để lấy danh sách Tenant ID thuộc về Owner này
-        // Sử dụng IUserService để truy vấn AuthService/UserService
         var tenantIds = await _userService.GetTenantIdsByOwnerAsync(ownerId);
 
-        // Kiểm tra: Nếu không có Tenant nào hoặc gọi dịch vụ thất bại
         if (tenantIds == null || !tenantIds.Any())
         {
-            // Trả về null, Controller sẽ trả về 404 (Không tìm thấy chu kỳ)
-            return null; 
+            return Enumerable.Empty<ReadingCycleDto>(); 
         }
 
         var currentMonth = DateTime.Now.Month;
         var currentYear = DateTime.Now.Year;
 
-        // BƯỚC 2: Truy vấn DB cục bộ để tìm chu kỳ đọc chỉ số mới nhất (tháng hiện tại)
-        var cycle = await _context.ReadingCycles
-            // Lọc các kỳ đọc có UserId (Tenant ID) nằm trong danh sách tenantIds
-            .Where(c => tenantIds.Contains(c.UserId))
-            
-            // Lọc theo tháng và năm hiện tại (Tìm chu kỳ được tạo cho tháng hiện tại)
-            .Where(c => c.CycleMonth == currentMonth && c.CycleYear == currentYear)
-            
-            // Lấy chu kỳ được tạo gần nhất nếu có nhiều Tenant có cùng chu kỳ
-            .OrderByDescending(c => c.CreatedAt) 
-            .FirstOrDefaultAsync();
-
-        if (cycle == null)
-        {
-            return null;
-        }
-
-        // BƯỚC 3: Map sang DTO
-        return new ReadingCycleDto
-        {
-            Id = cycle.Id,
-            UserId = cycle.UserId, 
-            CycleMonth = cycle.CycleMonth,
-            CycleYear = cycle.CycleYear,
-            CreatedAt = cycle.CreatedAt,
-            UpdatedAt = cycle.UpdatedAt
-        };
-    }
-
-    public async Task<IEnumerable<UserInfo>> GetTenantsMissingReadingAsync(int ownerCycleId)
-    {
-        // 1. Tìm các ReadingCycle IDs (là CycleId trong MonthlyReading) 
-        // thuộc về chủ sở hữu (owner) và đang ở trạng thái Pending.
-        
-        // Tìm tất cả các ReadingCycle thuộc về ownerCycleId và join để lấy status từ MonthlyReading.
-        // Vì mỗi ReadingCycle tương ứng với một Tenant/User, ReadingCycle.UserId chính là Tenant ID.
-
-        var pendingReadingCycleIds = await _context.MonthlyReadings
-            .Where(mr => mr.CycleId == ownerCycleId 
-                        && mr.Status == ReadingStatus.Pending)
-            // Lỗi CS1061 trước đây: mr.UserId không tồn tại.
-            // Giờ ta cần lấy UserId (Tenant ID) từ Navigation Property ReadingCycle
-            // Tạm thời, tôi sẽ dùng cách truy vấn trực tiếp DB nếu chưa có Navigation Property ngược lại.
-            // HOẶC, nếu 'mr.CycleId' thực chất là ID của bản ghi ReadingCycle, ta dùng:
-            .Select(mr => mr.CycleId) // mr.CycleId chính là ReadingCycle.Id
-            .Distinct()
+        // BƯỚC 2: Truy vấn DB cục bộ
+        // 2a. Lọc các ReadingCycle thuộc Owner, trong tháng/năm hiện tại
+        var recentCycles = _context.ReadingCycles
+            .Where(rc => tenantIds.Contains(rc.UserId) // Lọc theo Tenant ID
+                && rc.CycleMonth == currentMonth 
+                && rc.CycleYear == currentYear);
+                
+        // 2b. Tham chiếu (Join) với MonthlyReadings để kiểm tra Status = Pending
+        var cyclesToRemind = await recentCycles
+            .Join(
+                _context.MonthlyReadings,
+                rc => rc.Id,
+                mr => mr.CycleId,
+                (rc, mr) => new { ReadingCycle = rc, MonthlyReading = mr }
+            )
+            // Lọc các MonthlyReading có Status là Pending
+            .Where(joined => joined.MonthlyReading.Status == ReadingStatus.Pending)
+            .Select(joined => new ReadingCycleDto 
+            {
+                Id = joined.ReadingCycle.Id,
+                UserId = joined.ReadingCycle.UserId, // ID của Tenant
+                CycleMonth = joined.ReadingCycle.CycleMonth,
+                CycleYear = joined.ReadingCycle.CycleYear,
+                CreatedAt = joined.ReadingCycle.CreatedAt,
+                UpdatedAt = joined.ReadingCycle.UpdatedAt
+            })
+            .Distinct() // Đảm bảo mỗi Cycle chỉ được nhắc nhở một lần
             .ToListAsync();
 
-        // 2. Lấy Tenant ID từ các ReadingCycle IDs tìm được
-        var tenantIds = await _context.ReadingCycles
-            .Where(rc => pendingReadingCycleIds.Contains(rc.Id))
-            .Select(rc => rc.UserId) // Lấy Tenant ID từ ReadingCycle
-            .Distinct()
-            .ToListAsync();
-
-        if (!tenantIds.Any())
-        {
-            return Enumerable.Empty<UserInfo>();
-        }
-
-        // 3. Gọi UserService để lấy thông tin chi tiết (FullName, Email) của các Tenant này
-        var tenantsInfo = await _userService.GetUsersByIdsAsync(tenantIds); 
-
-        return tenantsInfo;
+        return cyclesToRemind;
     }
 }

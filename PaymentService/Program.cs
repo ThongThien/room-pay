@@ -36,7 +36,7 @@ string allowedOrigins = builder.Configuration
                              .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowFE", policy =>
     {
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
@@ -66,7 +66,7 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowFE");
 
 app.UseHttpsRedirection();
 app.UseAuthorization();

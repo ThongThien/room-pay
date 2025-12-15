@@ -1,26 +1,26 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using TicketService.Models.Enums;
 
-namespace TicketService.Models
+namespace TicketService.Models;
+
+public class Ticket
 {
-    public class Ticket
-    {
-        [Key]
-        public int Id { get; set; }
-        public string? TenantId { get; set; } 
+    public int Id { get; set; }
 
-        public int RoomId { get; set; }
+    public string? TenantId { get; set; } 
 
-        [Required]
-        public string Title { get; set; } = string.Empty;
+    public string? OwnerId { get; set; }
 
-        public string Description { get; set; } = string.Empty;
+    public int ContractId { get; set; }
 
-        public string Status { get; set; } = "pending";
+    public string Title { get; set; } = string.Empty;
 
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-        
-        // public DateTime? UpdatedAt { get; set; }
-    }
+    public string Description { get; set; } = string.Empty;
+
+    public TicketStatus Status { get; set; } = TicketStatus.Pending;
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    public DateTime ClosedAt { get; set; }
 }

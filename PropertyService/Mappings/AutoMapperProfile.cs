@@ -19,7 +19,9 @@ public class AutoMapperProfile : Profile
         CreateMap<UpdateRoomDto, Room>();
 
         CreateMap<CreateContractDto, TenantContracts>().ForMember(dest => dest.Status, opt => opt.Ignore());;
-        CreateMap<TenantContracts, ContractDto>();
+        CreateMap<TenantContracts, ContractDto>()
+            .ForMember(dest => dest.HouseName, opt => opt.MapFrom(src => src.Room != null ? src.Room.House.Name : null))
+            .ForMember(dest => dest.RoomName, opt => opt.MapFrom(src => src.Room != null ? src.Room.Name : null));
         CreateMap<UpdateContractDto, TenantContracts>();
     }
 }

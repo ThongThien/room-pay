@@ -125,11 +125,8 @@ var app = builder.Build();
 // =====================
 // 6. PIPELINE
 // =====================
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("AllowFE");
 

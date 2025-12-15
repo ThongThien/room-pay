@@ -317,7 +317,7 @@ namespace NotificationService.Services
 
             await repository.AddAsync(new Notification
             {
-                UserId = message.UserId, 
+                UserId = message.OwnerId, 
                 Message = dbMessage,
                 Type = NotificationType.ReadingAnomaly
             });

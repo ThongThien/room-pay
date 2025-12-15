@@ -1,4 +1,5 @@
 import { getAuthHeaders, API_URLS } from '@/utils/config';
+import { ticketService } from '@/services/ticketService';
 import { 
     OwnerDashboardData, 
     MonthlyRevenueDataPoint,
@@ -198,14 +199,15 @@ export const fetchOwnerDashboardData = async (): Promise<OwnerDashboardData> => 
 
     const myHouseNames = await fetchMyHouseNames();
     const [
-        revenueData, pendingList, abnormalList, contractList, overdueList, allPaidInvoices
+        revenueData, pendingList, abnormalList, contractList, overdueList, allPaidInvoices, ticketData
     ] = await Promise.all([
         fetchRevenueChartData(),
         fetchPendingInvoicesFiltered(myHouseNames),
         fetchAbnormalReadingsFiltered(myHouseNames),
         fetchExpiringContracts(),
         fetchOverdueInvoicesFiltered(myHouseNames),
-        fetchAllPaidInvoices()
+        fetchAllPaidInvoices(),
+        ticketService.getAllTickets()
     ]);
 
     const buildingData = await fetchBuildingPerformance(allPaidInvoices);
@@ -236,11 +238,14 @@ export const fetchOwnerDashboardData = async (): Promise<OwnerDashboardData> => 
         })
         .reduce((sum, item) => sum + item.totalAmount, 0);
 
+    // Tính số lượng ticket có trạng thái 1 (InProgress) và 2 (Done)
+    const activeTicketsCount = ticketData.filter(ticket => ticket.status === 0 || ticket.status === 1).length;
+
     return {
         totalRooms: buildingData.totalRooms,
         occupiedRooms: buildingData.occupiedRooms,
         annualTurnover: '---', 
-        pendingIncidents: 5,
+        pendingIncidents: activeTicketsCount,
         endContractsCount: contractList.length,
         abnormalReadingCount: abnormalList.length,
         invoiceSummary: {

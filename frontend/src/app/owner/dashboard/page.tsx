@@ -606,7 +606,7 @@ const OwnerDashboardPage: React.FC = () => {
                     title="🛠️ Sự cố Đang chờ xử lý"
                     value={`${data.pendingIncidents} Sự cố`}
                     color="red"
-                    onClick={() => router.push('/owner/ticket')}
+                    onClick={() => router.push('/owner/tickets')}
                     isClickable={true}
                 />
 

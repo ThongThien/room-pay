@@ -140,7 +140,10 @@ public class ContractService : IContractService
     // Triển khai phương thức cũ cho ContractController.GetContract(int id)
     public async Task<ContractDto?> GetContractByIdAsync(int id)
     {
-        var contract = await _contractRepo.GetByIdAsync(id);
+        var contract = await _contractRepo.Query()
+            .Include(c => c.Room)
+            .ThenInclude(r => r.House)
+            .FirstOrDefaultAsync(c => c.Id == id);
         return _mapper.Map<ContractDto>(contract);
     }
 
@@ -266,7 +269,7 @@ public class ContractService : IContractService
                 
                 // Lấy thông tin JOIN từ Rooms và Houses
                 HouseName = c.Room!.House!.Name, 
-                RoomNumber = c.Room!.Name 
+                RoomName = c.Room!.Name 
             })
             .FirstOrDefaultAsync(); // Lấy 1 bản ghi duy nhất
 
@@ -319,7 +322,7 @@ public class ContractService : IContractService
             FileUrl = c.FileUrl,
             CreatedAt = c.CreatedAt,
             HouseName = c.Room!.House!.Name ?? string.Empty,
-            RoomNumber = c.Room!.Name ?? string.Empty
+            RoomName = c.Room!.Name ?? string.Empty
         }).ToList();
     }
 
@@ -334,7 +337,7 @@ public class ContractService : IContractService
             {
                 ContractId = c.Id,
                 HouseName = c.Room.House.Name,
-                RoomName = c.Room.Name, // Giả định c.Room.Name là RoomNumber
+                RoomName = c.Room.Name, // Giả định c.Room.Name là RoomName
                 Floor = c.Room.Floor // Giả định Room có thuộc tính Floor (int)
             })
             .FirstOrDefaultAsync();

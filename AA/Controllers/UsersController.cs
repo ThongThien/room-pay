@@ -387,4 +387,30 @@ public class UsersController : ControllerBase
             return StatusCode(500, new { error = "Internal server error when fetching Owner IDs" });
         }
     }
+
+    /// <summary>
+    /// Get OwnerId of a user (Service-to-service)
+    /// </summary>
+    [HttpGet("{userId}/owner")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetUserOwnerId(string userId)
+    {
+        // Validate service API key
+        var apiKey = Request.Headers["X-Service-Api-Key"].FirstOrDefault();
+        var configuredApiKey = _configuration["ServiceApiKey"];
+        
+        if (string.IsNullOrEmpty(apiKey) || apiKey != configuredApiKey)
+        {
+            _logger.LogWarning("Invalid or missing API key for GetUserOwnerId");
+            return Unauthorized(new { error = "Invalid or missing authentication" });
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return NotFound(new { error = $"User with ID {userId} not found" });
+        }
+
+        return Ok(new { OwnerId = user.OwnerId });
+    }
 }

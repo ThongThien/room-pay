@@ -158,7 +158,14 @@ export default function SubmitMeterPage() {
     const hasWarning = isHighElec || isHighWater;
 
     return (
-        <div className="space-y-7 relative">
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800">Nộp chỉ số điện nước</h2>
+                    <p className="text-gray-500 text-sm">Gửi chỉ số tiêu thụ hàng tháng của bạn</p>
+                </div>
+            </div>
+
             {cycle && (
                 <div className="bg-white p-5 rounded-xl shadow text-gray-700">
                     <div className="flex items-center justify-between mb-4">

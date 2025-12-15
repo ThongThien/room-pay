@@ -86,7 +86,7 @@ namespace PropertyService.Controllers
                 data = new 
                 {
                     HouseName = contract.HouseName,
-                    RoomNumber = contract.RoomNumber,
+                    RoomName = contract.RoomName,
                     ContractEndDate = contract.EndDate, 
                     // Sử dụng cú pháp rút gọn cho biến cục bộ
                     contractStatus,     
@@ -119,5 +119,22 @@ namespace PropertyService.Controllers
                 return StatusCode(500, new { success = false, message = "Internal server error." });
             }
         }
+
+        /// <summary>
+        /// Get active contract ID for a tenant (Service-to-service)
+        /// </summary>
+        [HttpGet("active/{tenantId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetActiveContractId(string tenantId)
+        {
+
+            var contract = await _contractService.GetActiveContractByTenantIdAsync(tenantId);
+            if (contract == null)
+            {
+                return NotFound(new { error = "No active contract found" });
+            }
+
+            return Ok(new { ContractId = contract.Id });
+        }
     }
 }

@@ -1,17 +1,18 @@
 export interface Ticket {
   id: number;
-  tenantId: string;
-  roomId: number;
   title: string;
   description: string;
-  status: string; // "pending" | "processing" | "done"
+  status: number; // 0: Pending, 1: InProgress, 2: Done
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
+  closedAt?: string;
+  contractId: number;
+  houseName?: string;
+  roomName?: string;
+  tenantName?: string;
 }
 
 export interface CreateTicketDto {
-  tenantId: string;
-  roomId: number;
   title: string;
   description: string;
 }

@@ -25,13 +25,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // =====================
 // 2. CORS (AN TOÀN, DEV DỄ CHẠY)
 // =====================
+// Add Cors
+string allowedOrigins = builder.Configuration
+                             .GetSection("Cors:AllowedOrigins")
+                             .Get<string>() ?? string.Empty;
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowFE", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowCredentials();
     });
 });
 
@@ -110,11 +115,6 @@ builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
 {
     var aaServiceUrl = builder.Configuration["ServiceUrls:AA"];
 
-    if (string.IsNullOrEmpty(aaServiceUrl))
-    {
-        aaServiceUrl = "http://localhost:5001"; // fallback dev
-    }
-
     client.BaseAddress = new Uri(aaServiceUrl);
 });
 
@@ -131,7 +131,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowAll");
+app.UseCors("AllowFE");
 
 app.UseAuthentication();
 app.UseAuthorization();

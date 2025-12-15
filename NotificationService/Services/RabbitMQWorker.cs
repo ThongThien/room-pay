@@ -210,7 +210,6 @@ namespace NotificationService.Services
                 Console.WriteLine($"[DB] Saved payment reminder for User {tenantInfo.Id}");
             }
         }
-
         private async Task HandleReadingNotification(ReadingNotificationMessage message, INotificationRepository repository)
         {
             if (message?.CustomersToNotify == null) return;
@@ -318,7 +317,7 @@ namespace NotificationService.Services
 
             await repository.AddAsync(new Notification
             {
-                UserId = message.TenantId, 
+                UserId = message.UserId, 
                 Message = dbMessage,
                 Type = NotificationType.ReadingAnomaly
             });

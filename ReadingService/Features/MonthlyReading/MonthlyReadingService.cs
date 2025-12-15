@@ -425,6 +425,7 @@ public class MonthlyReadingService : IMonthlyReadingService
                             Type = "ReadingAnomaly", // NotificationService sẽ lắng nghe type này
                             RecipientEmail = ownerEmail,
                             TenantId = tenantUserId,
+                            OwnerId = ownerId,
                             CycleMonth = cycleMonth,
                             CycleYear = cycleYear,
                             ElectricUsage = electricUsage,

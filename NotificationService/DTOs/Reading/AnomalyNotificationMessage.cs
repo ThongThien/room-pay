@@ -8,6 +8,7 @@ namespace NotificationService.DTOs.Reading
         public string Type { get; set; } = string.Empty; // Sẽ là "ReadingAnomaly"
         public string RecipientEmail { get; set; } = string.Empty; // Email của Owner
         public string TenantId { get; set; } = string.Empty;
+        public string OwnerId { get; set; } = string.Empty;
         public int CycleMonth { get; set; }
         public int CycleYear { get; set; }
         public int ElectricUsage { get; set; }

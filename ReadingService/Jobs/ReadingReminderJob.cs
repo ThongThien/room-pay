@@ -40,62 +40,69 @@ public class ReadingReminderJob : IJob
 
         try
         {
-            // 1. TÌM CYCLE MỚI NHẤT
-            var latestCycle = await _readingCycleService.GetLatestCycleByOwnerAsync(ownerId);
+            // 1. TÌM TẤT CẢ CÁC CYCLE/TENANT CẦN NHẮC NHỞ TRONG THÁNG HIỆN TẠI
+            // SỬ DỤNG HÀM MỚI (đã sửa đổi logic của GetLatestCycleByOwnerAsync)
+            // Hàm này trả về List<ReadingCycleDto> của các Tenant có MonthlyReading đang Pending.
+            var pendingCycles = await _readingCycleService.GetPendingSubmissionCyclesByOwnerAsync(ownerId); // ⭐️ THAY THẾ
             
-            if (latestCycle == null)
+            if (pendingCycles == null || !pendingCycles.Any())
             {
-                _logger.LogWarning("   ℹ️ No latest cycle found for Owner {OwnerId}. Skipping reminder.", ownerId);
+                _logger.LogInformation("   ℹ️ No pending submission cycles found for Owner {OwnerId} in current month. Skipping reminder.", ownerId);
                 return; 
             }
 
-            // 2. LẤY DANH SÁCH KHÁCH HÀNG CHƯA NỘP
-            int ownerCycleId = latestCycle.Id; 
-            // Giả định hàm này trả về List<UserInfo> hoặc DTO tương tự
-            var tenantsToRemind = await _readingCycleService.GetTenantsMissingReadingAsync(ownerCycleId);
+            // 2. TRÍCH XUẤT THÔNG TIN KHÁCH HÀNG (Tenant) VÀ NHÓM THEO ID
+            // Nhóm theo UserId để chỉ gửi 1 thông báo cho mỗi Tenant
+            var tenantsToRemindCycle = pendingCycles
+                .GroupBy(c => c.UserId) 
+                .Select(g => g.First())
+                .ToList();
+
+            // 3. Lấy thông tin UserInfo chi tiết của các Tenant
+            var tenantIds = tenantsToRemindCycle.Select(c => c.UserId).ToList();
+            var tenantsToRemind = await _userService.GetUsersByIdsAsync(tenantIds); 
             
-            if (tenantsToRemind.Any())
+            if (tenantsToRemind == null || !tenantsToRemind.Any())
             {
-                // 3. CHUẨN BỊ MESSAGE QUA RABBITMQ
-                
-                // ⭐️ DÙNG OWNER NAME CỐ ĐỊNH NHƯ LOGIC CONTROLLER CUNG CẤP
-                string ownerName = "Chủ nhà"; 
-                
-                // ⭐️ CHUẨN BỊ CUSTOMERS TO NOTIFY
-                // Giả định tenantsToRemind là List<UserInfo> hoặc DTO tương đương có các trường Id, FullName, Email
-                var customersToNotify = tenantsToRemind.Select(t => new UserInfo 
-                {
-                    Id = t.Id, FullName = t.FullName, Email = t.Email, OwnerId = ownerId 
-                }).ToList();
-
-
-                // ⭐️ SỬ DỤNG CẤU TRÚC MESSAGE ĐÃ XÁC ĐỊNH
-                // Giả định bạn đã có định nghĩa cho ReadingNotificationMessage và NotificationType
-                var message = new 
-                {
-                    // Type = NotificationType.RemindSubmission, // Nếu dùng anonymous object
-                    Type = "RemindSubmission",
-                    ReadingCycleId = ownerCycleId,
-                    CustomersToNotify = customersToNotify.Select(t => new { t.Id, t.FullName, t.Email }).ToList(),
-                    OwnerName = ownerName,
-                    CycleMonth = latestCycle.CycleMonth,
-                    CycleYear = latestCycle.CycleYear
-                };
-                
-                // Gửi message lên RabbitMQ
-                _rabbitMqProducer.SendMessage(message, "notification_queue");
-                
-                _logger.LogInformation("   ✅ Sent submission reminder to {Count} tenants for Owner {OwnerId}", tenantsToRemind.Count(), ownerId);
+                _logger.LogWarning("   ℹ️ No detailed user info found for pending tenants of Owner {OwnerId}. Skipping.", ownerId);
+                return;
             }
-            else
+
+            // Dữ liệu chu kỳ để đưa vào message (Lấy từ bản ghi đầu tiên)
+            var firstCycle = tenantsToRemindCycle.First();
+
+            // 4. CHUẨN BỊ VÀ GỬI MESSAGE QUA RABBITMQ
+            
+            string ownerName = "Chủ nhà"; // Cần lấy Owner Name thực tế nếu có
+            
+            // CHUẨN BỊ CUSTOMERS TO NOTIFY
+            var customersToNotify = tenantsToRemind.Select(t => new UserInfo 
             {
-                _logger.LogInformation("   ℹ️ All tenants have submitted readings for Owner {OwnerId}. Skipping.", ownerId);
-            }
+                Id = t.Id, FullName = t.FullName, Email = t.Email, OwnerId = ownerId 
+            }).ToList();
+
+            // SỬ DỤNG CẤU TRÚC MESSAGE ĐÃ XÁC ĐỊNH
+            // Nếu ReadingNotificationMessage là một class định nghĩa, nên sử dụng nó
+            var message = new 
+            {
+                Type = "RemindSubmission", // Giả định là string "RemindSubmission"
+                ReadingCycleId = 0, // Đặt là 0 vì áp dụng cho nhiều Cycle
+                CustomersToNotify = customersToNotify.Select(t => new { t.Id, t.FullName, t.Email }).ToList(),
+                OwnerName = ownerName,
+                CycleMonth = firstCycle.CycleMonth,
+                CycleYear = firstCycle.CycleYear
+            };
+            
+            // Gửi message lên RabbitMQ
+            _rabbitMqProducer.SendMessage(message, "notification_queue");
+            
+            _logger.LogInformation("   ✅ Sent submission reminder to {Count} tenants for Owner {OwnerId} (Cycle: {Month}/{Year})", 
+                customersToNotify.Count, ownerId, firstCycle.CycleMonth, firstCycle.CycleYear);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ ERROR processing reading reminder for Owner {OwnerId}", ownerId);
         }
-         _logger.LogInformation("🟡 [END] Reading Submission Reminder Job for Owner: {OwnerId}", ownerId);
+        _logger.LogInformation("🟡 [END] Reading Submission Reminder Job for Owner: {OwnerId}", ownerId);
     }
 }

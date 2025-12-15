@@ -13,6 +13,5 @@ public interface IReadingCycleService
     Task<bool> DeleteAsync(int id);
     Task<bool> ExistsAsync(string userId, int month, int year);
 
-    Task<ReadingCycleDto?> GetLatestCycleByOwnerAsync(string ownerId);
-    Task<IEnumerable<UserInfo>> GetTenantsMissingReadingAsync(int cycleId);
+    Task<IEnumerable<ReadingCycleDto>> GetPendingSubmissionCyclesByOwnerAsync(string ownerId);
 }
